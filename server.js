@@ -45,7 +45,7 @@ app.get('/api/website/listings', async (req, res) => {
     const token = await getGuestyToken();
     const { limit = 24 } = req.query;
     const response = await fetch(
-      `https://open-api.guesty.com/v1/listings?limit=${limit}&fields=_id,title,nickname,address,bedrooms,bathrooms,accommodates,prices,pictures,publicDescription,amenities,active,tags`,
+      `https://open-api.guesty.com/v1/listings?limit=${limit}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();

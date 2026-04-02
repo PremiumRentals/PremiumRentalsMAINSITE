@@ -33,31 +33,30 @@ async function getGuestyToken() {
     })
   });
   const d = await res.json();
+  if (!d.access_token) throw new Error('Guesty auth failed: ' + JSON.stringify(d));
   guestyToken = d.access_token;
   guestyTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
   return guestyToken;
 }
 
-// ── Routes ──
+// ── Route 1: Get all active listings ──
 app.get('/api/website/listings', async (req, res) => {
   try {
     const token = await getGuestyToken();
-    const { limit = 24, city, minBeds, minGuests } = req.query;
+    const { limit = 24 } = req.query;
     const response = await fetch(
-      `https://open-api.guesty.com/v1/listings?limit=${limit}&fields=title,nickname,address,bedrooms,bathrooms,accommodates,prices,pictures,publicDescription,amenities,active`,
+      `https://open-api.guesty.com/v1/listings?limit=${limit}&fields=_id,title,nickname,address,bedrooms,bathrooms,accommodates,prices,pictures,publicDescription,amenities,active,tags`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    let { results } = await response.json();
-    results = results.filter(l => l.active !== false);
-    if (city) results = results.filter(l => l.address?.city?.toLowerCase().includes(city.toLowerCase()));
-    if (minBeds) results = results.filter(l => l.bedrooms >= parseInt(minBeds));
-    if (minGuests) results = results.filter(l => l.accommodates >= parseInt(minGuests));
+    const data = await response.json();
+    const results = (data.results || []).filter(l => l.active !== false);
     res.json({ success: true, count: results.length, listings: results });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
+// ── Route 2: Check availability + pricing ──
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const token = await getGuestyToken();
@@ -75,6 +74,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
   }
 });
 
+// ── Route 3: Contact form → Supabase ──
 app.post('/api/website/contact', async (req, res) => {
   try {
     const { firstName, lastName, email, interest, message } = req.body;
@@ -88,6 +88,7 @@ app.post('/api/website/contact', async (req, res) => {
   }
 });
 
+// ── Route 4: Newsletter signup → Supabase ──
 app.post('/api/website/newsletter', async (req, res) => {
   try {
     const { email } = req.body;
@@ -101,4 +102,7 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
-app.listen(process.env.PORT || 3001, () => console.log('Server running'));
+// ── Health check ──
+app.get('/', (req, res) => res.json({ status: 'Premium Rentals API running' }));
+
+app.listen(process.env.PORT || 3001, () => console.log('Server running on port', process.env.PORT || 3001));

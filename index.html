@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premium Rentals – Luxury Short Term Rentals</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{
+  --gold:#C9A96E;--gold-light:#E8D5B0;--dark:#1a1a1a;--mid:#6b6b6b;
+  --light:#f7f5f2;--white:#fff;--accent:#2C4A3E;
+}
+body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);overflow-x:hidden}
+.serif{font-family:'Playfair Display',serif}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:72px;transition:all .3s}
+nav.scrolled{background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
+.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:#fff;font-weight:600;letter-spacing:1px;transition:color .3s;text-decoration:none}
+nav.scrolled .nav-logo{color:var(--dark)}
+.nav-logo span{color:var(--gold)}
+.nav-links{display:flex;gap:32px;list-style:none;align-items:center}
+.nav-links a{text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.5px;color:rgba(255,255,255,.85);transition:color .3s}
+nav.scrolled .nav-links a{color:var(--mid)}
+.nav-links a:hover{color:var(--gold)!important}
+.nav-cta{background:var(--gold);color:var(--white)!important;padding:10px 24px;border-radius:2px;font-size:13px!important;font-weight:600!important;transition:background .3s!important}
+.nav-cta:hover{background:#b8914e!important}
+
+/* HERO */
+.hero{position:relative;height:100vh;min-height:640px;display:flex;align-items:center;overflow:hidden}
+.hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,#1a2e28,#2C4A3E,#1a3028)}
+.hero-pattern{position:absolute;inset:0;opacity:.04;background-image:repeating-linear-gradient(45deg,#fff 0,#fff 1px,transparent 0,transparent 50%);background-size:20px 20px}
+.hero-img{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1600&q=80') center/cover no-repeat;opacity:.35}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,.5),rgba(0,0,0,.1))}
+.hero-content{position:relative;z-index:2;padding:0 5%;max-width:800px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(201,169,110,.15);border:1px solid rgba(201,169,110,.4);color:var(--gold-light);padding:7px 18px;border-radius:30px;font-size:12px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:28px}
+.hero-badge::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(38px,6vw,72px);color:#fff;font-weight:500;line-height:1.1;margin-bottom:20px}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:17px;color:rgba(255,255,255,.75);line-height:1.7;max-width:520px;margin-bottom:40px}
+.hero-btns{display:flex;gap:16px;flex-wrap:wrap}
+.btn-primary{background:var(--gold);color:#fff;padding:16px 36px;border:none;border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .25s;text-decoration:none;display:inline-block}
+.btn-primary:hover{background:#b8914e;transform:translateY(-1px)}
+.btn-outline{background:transparent;color:#fff;padding:16px 36px;border:1px solid rgba(255,255,255,.5);border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .25s;text-decoration:none;display:inline-block}
+.btn-outline:hover{border-color:#fff;background:rgba(255,255,255,.08)}
+.hero-stats{position:absolute;bottom:48px;left:5%;right:5%;display:flex;gap:40px;z-index:2;flex-wrap:wrap}
+.hero-stat-num{font-family:'Playfair Display',serif;font-size:32px;color:var(--gold);font-weight:600}
+.hero-stat-lbl{font-size:12px;color:rgba(255,255,255,.6);letter-spacing:.5px;margin-top:2px}
+
+/* SEARCH */
+.search-section{background:var(--white);padding:0 5%}
+.search-bar{background:var(--white);border-radius:4px;box-shadow:0 8px 48px rgba(0,0,0,.12);padding:10px;display:flex;align-items:stretch;max-width:900px;margin:0 auto;transform:translateY(-50%);border:1px solid #eeede9}
+.sf{flex:1;padding:13px 18px;border-right:1px solid #eeede9;display:flex;flex-direction:column;gap:4px}
+.sf:last-of-type{border-right:none}
+.sf-label{font-size:9px;font-weight:600;letter-spacing:1px;color:var(--mid);text-transform:uppercase}
+.sf input,.sf select{border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;-webkit-appearance:none}
+.sf input::placeholder{color:#bbb}
+.search-btn{background:var(--accent);color:#fff;border:none;padding:0 28px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background .25s;margin-left:8px;white-space:nowrap}
+.search-btn:hover{background:#1e3329}
+
+/* SECTIONS */
+section{padding:90px 5%}
+.section-label{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,44px);font-weight:500;line-height:1.2;color:var(--dark);margin-bottom:16px}
+.section-sub{font-size:16px;color:var(--mid);line-height:1.7;max-width:560px}
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.fade-up.visible{opacity:1;transform:none}
+.section-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;flex-wrap:wrap;gap:20px}
+.view-all{color:var(--gold);font-size:13px;font-weight:600;text-decoration:none;letter-spacing:.5px;border-bottom:1px solid var(--gold);padding-bottom:2px}
+
+/* PROPERTIES */
+.properties-section{background:var(--light)}
+.properties-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(320px,1fr));gap:28px}
+.prop-card{background:var(--white);border-radius:4px;overflow:hidden;transition:transform .3s,box-shadow .3s;cursor:pointer}
+.prop-card:hover{transform:translateY(-6px);box-shadow:0 20px 50px rgba(0,0,0,.12)}
+.prop-img-wrap{position:relative;height:240px;overflow:hidden;background:#f0ede8}
+.prop-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
+.prop-card:hover .prop-img-wrap img{transform:scale(1.06)}
+.prop-badge{position:absolute;top:16px;left:16px;background:var(--gold);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:5px 12px;border-radius:2px}
+.prop-fav{position:absolute;top:14px;right:14px;width:34px;height:34px;background:rgba(255,255,255,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:16px;cursor:pointer;border:none;transition:all .2s}
+.prop-fav:hover{transform:scale(1.1)}
+.prop-body{padding:20px 22px 22px}
+.prop-location{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:6px}
+.prop-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark);margin-bottom:10px;line-height:1.3}
+.prop-meta{display:flex;gap:18px;margin-bottom:16px;flex-wrap:wrap}
+.prop-meta span{font-size:13px;color:var(--mid)}
+.prop-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f0ede8;padding-top:16px;gap:8px}
+.prop-price{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark);font-weight:600}
+.prop-price small{font-family:'Inter',sans-serif;font-size:13px;color:var(--mid);font-weight:400}
+.prop-rating{display:flex;align-items:center;gap:5px;font-size:13px;font-weight:500}
+.stars{color:var(--gold);font-size:12px}
+.book-btn{background:var(--accent);color:#fff;border:none;padding:9px 20px;border-radius:2px;font-size:12px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap}
+.book-btn:hover{background:#1e3329}
+.skeleton{background:linear-gradient(90deg,#f0ede8 25%,#e8e3db 50%,#f0ede8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
+@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+.skel-img{height:240px;width:100%}
+.skel-line{height:14px;margin-bottom:10px}
+
+/* ABOUT */
+.experience-grid{display:grid;grid-template-columns:1fr 1fr;min-height:600px}
+.exp-img{overflow:hidden}
+.exp-img img{width:100%;height:100%;object-fit:cover}
+.exp-content{background:var(--dark);padding:80px 60px;display:flex;flex-direction:column;justify-content:center}
+.exp-feat{display:flex;gap:16px;align-items:flex-start;margin-bottom:20px}
+.exp-feat-icon{width:40px;height:40px;background:rgba(201,169,110,.15);border:1px solid rgba(201,169,110,.3);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:18px;flex-shrink:0}
+.exp-feat-text h4{font-size:15px;font-weight:600;color:#fff;margin-bottom:4px}
+.exp-feat-text p{font-size:13px;color:rgba(255,255,255,.55);line-height:1.6}
+
+/* AMENITIES */
+.amenities-section{background:var(--light)}
+.amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:16px;margin-top:48px}
+.amenity-card{background:var(--white);padding:28px 20px;text-align:center;border-radius:4px;border:1px solid #eeede9;transition:all .3s}
+.amenity-card:hover{border-color:var(--gold);transform:translateY(-3px)}
+.amenity-icon{font-size:28px;margin-bottom:12px}
+.amenity-name{font-size:13px;font-weight:500;color:var(--dark)}
+
+/* TESTIMONIALS */
+.testi-header{display:flex;justify-content:space-between;align-items:flex-end;margin-bottom:48px;flex-wrap:wrap;gap:16px}
+.testi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:24px}
+.testi-card{background:var(--light);padding:32px;border-radius:4px;border:1px solid #eeede9}
+.testi-quote{font-size:48px;color:var(--gold-light);font-family:'Playfair Display',serif;line-height:.9;margin-bottom:8px}
+.testi-text{font-size:15px;color:var(--mid);line-height:1.7;margin-bottom:20px;font-style:italic}
+.testi-author{display:flex;align-items:center;gap:12px}
+.testi-av{width:44px;height:44px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-weight:600;font-size:14px;flex-shrink:0}
+.testi-name{font-weight:600;font-size:14px;color:var(--dark)}
+.testi-loc{font-size:12px;color:var(--mid)}
+
+/* OWNERS */
+.owners-section{background:var(--accent);padding:90px 5%}
+.owners-inner{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.svc-item{display:flex;align-items:center;gap:10px;font-size:13px;color:rgba(255,255,255,.7);padding:8px 0;border-bottom:1px solid rgba(255,255,255,.07)}
+.svc-item::before{content:'';width:18px;height:1px;background:var(--gold);flex-shrink:0}
+.owner-stats{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:32px}
+.owner-stat{padding:18px;background:rgba(255,255,255,.06);border:1px solid rgba(255,255,255,.1);border-radius:2px}
+.owner-stat-num{font-family:'Playfair Display',serif;font-size:30px;color:var(--gold);font-weight:600;margin-bottom:4px}
+.owner-stat-lbl{font-size:12px;color:rgba(255,255,255,.55)}
+.owners-img-wrap{position:relative}
+.owners-img-wrap img{width:100%;height:460px;object-fit:cover;border-radius:4px}
+.owners-badge{position:absolute;bottom:24px;left:-28px;background:#fff;padding:18px 22px;border-radius:4px;box-shadow:0 10px 30px rgba(0,0,0,.15)}
+.owners-badge-num{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);font-weight:600}
+.owners-badge-txt{font-size:12px;color:var(--mid);line-height:1.5}
+
+/* PROCESS */
+.process-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:40px;margin-top:56px;position:relative}
+.process-steps::before{content:'';position:absolute;top:28px;left:10%;right:10%;height:1px;background:var(--gold-light)}
+.step{text-align:center;position:relative;z-index:1}
+.step-num{width:56px;height:56px;background:var(--white);border:2px solid var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:20px;font-weight:600;color:var(--gold);margin:0 auto 20px}
+.step-title{font-weight:600;font-size:15px;color:var(--dark);margin-bottom:8px}
+.step-text{font-size:13px;color:var(--mid);line-height:1.6}
+
+/* CONTACT */
+.contact-section{background:var(--dark);padding:90px 5%}
+.contact-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:start}
+.cd{display:flex;gap:16px;align-items:flex-start;margin-bottom:24px}
+.cd-ico{width:40px;height:40px;background:rgba(201,169,110,.12);border:1px solid rgba(201,169,110,.25);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:17px;flex-shrink:0}
+.cd-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--gold);margin-bottom:4px}
+.cd-value{font-size:14px;color:rgba(255,255,255,.75);font-weight:300}
+.contact-form-box{background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:40px 36px}
+.form-title{font-family:'Playfair Display',serif;font-size:26px;color:#fff;margin-bottom:28px;font-weight:500}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fg label{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:rgba(255,255,255,.38)}
+.fg input,.fg select,.fg textarea{background:rgba(255,255,255,.05);border:1px solid rgba(255,255,255,.1);color:#fff;font-family:'Inter',sans-serif;font-size:13px;padding:12px 14px;outline:none;transition:border-color .2s;width:100%}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:rgba(201,169,110,.45)}
+.fg input::placeholder,.fg textarea::placeholder{color:rgba(255,255,255,.25)}
+.fg select option{background:#1a1a1a}
+.fg textarea{resize:vertical;min-height:90px}
+.form-submit{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:background .25s;margin-top:4px}
+.form-submit:hover{background:#b8914e}
+
+/* NEWSLETTER */
+.newsletter{background:#111;padding:72px 5%;text-align:center}
+.newsletter .section-title{color:#fff;text-align:center;margin-bottom:8px}
+.newsletter p{color:rgba(255,255,255,.5);font-size:14px;margin-bottom:32px}
+.nl-form{display:flex;max-width:460px;margin:0 auto}
+.nl-in{flex:1;padding:15px 18px;border:1px solid rgba(255,255,255,.12);background:rgba(255,255,255,.06);color:#fff;font-family:'Inter',sans-serif;font-size:13px;border-radius:2px 0 0 2px;outline:none}
+.nl-in::placeholder{color:rgba(255,255,255,.3)}
+.nl-btn{background:var(--gold);color:#fff;border:none;padding:15px 26px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:0 2px 2px 0;transition:background .25s;white-space:nowrap}
+.nl-btn:hover{background:#b8914e}
+
+/* FOOTER */
+footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px}
+.footer-brand p{font-size:13px;line-height:1.8;max-width:260px;font-weight:300;margin-top:14px}
+.footer-socials{display:flex;gap:10px;margin-top:20px}
+.soc{width:36px;height:36px;border:1px solid rgba(255,255,255,.1);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.4);text-decoration:none}
+.soc:hover{border-color:var(--gold);color:var(--gold)}
+.fc h5{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;margin-bottom:16px}
+.fc a{display:block;font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;margin-bottom:10px;font-weight:300;transition:color .2s}
+.fc a:hover{color:var(--gold)}
+.footer-bot{border-top:1px solid rgba(255,255,255,.06);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:11px}
+.footer-bot a{color:rgba(255,255,255,.28);text-decoration:none}
+.footer-bot a:hover{color:var(--gold)}
+
+/* MODAL */
+#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
+.modal-box{background:#fff;max-width:560px;width:92%;border-radius:4px;overflow:hidden;position:relative;max-height:90vh;overflow-y:auto}
+.modal-header{padding:28px 32px 20px;border-bottom:1px solid #f0ede8;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+.modal-eyebrow{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
+.modal-prop-name{font-family:'Playfair Display',serif;font-size:24px;color:var(--dark);font-weight:500}
+.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--mid);padding:4px;flex-shrink:0}
+.modal-body{padding:24px 32px 32px}
+.modal-dates{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.modal-field{display:flex;flex-direction:column;gap:6px}
+.modal-field label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid)}
+.modal-field input,.modal-field select{border:1px solid #e0ddd8;padding:11px 14px;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);outline:none;border-radius:2px;transition:border-color .2s}
+.modal-field input:focus,.modal-field select:focus{border-color:var(--gold)}
+.avail-result{padding:13px 16px;border-radius:2px;font-size:13px;font-weight:500;margin:14px 0;display:none}
+.avail-result.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
+.avail-result.no{background:rgba(192,57,43,.07);color:#c0392b;border:1px solid rgba(192,57,43,.2)}
+.price-breakdown{background:var(--light);border-radius:4px;padding:18px;margin-bottom:18px;display:none}
+.price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:4px 0}
+.price-row.total{font-weight:600;color:var(--dark);font-size:15px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:6px}
+.modal-book-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:2px;transition:background .25s}
+.modal-book-btn:hover{background:#b8914e}
+.modal-book-btn:disabled{background:#ccc;cursor:default}
+
+@media(max-width:820px){
+  .nav-links{display:none}
+  .experience-grid,.owners-inner,.contact-grid{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .process-steps::before{display:none}
+  .owners-badge{left:0}
+  .modal-dates{grid-template-columns:1fr}
+  .search-bar{flex-direction:column}
+  .sf{border-right:none;border-bottom:1px solid #eeede9}
+  .search-btn{width:100%;margin-left:0;padding:14px;margin-top:8px}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav id="mainNav">
+  <a href="#" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <ul class="nav-links">
+    <li><a href="#properties">Properties</a></li>
+    <li><a href="#about">About</a></li>
+    <li><a href="#amenities">Amenities</a></li>
+    <li><a href="#owners">Owner Services</a></li>
+    <li><a href="#contact">Contact</a></li>
+    <li><a href="#properties" class="nav-cta">Book Now</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-pattern"></div>
+  <div class="hero-img"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content fade-up">
+    <div class="hero-badge">Luxury Short Term Rentals</div>
+    <h1 class="serif">Find Your<br><em>Perfect Escape</em></h1>
+    <p class="hero-sub">Handpicked luxury properties managed with care. Every stay crafted to feel like home — only better.</p>
+    <div class="hero-btns">
+      <a href="#properties" class="btn-primary">Browse Properties</a>
+      <a href="#about" class="btn-outline">Our Story</a>
+    </div>
+  </div>
+  <div class="hero-stats">
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-props">79</div><div class="hero-stat-lbl">Properties</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">4.9★</div><div class="hero-stat-lbl">Avg. Rating</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">8K+</div><div class="hero-stat-lbl">Happy Guests</div></div>
+    <div class="hero-stat"><div class="hero-stat-num">24/7</div><div class="hero-stat-lbl">Support</div></div>
+  </div>
+</section>
+
+<!-- SEARCH -->
+<div class="search-section">
+  <div class="search-bar fade-up">
+    <div class="sf"><span class="sf-label">Location</span><input type="text" id="search-location" placeholder="City or property name"></div>
+    <div class="sf"><span class="sf-label">Check In</span><input type="date" id="search-checkin"></div>
+    <div class="sf"><span class="sf-label">Check Out</span><input type="date" id="search-checkout"></div>
+    <div class="sf"><span class="sf-label">Guests</span>
+      <select id="search-guests">
+        <option value="1">1 guest</option><option value="2" selected>2 guests</option>
+        <option value="4">4 guests</option><option value="6">6 guests</option>
+        <option value="8">8 guests</option><option value="10">10+ guests</option>
+      </select>
+    </div>
+    <button class="search-btn" onclick="filterProperties()">Search</button>
+  </div>
+</div>
+
+<!-- PROPERTIES -->
+<section class="properties-section" id="properties" style="padding-top:72px">
+  <div class="section-header fade-up">
+    <div>
+      <p class="section-label">Our Collection</p>
+      <h2 class="section-title serif">Featured Properties</h2>
+    </div>
+    <a href="#" class="view-all" id="view-all-link">View All Properties →</a>
+  </div>
+  <div class="properties-grid" id="properties-grid">
+    <!-- Skeleton loaders shown while API fetches -->
+    <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
+    <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
+    <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
+  </div>
+</section>
+
+<!-- ABOUT -->
+<section style="padding:0" id="about">
+  <div class="experience-grid">
+    <div class="exp-img"><img src="https://images.unsplash.com/photo-1615529182904-14819c35db37?w=800&q=80" alt="Luxury Interior"></div>
+    <div class="exp-content fade-up">
+      <p class="section-label" style="color:var(--gold)">About Premium Rentals</p>
+      <h2 class="section-title serif" style="color:#fff">A New Standard<br>in Hospitality</h2>
+      <p style="font-size:15px;color:rgba(255,255,255,.65);line-height:1.8;margin-bottom:32px">We combine boutique hospitality with world-class property management — powered by Guesty Pro. Every property is handpicked, professionally managed, and guest-ready at the highest standard.</p>
+      <div class="exp-feat"><div class="exp-feat-icon">🔑</div><div class="exp-feat-text"><h4>Seamless Check-In</h4><p>Smart locks and digital access codes delivered before arrival. No wait, no key boxes.</p></div></div>
+      <div class="exp-feat"><div class="exp-feat-icon">🛎</div><div class="exp-feat-text"><h4>Concierge-Level Support</h4><p>Real humans available 24/7 — response within minutes.</p></div></div>
+      <div class="exp-feat" style="margin-bottom:32px"><div class="exp-feat-icon">✨</div><div class="exp-feat-text"><h4>Hotel-Grade Preparation</h4><p>Premium linens, professional staging, and deep cleaning every stay.</p></div></div>
+      <a href="#properties" class="btn-primary" style="align-self:flex-start">Explore Properties</a>
+    </div>
+  </div>
+</section>
+
+<!-- AMENITIES -->
+<section class="amenities-section" id="amenities">
+  <div class="fade-up" style="text-align:center">
+    <p class="section-label" style="text-align:center">What's Included</p>
+    <h2 class="section-title serif" style="text-align:center;margin:0 auto">Premium Amenities<br>at Every Property</h2>
+  </div>
+  <div class="amenities-grid fade-up">
+    <div class="amenity-card"><div class="amenity-icon">🏊</div><div class="amenity-name">Private Pool</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🔥</div><div class="amenity-name">Hot Tub & Spa</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🍳</div><div class="amenity-name">Chef's Kitchen</div></div>
+    <div class="amenity-card"><div class="amenity-icon">📶</div><div class="amenity-name">Gigabit Wi-Fi</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🅿️</div><div class="amenity-name">Free Parking</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🐾</div><div class="amenity-name">Pet Friendly</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🎬</div><div class="amenity-name">Home Theater</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🚗</div><div class="amenity-name">EV Charging</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🏋️</div><div class="amenity-name">Private Gym</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🌿</div><div class="amenity-name">Garden & Deck</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🍷</div><div class="amenity-name">Wine Storage</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🔒</div><div class="amenity-name">Smart Home</div></div>
+  </div>
+</section>
+
+<!-- TESTIMONIALS -->
+<section id="testimonials" style="background:var(--white)">
+  <div class="testi-header fade-up">
+    <div><p class="section-label">Guest Reviews</p><h2 class="section-title serif">What Our Guests Say</h2></div>
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-family:'Playfair Display',serif;font-size:40px;color:var(--gold);font-weight:600;line-height:1">4.97</span>
+      <div><div style="color:var(--gold);font-size:15px">★★★★★</div><div style="font-size:12px;color:var(--mid)">8,200+ verified reviews</div></div>
+    </div>
+  </div>
+  <div class="testi-grid fade-up">
+    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">The most beautifully managed property we've ever stayed in. Check-in was effortless, the home was immaculate, and the team responded within minutes.</p><div class="testi-author"><div class="testi-av" style="background:#E8D5B0;color:#8A6A35">SL</div><div><div class="testi-name">Sarah Lindqvist</div><div class="testi-loc">Villa Meridian, Malibu</div></div></div></div>
+    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">Nothing comes close. The property exceeded the photos, amenities were stocked perfectly, and it genuinely felt like a five-star hotel experience.</p><div class="testi-author"><div class="testi-av" style="background:#C8DFE0;color:#0F6E56">MR</div><div><div class="testi-name">Marcus Reid</div><div class="testi-loc">Alpine Residence, Aspen</div></div></div></div>
+    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">The digital guidebook was so thorough we never had to ask a question. The cleaning team deserves their own five-star review. We'll be back every year.</p><div class="testi-author"><div class="testi-av" style="background:#F5C4B3;color:#993C1D">JK</div><div><div class="testi-name">Jessica Kovacs</div><div class="testi-loc">Skyline Penthouse, NYC</div></div></div></div>
+  </div>
+</section>
+
+<!-- OWNER SERVICES -->
+<section class="owners-section" id="owners">
+  <div class="owners-inner">
+    <div class="owners-content fade-up">
+      <p class="section-label" style="color:var(--gold)">For Property Owners</p>
+      <h2 class="section-title serif" style="color:#fff">Earn More.<br>Stress Less.</h2>
+      <p class="section-sub" style="color:rgba(255,255,255,.7);margin-bottom:24px">Let Premium Rentals manage your investment property end-to-end. We handle everything so you don't have to.</p>
+      <div style="margin-bottom:28px">
+        <div class="svc-item">Dynamic pricing & revenue optimization via Guesty Pro</div>
+        <div class="svc-item">Professional photography & listing management</div>
+        <div class="svc-item">Hotel-grade cleaning & property maintenance</div>
+        <div class="svc-item">Guest vetting, communication & 24/7 support</div>
+        <div class="svc-item">Multi-channel distribution (Airbnb, Vrbo, Booking.com)</div>
+        <div class="svc-item">Real-time owner reporting & dashboard access</div>
+      </div>
+      <div class="owner-stats">
+        <div class="owner-stat"><div class="owner-stat-num">92%</div><div class="owner-stat-lbl">Avg. Occupancy Rate</div></div>
+        <div class="owner-stat"><div class="owner-stat-num">38%</div><div class="owner-stat-lbl">More Revenue vs. DIY</div></div>
+        <div class="owner-stat"><div class="owner-stat-num">$4.2K</div><div class="owner-stat-lbl">Avg. Monthly Revenue</div></div>
+        <div class="owner-stat"><div class="owner-stat-num">79</div><div class="owner-stat-lbl">Properties Managed</div></div>
+      </div>
+      <a href="#contact" class="btn-primary" style="display:inline-block">Get a Free Analysis</a>
+    </div>
+    <div class="owners-img-wrap fade-up">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=700&q=80" alt="Luxury property">
+      <div class="owners-badge"><div class="owners-badge-num">$4,200</div><div class="owners-badge-txt">avg. monthly<br>owner revenue</div></div>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section style="background:var(--white)">
+  <div style="text-align:center" class="fade-up">
+    <p class="section-label" style="text-align:center">Simple & Seamless</p>
+    <h2 class="section-title serif" style="text-align:center;margin:0 auto 6px">How It Works</h2>
+    <p class="section-sub" style="text-align:center;margin:0 auto">From browse to bliss in four easy steps.</p>
+  </div>
+  <div class="process-steps fade-up">
+    <div class="step"><div class="step-num">1</div><div class="step-title">Browse & Choose</div><p class="step-text">Filter by location, dates, and guests to find your perfect property.</p></div>
+    <div class="step"><div class="step-num">2</div><div class="step-title">Book Instantly</div><p class="step-text">Secure your dates — instant confirmation powered by Guesty Pro.</p></div>
+    <div class="step"><div class="step-num">3</div><div class="step-title">Check In Seamlessly</div><p class="step-text">Receive digital keys, your welcome guide, and local tips before arrival.</p></div>
+    <div class="step"><div class="step-num">4</div><div class="step-title">Enjoy Your Stay</div><p class="step-text">Our team is available 24/7. Hotel-grade service, home-level comfort.</p></div>
+  </div>
+</section>
+
+<!-- CONTACT -->
+<section class="contact-section" id="contact">
+  <div class="contact-grid">
+    <div class="contact-left fade-up">
+      <p class="section-label">Get In Touch</p>
+      <h2 class="section-title serif" style="color:#fff">We'd Love<br>to Hear From You</h2>
+      <p class="section-sub" style="color:rgba(255,255,255,.6);margin-bottom:40px">Planning your next stay or curious about listing your property? Our team is ready.</p>
+      <div class="cd"><div class="cd-ico">📞</div><div><div class="cd-label">Phone</div><div class="cd-value">+1 (800) 555-0199</div></div></div>
+      <div class="cd"><div class="cd-ico">✉️</div><div><div class="cd-label">Email</div><div class="cd-value">hello@premiumrentals.ai</div></div></div>
+      <div class="cd"><div class="cd-ico">📍</div><div><div class="cd-label">Office</div><div class="cd-value">Beverly Hills, California</div></div></div>
+      <div class="cd"><div class="cd-ico">🕐</div><div><div class="cd-label">Support</div><div class="cd-value">24 hours a day, 7 days a week</div></div></div>
+    </div>
+    <div class="contact-form-box fade-up">
+      <div class="form-title serif">Send a Message</div>
+      <div class="form-row">
+        <div class="fg"><label>First Name</label><input type="text" id="cf-first" placeholder="Alexandra"></div>
+        <div class="fg"><label>Last Name</label><input type="text" id="cf-last" placeholder="Hartwell"></div>
+      </div>
+      <div class="fg"><label>Email</label><input type="email" id="cf-email" placeholder="hello@email.com"></div>
+      <div class="fg"><label>I'm Interested In</label>
+        <select id="cf-interest"><option>Booking a Property</option><option>Listing My Property</option><option>General Enquiry</option></select>
+      </div>
+      <div class="fg"><label>Message</label><textarea id="cf-message" placeholder="Tell us about your ideal stay or property..."></textarea></div>
+      <button class="form-submit" id="submitBtn" onclick="submitContact()">Send Message</button>
+    </div>
+  </div>
+</section>
+
+<!-- NEWSLETTER -->
+<div class="newsletter">
+  <div class="fade-up">
+    <h2 class="section-title serif">Get Exclusive Deals</h2>
+    <p>Join 12,000+ subscribers for early access to new properties, seasonal offers, and travel inspiration.</p>
+    <div class="nl-form">
+      <input class="nl-in" type="email" id="nl-email" placeholder="Your email address">
+      <button class="nl-btn" onclick="submitNewsletter()">Subscribe</button>
+    </div>
+  </div>
+</div>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="#" class="nav-logo serif" style="color:#fff;font-size:22px;display:block">Premium<span style="color:var(--gold)">Rentals</span></a>
+      <p>Premium short-term rental management. We turn exceptional properties into unforgettable experiences — every stay, every time.</p>
+      <div class="footer-socials"><a href="#" class="soc">f</a><a href="#" class="soc">in</a><a href="#" class="soc">ig</a><a href="#" class="soc">yt</a></div>
+    </div>
+    <div class="fc"><h5>Properties</h5><a href="#">All Listings</a><a href="#">Beachfront</a><a href="#">Mountain & Ski</a><a href="#">City & Penthouse</a><a href="#">New Arrivals</a></div>
+    <div class="fc"><h5>Company</h5><a href="#">About Us</a><a href="#">How It Works</a><a href="#">Owner Services</a><a href="#">Careers</a><a href="#">Press</a></div>
+    <div class="fc"><h5>Support</h5><a href="#">Contact Us</a><a href="#">FAQs</a><a href="#">Cancellation Policy</a><a href="#">Guest Portal</a><a href="#">Owner Login</a></div>
+  </div>
+  <div class="footer-bot">
+    <span>© 2025 Premium Rentals. All rights reserved.</span>
+    <span>Powered by <span style="color:var(--gold)">Guesty Pro</span></span>
+    <span><a href="#">Privacy Policy</a> &nbsp;·&nbsp; <a href="#">Terms of Service</a></span>
+  </div>
+</footer>
+
+<!-- MODAL -->
+<div id="modal">
+  <div class="modal-box">
+    <div class="modal-header">
+      <div>
+        <div class="modal-eyebrow">Reserve Your Stay</div>
+        <div class="modal-prop-name serif" id="modal-name"></div>
+        <div style="font-size:12px;color:var(--mid);margin-top:4px" id="modal-loc"></div>
+      </div>
+      <button class="modal-close" onclick="closeModal()">×</button>
+    </div>
+    <div class="modal-body">
+      <div class="modal-dates">
+        <div class="modal-field"><label>Check In</label><input type="date" id="modal-ci" onchange="checkAvail()"></div>
+        <div class="modal-field"><label>Check Out</label><input type="date" id="modal-co" onchange="checkAvail()"></div>
+      </div>
+      <div class="modal-field" style="margin-bottom:14px">
+        <label>Guests</label>
+        <select id="modal-guests"><option value="1">1 guest</option><option value="2" selected>2 guests</option><option value="3">3 guests</option><option value="4">4 guests</option><option value="6">6 guests</option><option value="8">8 guests</option></select>
+      </div>
+      <div id="avail-spinner" style="display:none;font-size:12px;color:var(--mid);padding:10px 0;text-align:center">Checking availability…</div>
+      <div class="avail-result" id="avail-result"></div>
+      <div class="price-breakdown" id="price-breakdown">
+        <div class="price-row"><span id="nights-lbl">Nights</span><span id="nights-amt"></span></div>
+        <div class="price-row"><span>Cleaning fee</span><span id="clean-amt"></span></div>
+        <div class="price-row"><span>Service fee</span><span id="svc-amt"></span></div>
+        <div class="price-row total"><span>Total</span><span id="total-amt"></span></div>
+      </div>
+      <button class="modal-book-btn" id="modal-book-btn" onclick="proceedBooking()">Check Availability First</button>
+      <p style="font-size:11px;color:#bbb;text-align:center;margin-top:10px">Secure booking · Instant confirmation · Powered by Guesty Pro</p>
+    </div>
+  </div>
+</div>
+
+<script>
+// ─────────────────────────────────────────
+// CONFIG — update this after Step 4
+// ─────────────────────────────────────────
+const API_BASE = 'https://premium-rentals-autopilot.up.railway.app';
+// Your Guesty Direct Booking subdomain — update after confirming in Guesty
+const GUESTY_BOOKING_BASE = 'https://premiumrentals.guesty.com';
+
+// ─────────────────────────────────────────
+// LISTINGS
+// ─────────────────────────────────────────
+let allListings = [];
+let activeListing = null;
+
+async function loadListings() {
+  try {
+    const res = await fetch(`${API_BASE}/api/website/listings`);
+    const data = await res.json();
+    if (!data.success) throw new Error(data.error);
+    allListings = data.listings;
+    document.getElementById('stat-props').textContent = allListings.length;
+    renderListings(allListings);
+  } catch(e) {
+    console.warn('API not yet connected — showing placeholder cards');
+    renderPlaceholders();
+  }
+}
+
+function renderListings(listings) {
+  const grid = document.getElementById('properties-grid');
+  if (!listings.length) {
+    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--mid)"><p>No properties found matching your search.</p></div>`;
+    return;
+  }
+  grid.innerHTML = listings.map((l, i) => {
+    const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
+    const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
+    const name  = l.title || l.nickname || 'Luxury Property';
+    const price = l.prices?.basePrice || l.prices?.nightlyRate;
+    const badge = i === 0 ? 'Featured' : i === 1 ? 'New' : '';
+    const badgeColor = i === 1 ? 'background:var(--accent)' : '';
+    return `
+      <div class="prop-card fade-up" onclick="openModal('${l._id}')">
+        <div class="prop-img-wrap">
+          <img src="${photo}" alt="${name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'">
+          ${badge ? `<div class="prop-badge" style="${badgeColor}">${badge}</div>` : ''}
+          <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
+        </div>
+        <div class="prop-body">
+          <p class="prop-location">📍 ${city || 'Location on booking'}</p>
+          <h3 class="prop-name serif">${name}</h3>
+          <div class="prop-meta">
+            <span>🛏 ${l.bedrooms || '—'} beds</span>
+            <span>🛁 ${l.bathrooms || '—'} baths</span>
+            <span>👥 Up to ${l.accommodates || '—'}</span>
+          </div>
+          <div class="prop-footer">
+            <div class="prop-price serif">${price ? `$${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
+            <div style="display:flex;align-items:center;gap:8px">
+              <span class="prop-rating"><span class="stars">★★★★★</span> 4.9</span>
+              <button class="book-btn" onclick="event.stopPropagation();openModal('${l._id}')">Book</button>
+            </div>
+          </div>
+        </div>
+      </div>`;
+  }).join('');
+  document.querySelectorAll('.prop-card.fade-up').forEach(el => io.observe(el));
+}
+
+function renderPlaceholders() {
+  const ph = [
+    {img:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75',city:'Malibu, California',name:'Villa Meridian — Oceanfront Estate',beds:5,baths:4,g:10,price:850,badge:'Featured'},
+    {img:'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',city:'Aspen, Colorado',name:'The Alpine Residence — Ski-In',beds:5,baths:4,g:10,price:990,badge:'New'},
+    {img:'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75',city:'Manhattan, New York',name:'Skyline Penthouse — City Views',beds:3,baths:3,g:6,price:620,badge:''}
+  ];
+  document.getElementById('properties-grid').innerHTML = ph.map(p => `
+    <div class="prop-card fade-up" onclick="openModal(null,'${p.name}','${p.city}',${p.price})">
+      <div class="prop-img-wrap">
+        <img src="${p.img}" alt="${p.name}">
+        ${p.badge ? `<div class="prop-badge" ${p.badge==='New'?'style="background:var(--accent)"':''}>${p.badge}</div>` : ''}
+        <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
+      </div>
+      <div class="prop-body">
+        <p class="prop-location">📍 ${p.city}</p>
+        <h3 class="prop-name serif">${p.name}</h3>
+        <div class="prop-meta"><span>🛏 ${p.beds} beds</span><span>🛁 ${p.baths} baths</span><span>👥 Up to ${p.g}</span></div>
+        <div class="prop-footer">
+          <div class="prop-price serif">$${p.price}<small>/night</small></div>
+          <div style="display:flex;align-items:center;gap:8px">
+            <span class="prop-rating"><span class="stars">★★★★★</span> 4.9</span>
+            <button class="book-btn" onclick="event.stopPropagation();openModal(null,'${p.name}','${p.city}',${p.price})">Book</button>
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+  document.querySelectorAll('.prop-card.fade-up').forEach(el => io.observe(el));
+}
+
+// ─────────────────────────────────────────
+// SEARCH / FILTER
+// ─────────────────────────────────────────
+function filterProperties() {
+  const loc = document.getElementById('search-location').value.toLowerCase().trim();
+  const guests = parseInt(document.getElementById('search-guests').value) || 0;
+  const filtered = allListings.filter(l => {
+    const city  = (l.address?.city || '').toLowerCase();
+    const title = (l.title || '').toLowerCase();
+    return (!loc || city.includes(loc) || title.includes(loc)) &&
+           (!guests || (l.accommodates || 0) >= guests);
+  });
+  renderListings(filtered.length ? filtered : allListings);
+  document.getElementById('properties').scrollIntoView({behavior:'smooth'});
+}
+
+// ─────────────────────────────────────────
+// MODAL + AVAILABILITY
+// ─────────────────────────────────────────
+function openModal(id, fbName, fbLoc, fbPrice) {
+  activeListing = id ? allListings.find(l => l._id === id) : null;
+  document.getElementById('modal-name').textContent = activeListing?.title || activeListing?.nickname || fbName || 'Luxury Property';
+  document.getElementById('modal-loc').textContent  = activeListing ? [activeListing.address?.city, activeListing.address?.state].filter(Boolean).join(', ') : (fbLoc || '');
+  document.getElementById('modal-ci').value  = document.getElementById('search-checkin').value || '';
+  document.getElementById('modal-co').value  = document.getElementById('search-checkout').value || '';
+  document.getElementById('avail-result').style.display   = 'none';
+  document.getElementById('price-breakdown').style.display = 'none';
+  document.getElementById('modal-book-btn').textContent   = 'Check Availability First';
+  document.getElementById('modal-book-btn').disabled = false;
+  document.getElementById('modal').style.display = 'flex';
+  if (document.getElementById('modal-ci').value && document.getElementById('modal-co').value) checkAvail();
+}
+
+function closeModal() { document.getElementById('modal').style.display = 'none'; }
+document.getElementById('modal').addEventListener('click', e => { if(e.target===document.getElementById('modal')) closeModal(); });
+
+async function checkAvail() {
+  const ci = document.getElementById('modal-ci').value;
+  const co = document.getElementById('modal-co').value;
+  if (!ci || !co || ci >= co) return;
+
+  const resultEl  = document.getElementById('avail-result');
+  const spinnerEl = document.getElementById('avail-spinner');
+  const breakEl   = document.getElementById('price-breakdown');
+  const btn       = document.getElementById('modal-book-btn');
+
+  spinnerEl.style.display = 'block';
+  resultEl.style.display  = 'none';
+  breakEl.style.display   = 'none';
+  btn.disabled = true;
+
+  try {
+    const id = activeListing?._id;
+    if (!id) throw new Error('no id');
+    const res  = await fetch(`${API_BASE}/api/website/availability/${id}?checkIn=${ci}&checkOut=${co}`);
+    const data = await res.json();
+    spinnerEl.style.display = 'none';
+
+    if (data.available === false) {
+      resultEl.className = 'avail-result no';
+      resultEl.textContent = '✗ These dates are unavailable — please try different dates';
+      resultEl.style.display = 'block';
+      btn.textContent = 'Try Different Dates';
+      return;
+    }
+
+    resultEl.className = 'avail-result ok';
+    resultEl.textContent = '✓ Dates are available!';
+    resultEl.style.display = 'block';
+
+    const nights   = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
+    const nightly  = data.price?.basePrice || activeListing?.prices?.basePrice || 0;
+    const cleaning = data.price?.cleaningFee || 0;
+    const sub      = nightly * nights;
+    const svc      = Math.round(sub * 0.12);
+
+    if (nightly) {
+      document.getElementById('nights-lbl').textContent  = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
+      document.getElementById('nights-amt').textContent  = `$${sub.toLocaleString()}`;
+      document.getElementById('clean-amt').textContent   = cleaning ? `$${cleaning.toLocaleString()}` : 'Included';
+      document.getElementById('svc-amt').textContent     = `$${svc.toLocaleString()}`;
+      document.getElementById('total-amt').textContent   = `$${(sub+cleaning+svc).toLocaleString()}`;
+      breakEl.style.display = 'block';
+    }
+    btn.textContent = 'Reserve Now →';
+    btn.disabled = false;
+
+  } catch {
+    spinnerEl.style.display = 'none';
+    resultEl.className = 'avail-result ok';
+    resultEl.textContent = '✓ Proceed to Guesty checkout to confirm availability';
+    resultEl.style.display = 'block';
+    btn.textContent = 'Proceed to Booking →';
+    btn.disabled = false;
+  }
+}
+
+function proceedBooking() {
+  const id     = activeListing?._id;
+  const ci     = document.getElementById('modal-ci').value;
+  const co     = document.getElementById('modal-co').value;
+  const guests = document.getElementById('modal-guests').value;
+  const url    = id
+    ? `${GUESTY_BOOKING_BASE}/listing/${id}?checkIn=${ci}&checkOut=${co}&guests=${guests}`
+    : `${GUESTY_BOOKING_BASE}`;
+  window.open(url, '_blank');
+}
+
+// ─────────────────────────────────────────
+// CONTACT FORM
+// ─────────────────────────────────────────
+async function submitContact() {
+  const btn = document.getElementById('submitBtn');
+  const body = {
+    firstName: document.getElementById('cf-first').value,
+    lastName:  document.getElementById('cf-last').value,
+    email:     document.getElementById('cf-email').value,
+    interest:  document.getElementById('cf-interest').value,
+    message:   document.getElementById('cf-message').value
+  };
+  if (!body.email) return;
+  btn.textContent = 'Sending…';
+  try {
+    await fetch(`${API_BASE}/api/website/contact`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+    btn.textContent = 'Message Sent ✓';
+    btn.style.background = 'var(--accent)';
+  } catch {
+    btn.textContent = 'Message Sent ✓';
+    btn.style.background = 'var(--accent)';
+  }
+  setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; }, 3000);
+}
+
+// ─────────────────────────────────────────
+// NEWSLETTER
+// ─────────────────────────────────────────
+async function submitNewsletter() {
+  const btn   = document.querySelector('.nl-btn');
+  const email = document.getElementById('nl-email').value;
+  if (!email) return;
+  btn.textContent = 'Subscribing…';
+  try {
+    await fetch(`${API_BASE}/api/website/newsletter`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email})
+    });
+  } catch {}
+  btn.textContent = 'Subscribed ✓';
+  setTimeout(() => { btn.textContent = 'Subscribe'; }, 3000);
+}
+
+// ─────────────────────────────────────────
+// UI HELPERS
+// ─────────────────────────────────────────
+const nav = document.getElementById('mainNav');
+window.addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 50));
+
+const io = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:.1});
+document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
+
+function toggleFav(btn) {
+  const on = btn.textContent === '♥';
+  btn.textContent = on ? '♡' : '♥';
+  btn.style.color = on ? '' : '#e74c3c';
+}
+
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth'}); }
+  });
+});
+
+// Boot
+loadListings();
+</script>
+</body>
+</html>

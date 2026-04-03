@@ -243,18 +243,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
     <!-- AVAILABILITY CALENDAR -->
     <div class="section-block">
       <h2 class="block-title serif">Availability</h2>
-      <p style="font-size:14px;color:var(--mid);margin-bottom:20px">Select your check-in and check-out dates below.</p>
+      <p style="font-size:14px;color:var(--mid);margin-bottom:8px" id="cal-hint">Select your check-in date</p>
       <div class="calendar-wrap" id="calendar-wrap">
         <div class="calendar-header">
           <button class="cal-nav" onclick="calNav(-1)">‹</button>
           <div class="cal-month" id="cal-month-label"></div>
           <button class="cal-nav" onclick="calNav(1)">›</button>
         </div>
-        <div class="cal-grid" id="cal-grid"></div>
+        <div id="cal-grid" style="overflow-x:auto"></div>
         <div class="cal-legend">
           <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--accent)"></div>Selected</div>
-          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#f0ede8;border:1px solid #ddd"></div>Available</div>
-          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#f8f8f8;border:1px solid #eee"></div>Unavailable</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--light);border:1px solid #ddd"></div>Available</div>
+          <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#f0f0f0;border:1px solid #eee"></div>Unavailable</div>
         </div>
       </div>
     </div>
@@ -440,11 +440,11 @@ function renderListing() {
   // Address
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
 
-  // Calendar
+  // Calendar — load blocked dates then render
   const now = new Date();
   calYear = now.getFullYear();
   calMonth = now.getMonth();
-  renderCalendar();
+  loadCalendar();
 
   // Map (if initPropertyMap already ran)
   if (propertyMap && listing.address?.lat) renderPropertyMap();
@@ -572,55 +572,139 @@ document.getElementById('amenities-modal').addEventListener('click', e => {
 });
 
 // ── Calendar ──
+let blockedDates = new Set();
+let calMode = 'checkin'; // 'checkin' or 'checkout'
+
+async function loadCalendar() {
+  try {
+    const today = new Date();
+    const future = new Date();
+    future.setMonth(future.getMonth() + 14); // 14 months out
+    const startDate = today.toISOString().split('T')[0];
+    const endDate   = future.toISOString().split('T')[0];
+    const res  = await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${startDate}&endDate=${endDate}`);
+    const data = await res.json();
+    if (data.blockedDates) {
+      blockedDates = new Set(data.blockedDates);
+    }
+  } catch(e) {
+    console.warn('Could not load calendar:', e.message);
+  }
+  renderCalendar();
+}
+
 function renderCalendar() {
   const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  document.getElementById('cal-month-label').textContent = `${months[calMonth]} ${calYear}`;
-  const grid = document.getElementById('cal-grid');
-  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
   const today = new Date(); today.setHours(0,0,0,0);
-  const firstDay = new Date(calYear, calMonth, 1).getDay();
-  const daysInMonth = new Date(calYear, calMonth + 1, 0).getDate();
 
-  let html = days.map(d => `<div class="cal-day-name">${d}</div>`).join('');
+  // Render two months side by side
+  const calWrap = document.getElementById('cal-grid');
+
+  // Month label
+  const m1Label = `${months[calMonth]} ${calYear}`;
+  let m2Month = calMonth + 1, m2Year = calYear;
+  if (m2Month > 11) { m2Month = 0; m2Year++; }
+  const m2Label = `${months[m2Month]} ${m2Year}`;
+  document.getElementById('cal-month-label').textContent = `${m1Label}  —  ${m2Label}`;
+
+  calWrap.innerHTML = `
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:32px">
+      ${renderMonth(calYear, calMonth, today)}
+      ${renderMonth(m2Year, m2Month, today)}
+    </div>`;
+}
+
+function renderMonth(year, month, today) {
+  const months = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const days = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const firstDay = new Date(year, month, 1).getDay();
+  const daysInMonth = new Date(year, month + 1, 0).getDate();
+
+  let html = `<div style="margin-bottom:12px;font-weight:600;font-size:14px;color:var(--dark)">${months[month]} ${year}</div>`;
+  html += `<div style="display:grid;grid-template-columns:repeat(7,1fr);gap:2px">`;
+  html += days.map(d => `<div class="cal-day-name">${d}</div>`).join('');
   for (let i = 0; i < firstDay; i++) html += `<div class="cal-day empty"></div>`;
   for (let d = 1; d <= daysInMonth; d++) {
-    const date = new Date(calYear, calMonth, d);
-    const dateStr = date.toISOString().split('T')[0];
-    const isPast = date < today;
+    const date = new Date(year, month, d);
+    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast    = date < today;
+    const isBlocked = blockedDates.has(dateStr);
+    const isToday   = date.toDateString() === today.toDateString();
+    const isCheckIn  = selectedCheckIn  === dateStr;
+    const isCheckOut = selectedCheckOut === dateStr;
+    const isInRange  = selectedCheckIn && selectedCheckOut && dateStr > selectedCheckIn && dateStr < selectedCheckOut;
+
     let cls = 'cal-day';
-    if (isPast) cls += ' past';
-    else cls += ' available';
-    if (selectedCheckIn && dateStr === selectedCheckIn) cls += ' selected';
-    if (selectedCheckOut && dateStr === selectedCheckOut) cls += ' selected';
-    if (selectedCheckIn && selectedCheckOut && dateStr > selectedCheckIn && dateStr < selectedCheckOut) cls += ' in-range';
-    if (date.toDateString() === today.toDateString()) cls += ' today';
-    html += `<div class="${cls}" data-date="${dateStr}" onclick="selectDate('${dateStr}')">${d}</div>`;
+    let style = '';
+    if (isPast || isBlocked) {
+      cls += isBlocked ? ' blocked' : ' past';
+    } else {
+      cls += ' available';
+    }
+    if (isCheckIn || isCheckOut) { cls += ' selected'; }
+    if (isInRange) { cls += ' in-range'; }
+    if (isToday) { cls += ' today'; }
+
+    const clickable = !isPast && !isBlocked;
+    html += `<div class="${cls}" ${clickable ? `onclick="selectDate('${dateStr}')"` : ''}>${d}</div>`;
   }
-  grid.innerHTML = html;
+  html += `</div>`;
+  return html;
 }
 
 function calNav(dir) {
   calMonth += dir;
   if (calMonth > 11) { calMonth = 0; calYear++; }
-  if (calMonth < 0) { calMonth = 11; calYear--; }
+  if (calMonth < 0)  { calMonth = 11; calYear--; }
   renderCalendar();
 }
 
 function selectDate(dateStr) {
-  if (!selectedCheckIn || (selectedCheckIn && selectedCheckOut)) {
-    selectedCheckIn = dateStr;
+  // Check if date falls within a blocked range
+  if (blockedDates.has(dateStr)) return;
+
+  if (calMode === 'checkin' || !selectedCheckIn || (selectedCheckIn && selectedCheckOut)) {
+    selectedCheckIn  = dateStr;
     selectedCheckOut = null;
-  } else if (dateStr > selectedCheckIn) {
-    selectedCheckOut = dateStr;
-    // Sync to sidebar
-    document.getElementById('sb-checkin').value  = selectedCheckIn;
-    document.getElementById('sb-checkout').value = selectedCheckOut;
-    onDateChange();
+    calMode = 'checkout';
+    updateCalendarHint('checkout');
+  } else if (calMode === 'checkout' && dateStr > selectedCheckIn) {
+    // Check no blocked dates in range
+    let hasBlocked = false;
+    const start = new Date(selectedCheckIn);
+    const end   = new Date(dateStr);
+    for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+      if (blockedDates.has(d.toISOString().split('T')[0])) { hasBlocked = true; break; }
+    }
+    if (hasBlocked) {
+      // Reset and start over
+      selectedCheckIn  = dateStr;
+      selectedCheckOut = null;
+      calMode = 'checkout';
+    } else {
+      selectedCheckOut = dateStr;
+      calMode = 'checkin';
+      // Sync to sidebar
+      document.getElementById('sb-checkin').value  = selectedCheckIn;
+      document.getElementById('sb-checkout').value = selectedCheckOut;
+      updateCalendarHint('done');
+      onDateChange();
+    }
   } else {
-    selectedCheckIn = dateStr;
+    selectedCheckIn  = dateStr;
     selectedCheckOut = null;
+    calMode = 'checkout';
+    updateCalendarHint('checkout');
   }
   renderCalendar();
+}
+
+function updateCalendarHint(mode) {
+  const hint = document.getElementById('cal-hint');
+  if (!hint) return;
+  if (mode === 'checkout') hint.textContent = 'Now select your check-out date';
+  else if (mode === 'done') hint.textContent = 'Dates selected — check availability in the booking panel';
+  else hint.textContent = 'Select your check-in date';
 }
 
 // ── Sidebar Availability ──

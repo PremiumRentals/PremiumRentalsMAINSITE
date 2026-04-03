@@ -80,7 +80,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-nav-btn{background:none;border:1px solid #e0ddd8;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .cal-nav-btn:hover{border-color:var(--gold);color:var(--gold)}
 .cal-month-lbl{font-family:'Playfair Display',serif;font-size:16px;font-weight:500;color:var(--dark)}
-.cal-months{display:grid;grid-template-columns:1fr 1fr;gap:32px;overflow-x:auto}
+.cal-months{display:grid;grid-template-columns:1fr 1fr;gap:40px;width:100%}
 .cal-month-title{font-weight:600;font-size:14px;color:var(--dark);margin-bottom:12px;text-align:center}
 .cal-days-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .cal-day-name{text-align:center;font-size:11px;font-weight:600;letter-spacing:.5px;color:var(--mid);padding:6px 0;text-transform:uppercase}
@@ -260,7 +260,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
       <div style="margin-bottom:16px">
         <span class="booking-price-num serif" id="sidebar-price">—</span>
         <span class="booking-price-label">/ night</span>
-        <div style="font-size:11px;color:var(--mid);margin-top:2px">Starting price · Select dates for exact total</div>
+        <div style="font-size:11px;color:var(--mid);margin-top:2px" id="sidebar-price-note">Select dates for exact nightly rate</div>
       </div>
       <div class="booking-fields">
         <div class="booking-field-row">
@@ -393,11 +393,12 @@ function renderListing() {
   renderAmenities();
 
   const price = listing._realPrice || listing.prices?.basePrice;
-  document.getElementById('sidebar-price').textContent = price ? `From $${Number(price).toLocaleString()}` : 'Contact';
-  document.getElementById('mobile-price').textContent  = price ? `From $${Number(price).toLocaleString()}/night` : 'Contact for pricing';
-  document.getElementById('prop-address').textContent  = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
+  const priceDisplay = price ? `From ${Number(price).toLocaleString()}` : 'Contact for pricing';
+  document.getElementById('sidebar-price').textContent = priceDisplay;
+  document.getElementById('mobile-price').textContent  = price ? `${priceDisplay}/night` : 'Contact for pricing';
+  document.getElementById('sidebar-price-note').textContent = price ? 'Starting price · Select dates for exact nightly rate' : 'Select dates to see pricing';
 
-  if (propertyMap && listing.address?.lat) renderPropertyMap();
+  document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
 }
 
 // ── Gallery ──
@@ -483,6 +484,8 @@ async function loadCalendar() {
   const now = new Date();
   calYear  = now.getFullYear();
   calMonth = now.getMonth();
+  // Show calendar immediately while loading
+  renderCalendar();
   try {
     const future = new Date();
     future.setMonth(future.getMonth() + 14);
@@ -490,9 +493,13 @@ async function loadCalendar() {
     const endDate   = future.toISOString().split('T')[0];
     const res  = await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${startDate}&endDate=${endDate}`);
     const data = await res.json();
-    if (data.blockedDates) blockedDates = new Set(data.blockedDates);
+    console.log('Calendar data:', data);
+    if (data.blockedDates && data.blockedDates.length > 0) {
+      blockedDates = new Set(data.blockedDates);
+      // Re-render with blocked dates now loaded
+      renderCalendar();
+    }
   } catch(e) { console.warn('Calendar load failed:', e.message); }
-  renderCalendar();
 }
 
 function renderCalendar() {
@@ -620,8 +627,11 @@ async function checkSidebarAvail() {
     availEl.style.display = 'block';
 
     const nights  = Math.ceil((new Date(co)-new Date(ci))/86400000);
-    const nightly = listing._realPrice || listing.prices?.basePrice || 0;
-    const cleaning= listing.prices?.cleaningFee || 0;
+    // Use actual nightly rate from availability API if available
+    const nightly = data.price?.nightlyRate || data.price?.basePrice ||
+                    data.nightlyRate || data.basePrice ||
+                    listing._realPrice || listing.prices?.basePrice || 0;
+    const cleaning= data.price?.cleaningFee || listing.prices?.cleaningFee || 0;
     const sub     = nightly * nights;
     const svc     = Math.round(sub * 0.12);
 

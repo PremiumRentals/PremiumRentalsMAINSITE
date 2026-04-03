@@ -10,8 +10,6 @@
 :root{--gold:#C9A96E;--gold-light:#E8D5B0;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
-
-/* NAV */
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
 .nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
 .nav-logo span{color:var(--gold)}
@@ -20,8 +18,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .nav-right{display:flex;gap:12px;align-items:center}
 .nav-action{background:transparent;border:1px solid #e0ddd8;padding:8px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--mid)}
 .nav-action:hover{border-color:var(--gold);color:var(--gold)}
-
-/* GALLERY */
 .gallery{margin-top:64px;cursor:pointer}
 .gallery-grid{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:300px 300px;gap:4px;height:600px;position:relative}
 .gallery-cell{overflow:hidden;background:#f0ede8}
@@ -32,8 +28,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .gallery-grid:hover .gallery-cell img{transform:scale(1.03)}
 .gallery-show-all{position:absolute;bottom:20px;right:20px;background:rgba(255,255,255,.95);border:1px solid #e0ddd8;padding:10px 20px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
 .gallery-show-all:hover{border-color:var(--gold);color:var(--gold)}
-
-/* LIGHTBOX */
 #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:999;flex-direction:column;align-items:center;justify-content:center}
 #lightbox.open{display:flex}
 .lb-close{position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;line-height:1}
@@ -47,35 +41,25 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .lb-thumbs{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:90vw;overflow-x:auto;padding:4px}
 .lb-thumb{width:52px;height:40px;object-fit:cover;border-radius:2px;cursor:pointer;opacity:.5;transition:opacity .2s;flex-shrink:0;border:2px solid transparent}
 .lb-thumb.active{opacity:1;border-color:var(--gold)}
-
-/* CONTENT */
 .content-wrap{max-width:1200px;margin:0 auto;padding:40px 5% 120px;display:grid;grid-template-columns:1fr 380px;gap:64px;align-items:start}
 .section-block{padding:28px 0;border-bottom:1px solid #f0ede8}
 .section-block:last-child{border-bottom:none}
 .block-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark);margin-bottom:16px}
-
-/* PROPERTY HEADER */
 .prop-header{margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid #f0ede8}
 .prop-location-tag{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:10px}
 .prop-title{font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,38px);font-weight:500;line-height:1.2;margin-bottom:16px}
 .prop-stats{display:flex;gap:20px;flex-wrap:wrap}
 .prop-stat{font-size:14px;color:var(--mid)}
 .prop-stat strong{color:var(--dark);font-weight:600}
-
-/* DESCRIPTION */
 .description-text{font-size:15px;color:var(--mid);line-height:1.8;white-space:pre-line}
 .description-collapsed{max-height:120px;overflow:hidden;position:relative}
 .description-collapsed::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,transparent,#fff)}
 .read-more-btn{background:none;border:none;color:var(--dark);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:underline;margin-top:12px;padding:0}
-
-/* AMENITIES */
 .amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}
 .amenity-item{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--dark);padding:10px 0}
 .amenity-ico{width:24px;text-align:center;font-size:18px;flex-shrink:0}
 .show-all-btn{background:transparent;border:1px solid var(--dark);padding:12px 24px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-top:16px;transition:all .2s}
 .show-all-btn:hover{border-color:var(--gold);color:var(--gold)}
-
-/* CALENDAR */
 .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .cal-nav-btn{background:none;border:1px solid #e0ddd8;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .cal-nav-btn:hover{border-color:var(--gold);color:var(--gold)}
@@ -97,11 +81,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid)}
 .cal-legend-dot{width:12px;height:12px;border-radius:2px}
 .cal-hint{font-size:13px;color:var(--accent);font-weight:500;margin-bottom:16px;min-height:20px}
-
-/* PROPERTY MAP */
 .property-map{height:280px;border-radius:4px;overflow:hidden;background:#f0ede8}
-
-/* BOOKING SIDEBAR */
 .booking-card{background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
 .from-price{margin-bottom:16px}
 .from-price-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;color:var(--dark)}
@@ -127,30 +107,21 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:12px;display:none}
 .reserve-btn:hover{background:#b8914e}
 .booking-note{font-size:11px;color:var(--mid);text-align:center;line-height:1.6}
-
-/* MOBILE BAR */
 .mobile-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:#fff;border-top:1px solid #e0ddd8;padding:12px 5%;align-items:center;justify-content:space-between;gap:12px}
 .mobile-bar-price{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
 .mobile-bar-btn{background:var(--gold);color:#fff;border:none;padding:13px 28px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
-
-/* AMENITIES MODAL */
 #amenities-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:998;align-items:center;justify-content:center;padding:20px}
 #amenities-modal.open{display:flex}
 .am-box{background:#fff;border-radius:8px;max-width:640px;width:100%;max-height:80vh;overflow-y:auto;padding:32px}
 .am-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:24px;font-weight:500}
 .am-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .am-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--mid)}
-
-/* SKELETON */
 .skeleton{background:linear-gradient(90deg,#f0ede8 25%,#e8e3db 50%,#f0ede8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-
-/* FOOTER */
 footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .footer-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px}
 .footer-bot a{color:rgba(255,255,255,.3);text-decoration:none}
 .footer-bot a:hover{color:var(--gold)}
-
 @media(max-width:900px){
   .content-wrap{grid-template-columns:1fr;padding-bottom:100px}
   .content-sidebar{display:none}
@@ -178,7 +149,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   </div>
 </nav>
 
-<!-- GALLERY -->
 <div class="gallery" id="gallery">
   <div class="gallery-grid" id="gallery-grid">
     <div class="gallery-cell skeleton" style="grid-row:1/3"></div>
@@ -190,7 +160,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <button class="gallery-show-all" onclick="openLightbox(0)">☰ Show all photos</button>
 </div>
 
-<!-- LIGHTBOX -->
 <div id="lightbox">
   <button class="lb-close" onclick="closeLightbox()">×</button>
   <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
@@ -200,7 +169,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <div class="lb-thumbs" id="lb-thumbs"></div>
 </div>
 
-<!-- MAIN CONTENT -->
 <div class="content-wrap">
   <div class="content-main">
 
@@ -256,17 +224,13 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
   </div>
 
-  <!-- SIDEBAR -->
   <div class="content-sidebar">
     <div class="booking-card">
-
-      <!-- FROM PRICE — loaded from first available date -->
       <div class="from-price">
         <div id="from-price-display">
           <span class="from-price-loading">Loading pricing…</span>
         </div>
       </div>
-
       <div class="booking-fields">
         <div class="booking-field-row">
           <div class="booking-field" onclick="document.getElementById('sb-checkin').showPicker?.()">
@@ -292,24 +256,20 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
           </select>
         </div>
       </div>
-
       <div class="booking-avail" id="sb-avail"></div>
       <div id="sb-avail-loading" style="display:none" class="avail-loading">Checking availability…</div>
-
       <div class="price-breakdown" id="sb-breakdown">
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
         <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
       </div>
-
       <button class="reserve-btn" id="sb-reserve-btn" onclick="proceedBooking()">Reserve Now →</button>
       <div class="booking-note">You won't be charged yet · Secure booking</div>
     </div>
   </div>
 </div>
 
-<!-- MOBILE BAR -->
 <div class="mobile-bar">
   <div>
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
@@ -318,7 +278,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <button class="mobile-bar-btn" onclick="document.querySelector('.section-block:nth-child(3)').scrollIntoView({behavior:'smooth'})">Reserve</button>
 </div>
 
-<!-- AMENITIES MODAL -->
 <div id="amenities-modal">
   <div class="am-box">
     <button class="am-close" onclick="closeAmenitiesModal()">×</button>
@@ -338,7 +297,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-const GUESTY_BOOKING_BASE = 'https://book.premiumrentals.com';
 
 const params = new URLSearchParams(window.location.search);
 const listingId = params.get('id');
@@ -352,66 +310,52 @@ let selectedCheckIn = null, selectedCheckOut = null;
 let calMode = 'checkin';
 let blockedDates = new Set();
 let propertyMap = null;
-
-// Booking state — carries through to checkout
-let bookingData = {
-  nightly: 0, nights: 0, cleaning: 0, service: 0, total: 0
-};
+let bookingData = { nightly:0, nights:0, cleaning:0, service:0, total:0 };
 
 // ── Load listing ──
 async function loadListing() {
   try {
-    const [listRes, priceRes] = await Promise.all([
-      fetch(`${API_BASE}/api/website/listings`),
-      fetch(`${API_BASE}/api/website/pricing`)
-    ]);
-    const listData  = await listRes.json();
-    const priceData = await priceRes.json();
-
+    const res = await fetch(`${API_BASE}/api/website/listings`);
+    const listData = await res.json();
     listing = listData.listings?.find(l => l._id === listingId);
     if (!listing) throw new Error('Listing not found');
-
     renderListing();
     loadCalendar();
-    loadFromPrice(); // Load real "from" price on page load
+    loadFromPrice();
   } catch(e) {
     console.error('Failed to load listing:', e);
     document.getElementById('prop-title').textContent = 'Property not found';
   }
 }
 
-// ── Load "From" price using first available date's real rate ──
+// ── Load real "from" price — lowest available rate in next 30 days ──
 async function loadFromPrice() {
   try {
     const today = new Date();
     const future = new Date(); future.setDate(future.getDate() + 30);
     const fmt = d => d.toISOString().split('T')[0];
-    const startDate = fmt(today);
-    const endDate   = fmt(future);
 
-    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${startDate}&checkOut=${endDate}`);
+    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${fmt(today)}&checkOut=${fmt(future)}`);
     const data = await res.json();
 
-    // Find the first available night with a real price
     let fromPrice = null;
     if (data.days && Array.isArray(data.days)) {
-      const firstAvail = data.days.find(d => d.status === 'available' && (d.price || d.prices?.nightlyRate));
-      if (firstAvail) fromPrice = firstAvail.price || firstAvail.prices?.nightlyRate;
+      const availPrices = data.days
+        .filter(d => d.status === 'available' && d.price)
+        .map(d => d.price);
+      if (availPrices.length) fromPrice = Math.min(...availPrices);
     }
-    // Fallback to money fields
-    if (!fromPrice) fromPrice = data.price?.nightlyRate || data.price?.basePrice || data.nightlyRate;
+    if (!fromPrice) fromPrice = data.nightlyRate || data.price?.nightlyRate;
 
     const display = document.getElementById('from-price-display');
     if (fromPrice) {
       display.innerHTML = `
         <span class="from-price-num serif">$${Number(fromPrice).toLocaleString()}</span>
         <span class="from-price-label">/ night</span>
-        <div class="from-price-note">Starting price · Select dates for exact rate</div>`;
+        <div class="from-price-note">From price · Select dates for exact rate</div>`;
       document.getElementById('mobile-price').textContent = `From $${Number(fromPrice).toLocaleString()}/night`;
     } else {
-      display.innerHTML = `
-        <span class="from-price-num serif">—</span>
-        <div class="from-price-note">Select dates to see pricing</div>`;
+      display.innerHTML = `<span class="from-price-num serif">—</span><div class="from-price-note">Select dates to see pricing</div>`;
     }
   } catch(e) {
     document.getElementById('from-price-display').innerHTML = `
@@ -424,18 +368,15 @@ function renderListing() {
   document.title = `${listing.title || 'Property'} – Premium Rentals`;
   allPhotos = listing.pictures || [];
   renderGallery();
-
   const city = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
   document.getElementById('prop-location').textContent = '📍 ' + (city || 'Idaho');
   document.getElementById('prop-title').textContent = listing.title || listing.nickname || 'Luxury Property';
-
   document.getElementById('prop-stats').innerHTML = [
     listing.bedrooms    ? `<div class="prop-stat">🛏 <strong>${listing.bedrooms}</strong> bed${listing.bedrooms!==1?'s':''}</div>` : '',
     listing.bathrooms   ? `<div class="prop-stat">🛁 <strong>${listing.bathrooms}</strong> bath${listing.bathrooms!==1?'s':''}</div>` : '',
     listing.accommodates? `<div class="prop-stat">👥 Up to <strong>${listing.accommodates}</strong> guests</div>` : '',
     listing.beds        ? `<div class="prop-stat">🛌 <strong>${listing.beds}</strong> beds</div>` : ''
   ].join('');
-
   const desc = [listing.publicDescription?.summary, listing.publicDescription?.access].filter(Boolean).join('\n\n');
   const descEl = document.getElementById('prop-desc');
   descEl.textContent = desc || 'Contact us for more information about this property.';
@@ -444,7 +385,6 @@ function renderListing() {
   } else {
     descEl.classList.remove('description-collapsed');
   }
-
   renderAmenities();
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
 }
@@ -462,20 +402,9 @@ function renderGallery() {
 }
 
 // ── Lightbox ──
-function openLightbox(idx) {
-  lbIndex = idx;
-  document.getElementById('lightbox').classList.add('open');
-  document.body.style.overflow = 'hidden';
-  updateLightbox();
-}
-function closeLightbox() {
-  document.getElementById('lightbox').classList.remove('open');
-  document.body.style.overflow = '';
-}
-function lbNav(dir) {
-  lbIndex = (lbIndex + dir + allPhotos.length) % allPhotos.length;
-  updateLightbox();
-}
+function openLightbox(idx) { lbIndex=idx; document.getElementById('lightbox').classList.add('open'); document.body.style.overflow='hidden'; updateLightbox(); }
+function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow=''; }
+function lbNav(dir) { lbIndex=(lbIndex+dir+allPhotos.length)%allPhotos.length; updateLightbox(); }
 function updateLightbox() {
   document.getElementById('lb-img').src = allPhotos[lbIndex]?.original || '';
   document.getElementById('lb-counter').textContent = `${lbIndex+1} / ${allPhotos.length}`;
@@ -485,9 +414,9 @@ function updateLightbox() {
 }
 document.addEventListener('keydown', e => {
   if (!document.getElementById('lightbox').classList.contains('open')) return;
-  if (e.key==='ArrowLeft')  lbNav(-1);
+  if (e.key==='ArrowLeft') lbNav(-1);
   if (e.key==='ArrowRight') lbNav(1);
-  if (e.key==='Escape')     closeLightbox();
+  if (e.key==='Escape') closeLightbox();
 });
 
 // ── Amenities ──
@@ -508,20 +437,19 @@ const amenityIcons = {
   'Blender':'🥤','Cookware':'🍳','Dining table':'🪑','Desk':'💻',
 };
 function getIcon(a) { return amenityIcons[a] || '✓'; }
-
 function renderAmenities() {
   const amenities = listing.amenities || [];
-  document.getElementById('amenities-grid').innerHTML = amenities.slice(0,10).map(a => `
-    <div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span>${a}</span></div>`).join('');
+  document.getElementById('amenities-grid').innerHTML = amenities.slice(0,10).map(a =>
+    `<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span>${a}</span></div>`).join('');
   if (amenities.length > 10) {
     const btn = document.getElementById('show-all-amenities');
     btn.style.display = 'block';
     btn.textContent = `Show all ${amenities.length} amenities`;
   }
-  document.getElementById('am-grid').innerHTML = amenities.map(a => `
-    <div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span style="font-size:14px">${a}</span></div>`).join('');
+  document.getElementById('am-grid').innerHTML = amenities.map(a =>
+    `<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span style="font-size:14px">${a}</span></div>`).join('');
 }
-function openAmenitiesModal()  { document.getElementById('amenities-modal').classList.add('open'); }
+function openAmenitiesModal() { document.getElementById('amenities-modal').classList.add('open'); }
 function closeAmenitiesModal() { document.getElementById('amenities-modal').classList.remove('open'); }
 document.getElementById('amenities-modal').addEventListener('click', e => {
   if (e.target===document.getElementById('amenities-modal')) closeAmenitiesModal();
@@ -530,62 +458,53 @@ document.getElementById('amenities-modal').addEventListener('click', e => {
 // ── Calendar ──
 async function loadCalendar() {
   const now = new Date();
-  calYear  = now.getFullYear();
+  calYear = now.getFullYear();
   calMonth = now.getMonth();
   renderCalendar();
   try {
-    const future = new Date();
-    future.setMonth(future.getMonth() + 14);
+    const future = new Date(); future.setMonth(future.getMonth()+14);
     const startDate = now.toISOString().split('T')[0];
     const endDate   = future.toISOString().split('T')[0];
     const res  = await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${startDate}&endDate=${endDate}`);
     const data = await res.json();
-    if (data.blockedDates && data.blockedDates.length > 0) {
-      blockedDates = new Set(data.blockedDates);
-      renderCalendar();
-    }
+    if (data.blockedDates?.length) { blockedDates = new Set(data.blockedDates); renderCalendar(); }
   } catch(e) { console.warn('Calendar load failed:', e.message); }
 }
 
 function renderCalendar() {
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const today  = new Date(); today.setHours(0,0,0,0);
+  const today = new Date(); today.setHours(0,0,0,0);
   let m2 = calMonth+1, y2 = calYear;
-  if (m2 > 11) { m2 = 0; y2++; }
+  if (m2 > 11) { m2=0; y2++; }
   document.getElementById('cal-month-lbl').textContent = `${MONTHS[calMonth]} ${calYear}  —  ${MONTHS[m2]} ${y2}`;
   document.getElementById('cal-months').innerHTML =
-    `<div>${renderMonthGrid(calYear, calMonth, today)}</div>` +
-    `<div>${renderMonthGrid(y2, m2, today)}</div>`;
+    `<div>${renderMonthGrid(calYear,calMonth,today)}</div><div>${renderMonthGrid(y2,m2,today)}</div>`;
 }
 
 function renderMonthGrid(year, month, today) {
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAYS   = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const first  = new Date(year, month, 1).getDay();
-  const total  = new Date(year, month+1, 0).getDate();
-
+  const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const first = new Date(year,month,1).getDay();
+  const total = new Date(year,month+1,0).getDate();
   let html = `<div class="cal-month-title">${MONTHS[month]} ${year}</div><div class="cal-days-grid">`;
   html += DAYS.map(d => `<div class="cal-day-name">${d}</div>`).join('');
-  for (let i = 0; i < first; i++) html += `<div class="cal-day empty"></div>`;
-
-  for (let d = 1; d <= total; d++) {
-    const date    = new Date(year, month, d);
+  for (let i=0;i<first;i++) html += `<div class="cal-day empty"></div>`;
+  for (let d=1;d<=total;d++) {
+    const date    = new Date(year,month,d);
     const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isPast  = date < today;
     const isBlocked = blockedDates.has(dateStr);
-    const isToday   = date.toDateString() === today.toDateString();
-    const isCIdate  = selectedCheckIn  === dateStr;
-    const isCOdate  = selectedCheckOut === dateStr;
-    const inRange   = selectedCheckIn && selectedCheckOut && dateStr > selectedCheckIn && dateStr < selectedCheckOut;
-
+    const isToday   = date.toDateString()===today.toDateString();
+    const isCIdate  = selectedCheckIn===dateStr;
+    const isCOdate  = selectedCheckOut===dateStr;
+    const inRange   = selectedCheckIn && selectedCheckOut && dateStr>selectedCheckIn && dateStr<selectedCheckOut;
     let cls = 'cal-day';
-    if (isPast)         cls += ' past';
-    else if (isBlocked) cls += ' blocked';
-    else                cls += ' available';
-    if (isCIdate || isCOdate) cls += ' selected';
-    if (inRange)   cls += ' in-range';
-    if (isToday)   cls += ' today';
-
+    if (isPast) cls+=' past';
+    else if (isBlocked) cls+=' blocked';
+    else cls+=' available';
+    if (isCIdate||isCOdate) cls+=' selected';
+    if (inRange) cls+=' in-range';
+    if (isToday) cls+=' today';
     const clickable = !isPast && !isBlocked;
     html += `<div class="${cls}"${clickable?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
   }
@@ -594,69 +513,64 @@ function renderMonthGrid(year, month, today) {
 }
 
 function calNav(dir) {
-  calMonth += dir;
-  if (calMonth > 11) { calMonth=0; calYear++; }
-  if (calMonth < 0)  { calMonth=11; calYear--; }
+  calMonth+=dir;
+  if (calMonth>11){calMonth=0;calYear++;}
+  if (calMonth<0){calMonth=11;calYear--;}
   renderCalendar();
 }
 
-// ── Date selection — calendar clicks sync to sidebar ──
+// ── Date selection — syncs calendar to sidebar ──
 function selectDate(dateStr) {
   if (blockedDates.has(dateStr)) return;
-
   if (calMode==='checkin' || !selectedCheckIn || (selectedCheckIn && selectedCheckOut)) {
-    selectedCheckIn  = dateStr;
-    selectedCheckOut = null;
-    calMode = 'checkout';
+    selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
+    document.getElementById('sb-checkin').value=dateStr;
+    document.getElementById('sb-checkout').value='';
     setHint('Now select your check-out date');
-    // Sync to sidebar inputs
-    document.getElementById('sb-checkin').value  = dateStr;
-    document.getElementById('sb-checkout').value = '';
     resetSidebarPricing();
   } else if (dateStr > selectedCheckIn) {
-    let blocked = false;
-    const s = new Date(selectedCheckIn), e = new Date(dateStr);
-    for (let d = new Date(s); d < e; d.setDate(d.getDate()+1)) {
-      if (blockedDates.has(d.toISOString().split('T')[0])) { blocked=true; break; }
+    let blocked=false;
+    const s=new Date(selectedCheckIn), e=new Date(dateStr);
+    for (let d=new Date(s);d<e;d.setDate(d.getDate()+1)) {
+      if (blockedDates.has(d.toISOString().split('T')[0])){blocked=true;break;}
     }
     if (blocked) {
-      selectedCheckIn = dateStr; selectedCheckOut = null; calMode='checkout';
-      document.getElementById('sb-checkin').value  = dateStr;
-      document.getElementById('sb-checkout').value = '';
+      selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
+      document.getElementById('sb-checkin').value=dateStr;
+      document.getElementById('sb-checkout').value='';
       setHint('Range contains unavailable nights. Pick a new check-out.');
       resetSidebarPricing();
     } else {
-      selectedCheckOut = dateStr; calMode='checkin';
-      document.getElementById('sb-checkin').value  = selectedCheckIn;
-      document.getElementById('sb-checkout').value = selectedCheckOut;
+      selectedCheckOut=dateStr; calMode='checkin';
+      document.getElementById('sb-checkin').value=selectedCheckIn;
+      document.getElementById('sb-checkout').value=selectedCheckOut;
       setHint('✓ Dates selected — checking availability…');
       autoCheckAvail(selectedCheckIn, selectedCheckOut);
     }
   } else {
-    selectedCheckIn = dateStr; selectedCheckOut = null; calMode='checkout';
-    document.getElementById('sb-checkin').value  = dateStr;
-    document.getElementById('sb-checkout').value = '';
+    selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
+    document.getElementById('sb-checkin').value=dateStr;
+    document.getElementById('sb-checkout').value='';
     setHint('Now select your check-out date');
     resetSidebarPricing();
   }
   renderCalendar();
 }
 
-function setHint(msg) { document.getElementById('cal-hint').textContent = msg; }
+function setHint(msg) { document.getElementById('cal-hint').textContent=msg; }
 
 // ── Sidebar date inputs also trigger auto-check ──
 function onDateChange() {
   const ci = document.getElementById('sb-checkin').value;
   const co = document.getElementById('sb-checkout').value;
   if (ci && co && ci < co) {
-    selectedCheckIn  = ci;
-    selectedCheckOut = co;
+    selectedCheckIn=ci; selectedCheckOut=co;
     renderCalendar();
     autoCheckAvail(ci, co);
   }
 }
 
-// ── Auto check availability + pricing (no button needed) ──
+// ── Auto check — fires 400ms after dates picked ──
 let availDebounce = null;
 function autoCheckAvail(ci, co) {
   clearTimeout(availDebounce);
@@ -664,11 +578,11 @@ function autoCheckAvail(ci, co) {
 }
 
 function resetSidebarPricing() {
-  document.getElementById('sb-avail').style.display   = 'none';
-  document.getElementById('sb-breakdown').style.display = 'none';
-  document.getElementById('sb-reserve-btn').style.display = 'none';
-  document.getElementById('sb-avail-loading').style.display = 'none';
-  bookingData = { nightly:0, nights:0, cleaning:0, service:0, total:0 };
+  document.getElementById('sb-avail').style.display='none';
+  document.getElementById('sb-breakdown').style.display='none';
+  document.getElementById('sb-reserve-btn').style.display='none';
+  document.getElementById('sb-avail-loading').style.display='none';
+  bookingData={nightly:0,nights:0,cleaning:0,service:0,total:0};
 }
 
 async function checkAvailAndPrice(ci, co) {
@@ -677,82 +591,82 @@ async function checkAvailAndPrice(ci, co) {
   const resBtn    = document.getElementById('sb-reserve-btn');
   const loadingEl = document.getElementById('sb-avail-loading');
 
-  availEl.style.display   = 'none';
-  breakEl.style.display   = 'none';
-  resBtn.style.display    = 'none';
-  loadingEl.style.display = 'block';
+  availEl.style.display='none';
+  breakEl.style.display='none';
+  resBtn.style.display='none';
+  loadingEl.style.display='block';
 
   try {
     const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
     const data = await res.json();
-    loadingEl.style.display = 'none';
+    loadingEl.style.display='none';
 
     if (data.available === false) {
-      availEl.className = 'booking-avail no';
-      availEl.textContent = '✗ These dates are unavailable — please try different dates';
-      availEl.style.display = 'block';
+      availEl.className='booking-avail no';
+      availEl.textContent='✗ These dates are unavailable — please try different dates';
+      availEl.style.display='block';
       setHint('These dates are unavailable. Please select different dates.');
       return;
     }
 
-    const nights  = Math.ceil((new Date(co)-new Date(ci))/86400000);
-    const nightly = data.price?.nightlyRate || data.price?.basePrice ||
-                    data.nightlyRate || data.basePrice || 0;
-    const cleaning= data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
-    const sub     = nightly * nights;
-    const svc     = Math.round(sub * 0.12);
-    const total   = sub + cleaning + svc;
+    const nights   = Math.ceil((new Date(co)-new Date(ci))/86400000);
 
-    availEl.className = 'booking-avail ok';
-    availEl.textContent = '✓ Available!';
-    availEl.style.display = 'block';
+    // Average the nightly rates across selected days for accurate total
+    let nightly = 0;
+    if (data.days && Array.isArray(data.days) && data.days.length) {
+      const prices = data.days.filter(d => d.price).map(d => d.price);
+      if (prices.length) nightly = Math.round(prices.reduce((a,b)=>a+b,0) / prices.length);
+    }
+    if (!nightly) nightly = data.nightlyRate || data.price?.nightlyRate || 0;
+
+    const cleaning = data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
+    const sub      = nightly * nights;
+    const svc      = Math.round(sub * 0.12);
+    const total    = sub + cleaning + svc;
+
+    availEl.className='booking-avail ok';
+    availEl.textContent='✓ Available!';
+    availEl.style.display='block';
     setHint('✓ Dates available — ready to reserve');
 
     if (nightly) {
-      // Update the from-price to show selected rate
+      // Update from-price to show selected rate
       document.getElementById('from-price-display').innerHTML = `
         <span class="from-price-num serif">$${Number(nightly).toLocaleString()}</span>
         <span class="from-price-label">/ night</span>
         <div class="from-price-note">Rate for selected dates</div>`;
 
-      document.getElementById('sb-nights-lbl').textContent = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
-      document.getElementById('sb-nights-amt').textContent = `$${sub.toLocaleString()}`;
-      document.getElementById('sb-clean').textContent      = cleaning ? `$${cleaning.toLocaleString()}` : 'Included';
-      document.getElementById('sb-svc').textContent        = `$${svc.toLocaleString()}`;
-      document.getElementById('sb-total').textContent      = `$${total.toLocaleString()}`;
-      breakEl.style.display = 'block';
+      document.getElementById('sb-nights-lbl').textContent=`$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
+      document.getElementById('sb-nights-amt').textContent=`$${sub.toLocaleString()}`;
+      document.getElementById('sb-clean').textContent=cleaning?`$${cleaning.toLocaleString()}`:'Included';
+      document.getElementById('sb-svc').textContent=`$${svc.toLocaleString()}`;
+      document.getElementById('sb-total').textContent=`$${total.toLocaleString()}`;
+      breakEl.style.display='block';
 
-      // Update mobile bar
-      document.getElementById('mobile-price').textContent    = `$${total.toLocaleString()} total`;
-      document.getElementById('mobile-price-sub').textContent = `$${nightly.toLocaleString()}/night · ${nights} nights`;
+      document.getElementById('mobile-price').textContent=`$${total.toLocaleString()} total`;
+      document.getElementById('mobile-price-sub').textContent=`$${nightly.toLocaleString()}/night · ${nights} nights`;
 
-      // Save for checkout
-      bookingData = { nightly, nights, cleaning, service: svc, total };
+      bookingData={nightly,nights,cleaning,service:svc,total};
     }
-
-    resBtn.style.display = 'block';
+    resBtn.style.display='block';
 
   } catch(e) {
-    loadingEl.style.display = 'none';
-    availEl.className = 'booking-avail ok';
-    availEl.textContent = '✓ Proceed to checkout to confirm availability';
-    availEl.style.display = 'block';
-    resBtn.style.display  = 'block';
+    loadingEl.style.display='none';
+    availEl.className='booking-avail ok';
+    availEl.textContent='✓ Proceed to checkout to confirm availability';
+    availEl.style.display='block';
+    resBtn.style.display='block';
   }
 }
 
-// ── Reserve Now — passes all pricing to checkout ──
+// ── Reserve Now ──
 function proceedBooking() {
   const ci     = document.getElementById('sb-checkin').value;
   const co     = document.getElementById('sb-checkout').value;
   const guests = document.getElementById('sb-guests').value;
   if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
-
   const p = new URLSearchParams({
-    id: listingId,
-    checkIn: ci,
-    checkOut: co,
-    guests,
+    id: listingId, checkIn: ci, checkOut: co, guests,
     nightly:  bookingData.nightly,
     nights:   bookingData.nights,
     cleaning: bookingData.cleaning,
@@ -763,47 +677,42 @@ function proceedBooking() {
 }
 
 // ── Property Map ──
-function initPropertyMap() {
-  if (listing?.address?.lat) renderPropertyMap();
-}
+function initPropertyMap() { if (listing?.address?.lat) renderPropertyMap(); }
 function renderPropertyMap() {
   propertyMap = new google.maps.Map(document.getElementById('property-map'), {
-    zoom: 14,
-    center: { lat: listing.address.lat, lng: listing.address.lng },
-    styles: [
-      { featureType:'all', elementType:'geometry', stylers:[{saturation:-20}] },
-      { featureType:'water', elementType:'geometry', stylers:[{color:'#d4e6f1'}] },
-      { featureType:'poi', elementType:'labels', stylers:[{visibility:'off'}] },
-      { featureType:'transit', stylers:[{visibility:'off'}] }
+    zoom:14, center:{lat:listing.address.lat,lng:listing.address.lng},
+    styles:[
+      {featureType:'all',elementType:'geometry',stylers:[{saturation:-20}]},
+      {featureType:'water',elementType:'geometry',stylers:[{color:'#d4e6f1'}]},
+      {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
+      {featureType:'transit',stylers:[{visibility:'off'}]}
     ],
-    mapTypeControl:false, streetViewControl:false, fullscreenControl:false
+    mapTypeControl:false,streetViewControl:false,fullscreenControl:false
   });
   new google.maps.Marker({
-    position:{lat:listing.address.lat, lng:listing.address.lng}, map:propertyMap,
-    icon:{path:google.maps.SymbolPath.CIRCLE, scale:12, fillColor:'#C9A96E', fillOpacity:1, strokeColor:'#fff', strokeWeight:3}
+    position:{lat:listing.address.lat,lng:listing.address.lng},map:propertyMap,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#C9A96E',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}
   });
 }
 
 // ── Helpers ──
-let descExpanded = false;
+let descExpanded=false;
 function toggleDesc() {
-  descExpanded = !descExpanded;
-  document.getElementById('prop-desc').classList.toggle('description-collapsed', !descExpanded);
-  document.getElementById('read-more-btn').textContent = descExpanded ? 'Show less ↑' : 'Show more ↓';
+  descExpanded=!descExpanded;
+  document.getElementById('prop-desc').classList.toggle('description-collapsed',!descExpanded);
+  document.getElementById('read-more-btn').textContent=descExpanded?'Show less ↑':'Show more ↓';
 }
-
 function shareProperty() {
-  if (navigator.share) navigator.share({ title: listing?.title || 'Premium Rentals', url: window.location.href });
+  if (navigator.share) navigator.share({title:listing?.title||'Premium Rentals',url:window.location.href});
   else { navigator.clipboard.writeText(window.location.href); alert('Link copied!'); }
 }
-
-let favOn = false;
+let favOn=false;
 function toggleFav() {
-  favOn = !favOn;
-  const btn = document.getElementById('fav-btn');
-  btn.textContent = favOn ? '♥ Saved' : '♡ Save';
-  btn.style.color = favOn ? '#e74c3c' : '';
-  btn.style.borderColor = favOn ? '#e74c3c' : '';
+  favOn=!favOn;
+  const btn=document.getElementById('fav-btn');
+  btn.textContent=favOn?'♥ Saved':'♡ Save';
+  btn.style.color=favOn?'#e74c3c':'';
+  btn.style.borderColor=favOn?'#e74c3c':'';
 }
 
 loadListing();

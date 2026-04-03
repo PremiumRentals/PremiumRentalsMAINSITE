@@ -233,14 +233,14 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 
 <!-- NAV -->
 <nav id="mainNav">
-  <a href="#" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
   <ul class="nav-links">
-    <li><a href="#properties">Properties</a></li>
+    <li><a href="properties.html">Properties</a></li>
     <li><a href="#about">About</a></li>
     <li><a href="#amenities">Amenities</a></li>
-    <li><a href="#owners">Owner Services</a></li>
+    <li><a href="owners.html">Owner Services</a></li>
     <li><a href="#contact">Contact</a></li>
-    <li><a href="#properties" class="nav-cta">Book Now</a></li>
+    <li><a href="properties.html" class="nav-cta">Book Now</a></li>
   </ul>
 </nav>
 
@@ -255,12 +255,12 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <h1 class="serif">Find Your<br><em>Perfect Escape</em></h1>
     <p class="hero-sub">Handpicked luxury properties managed with care. Every stay crafted to feel like home — only better.</p>
     <div class="hero-btns">
-      <a href="#properties" class="btn-primary">Browse Properties</a>
+      <a href="properties.html" class="btn-primary">Browse Properties</a>
       <a href="#about" class="btn-outline">Our Story</a>
     </div>
   </div>
   <div class="hero-stats">
-    <div class="hero-stat"><div class="hero-stat-num" id="stat-props">79</div><div class="hero-stat-lbl">Properties</div></div>
+    <div class="hero-stat"><div class="hero-stat-num" id="stat-props">80+</div><div class="hero-stat-lbl">Properties</div></div>
     <div class="hero-stat"><div class="hero-stat-num">4.9★</div><div class="hero-stat-lbl">Avg. Rating</div></div>
     <div class="hero-stat"><div class="hero-stat-num">8K+</div><div class="hero-stat-lbl">Happy Guests</div></div>
     <div class="hero-stat"><div class="hero-stat-num">24/7</div><div class="hero-stat-lbl">Support</div></div>
@@ -280,21 +280,20 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
         <option value="8">8 guests</option><option value="10">10+ guests</option>
       </select>
     </div>
-    <button class="search-btn" onclick="filterProperties()">Search</button>
+    <button class="search-btn" onclick="window.location.href='properties.html'">Search</button>
   </div>
 </div>
 
-<!-- PROPERTIES -->
+<!-- FEATURED PROPERTIES -->
 <section class="properties-section" id="properties" style="padding-top:72px">
   <div class="section-header fade-up">
     <div>
       <p class="section-label">Our Collection</p>
       <h2 class="section-title serif">Featured Properties</h2>
     </div>
-    <a href="#" class="view-all" id="view-all-link">View All Properties →</a>
+    <a href="properties.html" class="view-all">View All Properties →</a>
   </div>
   <div class="properties-grid" id="properties-grid">
-    <!-- Skeleton loaders shown while API fetches -->
     <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
     <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
     <div class="prop-card"><div class="prop-img-wrap"><div class="skeleton skel-img"></div></div><div class="prop-body"><div class="skeleton skel-line" style="width:40%;margin-bottom:8px"></div><div class="skeleton skel-line" style="width:90%"></div><div class="skeleton skel-line" style="width:60%;margin-top:8px"></div></div></div>
@@ -308,11 +307,11 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <div class="exp-content fade-up">
       <p class="section-label" style="color:var(--gold)">About Premium Rentals</p>
       <h2 class="section-title serif" style="color:#fff">A New Standard<br>in Hospitality</h2>
-      <p style="font-size:15px;color:rgba(255,255,255,.65);line-height:1.8;margin-bottom:32px">We combine boutique hospitality with world-class property management — powered by Guesty Pro. Every property is handpicked, professionally managed, and guest-ready at the highest standard.</p>
-      <div class="exp-feat"><div class="exp-feat-icon">🔑</div><div class="exp-feat-text"><h4>Seamless Check-In</h4><p>Smart locks and digital access codes delivered before arrival. No wait, no key boxes.</p></div></div>
-      <div class="exp-feat"><div class="exp-feat-icon">🛎</div><div class="exp-feat-text"><h4>Concierge-Level Support</h4><p>Real humans available 24/7 — response within minutes.</p></div></div>
-      <div class="exp-feat" style="margin-bottom:32px"><div class="exp-feat-icon">✨</div><div class="exp-feat-text"><h4>Hotel-Grade Preparation</h4><p>Premium linens, professional staging, and deep cleaning every stay.</p></div></div>
-      <a href="#properties" class="btn-primary" style="align-self:flex-start">Explore Properties</a>
+      <p style="font-size:15px;color:rgba(255,255,255,.65);line-height:1.8;margin-bottom:32px">We combine boutique hospitality with state-of-the-art property management technology. Every property in our portfolio is handpicked, professionally managed, and guest-ready at the highest standard — from the moment you book to the moment you check out.</p>
+      <div class="exp-feat"><div class="exp-feat-icon">🔑</div><div class="exp-feat-text"><h4>Keyless Smart Entry</h4><p>Touchless check-in with smart lock technology. Your access code arrives before you do — no waiting, no key exchanges.</p></div></div>
+      <div class="exp-feat"><div class="exp-feat-icon">🌡️</div><div class="exp-feat-text"><h4>Smart Home Technology</h4><p>Integrated smart thermostats, automated lighting, and app-controlled amenities for a seamless, modern stay.</p></div></div>
+      <div class="exp-feat" style="margin-bottom:32px"><div class="exp-feat-icon">✨</div><div class="exp-feat-text"><h4>Hotel-Grade Preparation</h4><p>Professional cleaning teams, premium linens, and meticulous staging before every single check-in.</p></div></div>
+      <a href="properties.html" class="btn-primary" style="align-self:flex-start">Explore Properties</a>
     </div>
   </div>
 </section>
@@ -321,21 +320,21 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 <section class="amenities-section" id="amenities">
   <div class="fade-up" style="text-align:center">
     <p class="section-label" style="text-align:center">What's Included</p>
-    <h2 class="section-title serif" style="text-align:center;margin:0 auto">Premium Amenities<br>at Every Property</h2>
+    <h2 class="section-title serif" style="text-align:center;margin:0 auto">Standard Amenities<br>at Every Property</h2>
   </div>
   <div class="amenities-grid fade-up">
-    <div class="amenity-card"><div class="amenity-icon">🏊</div><div class="amenity-name">Private Pool</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🔥</div><div class="amenity-name">Hot Tub & Spa</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🍳</div><div class="amenity-name">Chef's Kitchen</div></div>
-    <div class="amenity-card"><div class="amenity-icon">📶</div><div class="amenity-name">Gigabit Wi-Fi</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🔑</div><div class="amenity-name">Keyless Smart Entry</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🌡️</div><div class="amenity-name">Smart Thermostat</div></div>
+    <div class="amenity-card"><div class="amenity-icon">📶</div><div class="amenity-name">High-Speed Wi-Fi</div></div>
+    <div class="amenity-card"><div class="amenity-icon">📺</div><div class="amenity-name">Smart TV</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🍳</div><div class="amenity-name">Fully Stocked Kitchen</div></div>
+    <div class="amenity-card"><div class="amenity-icon">👕</div><div class="amenity-name">Washer & Dryer</div></div>
     <div class="amenity-card"><div class="amenity-icon">🅿️</div><div class="amenity-name">Free Parking</div></div>
+    <div class="amenity-card"><div class="amenity-icon">❄️</div><div class="amenity-name">Air Conditioning</div></div>
     <div class="amenity-card"><div class="amenity-icon">🐾</div><div class="amenity-name">Pet Friendly</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🎬</div><div class="amenity-name">Home Theater</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🚗</div><div class="amenity-name">EV Charging</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🏋️</div><div class="amenity-name">Private Gym</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🌿</div><div class="amenity-name">Garden & Deck</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🍷</div><div class="amenity-name">Wine Storage</div></div>
-    <div class="amenity-card"><div class="amenity-icon">🔒</div><div class="amenity-name">Smart Home</div></div>
+    <div class="amenity-card"><div class="amenity-icon">👨‍👩‍👧‍👦</div><div class="amenity-name">Family Friendly</div></div>
+    <div class="amenity-card"><div class="amenity-icon">💼</div><div class="amenity-name">Dedicated Workspace</div></div>
+    <div class="amenity-card"><div class="amenity-icon">🛁</div><div class="amenity-name">Premium Linens</div></div>
   </div>
 </section>
 
@@ -345,13 +344,46 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <div><p class="section-label">Guest Reviews</p><h2 class="section-title serif">What Our Guests Say</h2></div>
     <div style="display:flex;align-items:center;gap:10px">
       <span style="font-family:'Playfair Display',serif;font-size:40px;color:var(--gold);font-weight:600;line-height:1">4.97</span>
-      <div><div style="color:var(--gold);font-size:15px">★★★★★</div><div style="font-size:12px;color:var(--mid)">8,200+ verified reviews</div></div>
+      <div><div style="color:var(--gold);font-size:15px">★★★★★</div><div style="font-size:12px;color:var(--mid)">300+ verified reviews</div></div>
     </div>
   </div>
   <div class="testi-grid fade-up">
-    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">The most beautifully managed property we've ever stayed in. Check-in was effortless, the home was immaculate, and the team responded within minutes.</p><div class="testi-author"><div class="testi-av" style="background:#E8D5B0;color:#8A6A35">SL</div><div><div class="testi-name">Sarah Lindqvist</div><div class="testi-loc">Villa Meridian, Malibu</div></div></div></div>
-    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">Nothing comes close. The property exceeded the photos, amenities were stocked perfectly, and it genuinely felt like a five-star hotel experience.</p><div class="testi-author"><div class="testi-av" style="background:#C8DFE0;color:#0F6E56">MR</div><div><div class="testi-name">Marcus Reid</div><div class="testi-loc">Alpine Residence, Aspen</div></div></div></div>
-    <div class="testi-card"><div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div><div class="testi-quote serif">"</div><p class="testi-text">The digital guidebook was so thorough we never had to ask a question. The cleaning team deserves their own five-star review. We'll be back every year.</p><div class="testi-author"><div class="testi-av" style="background:#F5C4B3;color:#993C1D">JK</div><div><div class="testi-name">Jessica Kovacs</div><div class="testi-loc">Skyline Penthouse, NYC</div></div></div></div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">Hands down, one of the best Airbnb properties we've ever stayed in. Everything was so thoughtful and beautifully designed. I literally took notes on the brands of towels, linens, and mattress because the home was such a beautiful combination of style and comfort.</p>
+      <div class="testi-author"><div class="testi-av" style="background:#E8D5B0;color:#8A6A35">SH</div><div><div class="testi-name">Shannon H.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">Excellent home and host! Great, convenient location and a nice peaceful neighborhood. The home is spacious, clean, relaxing, and peaceful, with super comfortable beds and couches. The fully stocked kitchen was a huge bonus. We really enjoyed our stay and can't wait to come back again!</p>
+      <div class="testi-author"><div class="testi-av" style="background:#C8DFE0;color:#0F6E56">MC</div><div><div class="testi-name">Matt C.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">The home was spacious and beautifully maintained, giving everyone plenty of room to spread out. The kitchen setup was fantastic. The host handled everything quickly and professionally. Our family had a memorable stay and would definitely recommend this property!</p>
+      <div class="testi-author"><div class="testi-av" style="background:#F5C4B3;color:#993C1D">KW</div><div><div class="testi-name">Ken W.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">Honestly this was one of the best Airbnbs we've ever stayed at! The neighbourhood was beautiful and our kids took the longboards out every night. The home was beautiful, well stocked, and the hosts were extremely pleasant to work with. We will most definitely be coming back.</p>
+      <div class="testi-author"><div class="testi-av" style="background:#E8D5B0;color:#8A6A35">CC</div><div><div class="testi-name">Casey C.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">Everything was so thoughtful and beautifully designed. We were traveling with 4 kids so the game room was absolutely perfect. Everything for convenience and comfort was thought of. We LOVED staying there with our family and would do it again in a heartbeat.</p>
+      <div class="testi-author"><div class="testi-av" style="background:#C8DFE0;color:#0F6E56">CC</div><div><div class="testi-name">Cecilia C.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
+    <div class="testi-card">
+      <div style="color:var(--gold);font-size:13px;margin-bottom:10px">★★★★★</div>
+      <div class="testi-quote serif">"</div>
+      <p class="testi-text">We had a wonderful stay and truly enjoyed this home. It accommodated our group very comfortably. The location was excellent, convenient to town and nearby amenities. The home was very clean and well cared for. We would happily stay here again.</p>
+      <div class="testi-author"><div class="testi-av" style="background:#F5C4B3;color:#993C1D">PH</div><div><div class="testi-name">Pat H.</div><div class="testi-loc">Verified Guest</div></div></div>
+    </div>
   </div>
 </section>
 
@@ -361,9 +393,9 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <div class="owners-content fade-up">
       <p class="section-label" style="color:var(--gold)">For Property Owners</p>
       <h2 class="section-title serif" style="color:#fff">Earn More.<br>Stress Less.</h2>
-      <p class="section-sub" style="color:rgba(255,255,255,.7);margin-bottom:24px">Let Premium Rentals manage your investment property end-to-end. We handle everything so you don't have to.</p>
+      <p class="section-sub" style="color:rgba(255,255,255,.7);margin-bottom:24px">Let Premium Rentals manage your investment property end-to-end. From dynamic pricing to guest communication, professional cleaning, and maintenance — we handle everything so you don't have to.</p>
       <div style="margin-bottom:28px">
-        <div class="svc-item">Dynamic pricing & revenue optimization via Guesty Pro</div>
+        <div class="svc-item">Dynamic pricing & revenue optimization</div>
         <div class="svc-item">Professional photography & listing management</div>
         <div class="svc-item">Hotel-grade cleaning & property maintenance</div>
         <div class="svc-item">Guest vetting, communication & 24/7 support</div>
@@ -374,12 +406,12 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
         <div class="owner-stat"><div class="owner-stat-num">92%</div><div class="owner-stat-lbl">Avg. Occupancy Rate</div></div>
         <div class="owner-stat"><div class="owner-stat-num">38%</div><div class="owner-stat-lbl">More Revenue vs. DIY</div></div>
         <div class="owner-stat"><div class="owner-stat-num">$4.2K</div><div class="owner-stat-lbl">Avg. Monthly Revenue</div></div>
-        <div class="owner-stat"><div class="owner-stat-num">79</div><div class="owner-stat-lbl">Properties Managed</div></div>
+        <div class="owner-stat"><div class="owner-stat-num">80+</div><div class="owner-stat-lbl">Properties Managed</div></div>
       </div>
-      <a href="#contact" class="btn-primary" style="display:inline-block">Get a Free Analysis</a>
+      <a href="owners.html" class="btn-primary" style="display:inline-block">Learn More</a>
     </div>
     <div class="owners-img-wrap fade-up">
-      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=700&q=80" alt="Luxury property">
+      <img src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=700&q=80" alt="Property management growth">
       <div class="owners-badge"><div class="owners-badge-num">$4,200</div><div class="owners-badge-txt">avg. monthly<br>owner revenue</div></div>
     </div>
   </div>
@@ -394,8 +426,8 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   </div>
   <div class="process-steps fade-up">
     <div class="step"><div class="step-num">1</div><div class="step-title">Browse & Choose</div><p class="step-text">Filter by location, dates, and guests to find your perfect property.</p></div>
-    <div class="step"><div class="step-num">2</div><div class="step-title">Book Instantly</div><p class="step-text">Secure your dates — instant confirmation powered by Guesty Pro.</p></div>
-    <div class="step"><div class="step-num">3</div><div class="step-title">Check In Seamlessly</div><p class="step-text">Receive digital keys, your welcome guide, and local tips before arrival.</p></div>
+    <div class="step"><div class="step-num">2</div><div class="step-title">Book Instantly</div><p class="step-text">Secure your dates with instant confirmation and secure payment processing.</p></div>
+    <div class="step"><div class="step-num">3</div><div class="step-title">Check In Seamlessly</div><p class="step-text">Receive your digital access code, welcome guide, and local tips before arrival.</p></div>
     <div class="step"><div class="step-num">4</div><div class="step-title">Enjoy Your Stay</div><p class="step-text">Our team is available 24/7. Hotel-grade service, home-level comfort.</p></div>
   </div>
 </section>
@@ -407,18 +439,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
       <p class="section-label">Get In Touch</p>
       <h2 class="section-title serif" style="color:#fff">We'd Love<br>to Hear From You</h2>
       <p class="section-sub" style="color:rgba(255,255,255,.6);margin-bottom:40px">Planning your next stay or curious about listing your property? Our team is ready.</p>
-      <div class="cd"><div class="cd-ico">📞</div><div><div class="cd-label">Phone</div><div class="cd-value">+1 (800) 555-0199</div></div></div>
-      <div class="cd"><div class="cd-ico">✉️</div><div><div class="cd-label">Email</div><div class="cd-value">hello@premiumrentals.ai</div></div></div>
-      <div class="cd"><div class="cd-ico">📍</div><div><div class="cd-label">Office</div><div class="cd-value">Beverly Hills, California</div></div></div>
+      <div class="cd"><div class="cd-ico">📞</div><div><div class="cd-label">Phone</div><div class="cd-value">208-807-3302</div></div></div>
+      <div class="cd"><div class="cd-ico">✉️</div><div><div class="cd-label">Email</div><div class="cd-value">info@premiumrentals.com</div></div></div>
+      <div class="cd"><div class="cd-ico">📍</div><div><div class="cd-label">Office</div><div class="cd-value">3140 W Belltower Dr. Suite 100<br>Meridian, Idaho 83646</div></div></div>
       <div class="cd"><div class="cd-ico">🕐</div><div><div class="cd-label">Support</div><div class="cd-value">24 hours a day, 7 days a week</div></div></div>
     </div>
     <div class="contact-form-box fade-up">
       <div class="form-title serif">Send a Message</div>
       <div class="form-row">
-        <div class="fg"><label>First Name</label><input type="text" id="cf-first" placeholder="Alexandra"></div>
-        <div class="fg"><label>Last Name</label><input type="text" id="cf-last" placeholder="Hartwell"></div>
+        <div class="fg"><label>First Name</label><input type="text" id="cf-first" placeholder="First name"></div>
+        <div class="fg"><label>Last Name</label><input type="text" id="cf-last" placeholder="Last name"></div>
       </div>
-      <div class="fg"><label>Email</label><input type="email" id="cf-email" placeholder="hello@email.com"></div>
+      <div class="fg"><label>Email</label><input type="email" id="cf-email" placeholder="your@email.com"></div>
       <div class="fg"><label>I'm Interested In</label>
         <select id="cf-interest"><option>Booking a Property</option><option>Listing My Property</option><option>General Enquiry</option></select>
       </div>
@@ -432,7 +464,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 <div class="newsletter">
   <div class="fade-up">
     <h2 class="section-title serif">Get Exclusive Deals</h2>
-    <p>Join 12,000+ subscribers for early access to new properties, seasonal offers, and travel inspiration.</p>
+    <p>Join our subscribers for early access to new properties, seasonal offers, and travel inspiration.</p>
     <div class="nl-form">
       <input class="nl-in" type="email" id="nl-email" placeholder="Your email address">
       <button class="nl-btn" onclick="submitNewsletter()">Subscribe</button>
@@ -444,18 +476,17 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 <footer>
   <div class="footer-grid">
     <div class="footer-brand">
-      <a href="#" class="nav-logo serif" style="color:#fff;font-size:22px;display:block">Premium<span style="color:var(--gold)">Rentals</span></a>
+      <a href="/" class="nav-logo serif" style="color:#fff;font-size:22px;display:block">Premium<span style="color:var(--gold)">Rentals</span></a>
       <p>Premium short-term rental management. We turn exceptional properties into unforgettable experiences — every stay, every time.</p>
       <div class="footer-socials"><a href="#" class="soc">f</a><a href="#" class="soc">in</a><a href="#" class="soc">ig</a><a href="#" class="soc">yt</a></div>
     </div>
-    <div class="fc"><h5>Properties</h5><a href="#">All Listings</a><a href="#">Beachfront</a><a href="#">Mountain & Ski</a><a href="#">City & Penthouse</a><a href="#">New Arrivals</a></div>
-    <div class="fc"><h5>Company</h5><a href="#">About Us</a><a href="#">How It Works</a><a href="#">Owner Services</a><a href="#">Careers</a><a href="#">Press</a></div>
-    <div class="fc"><h5>Support</h5><a href="#">Contact Us</a><a href="#">FAQs</a><a href="#">Cancellation Policy</a><a href="#">Guest Portal</a><a href="#">Owner Login</a></div>
+    <div class="fc"><h5>Properties</h5><a href="properties.html">All Listings</a><a href="properties.html">Beachfront</a><a href="properties.html">Mountain & Ski</a><a href="properties.html">City & Penthouse</a><a href="properties.html">New Arrivals</a></div>
+    <div class="fc"><h5>Company</h5><a href="#about">About Us</a><a href="#about">How It Works</a><a href="owners.html">Owner Services</a><a href="#contact">Careers</a><a href="#contact">Press</a></div>
+    <div class="fc"><h5>Support</h5><a href="#contact">Contact Us</a><a href="#contact">FAQs</a><a href="#contact">Cancellation Policy</a><a href="#contact">Guest Portal</a><a href="https://login.premiumrentals.com">Owner Login</a></div>
   </div>
   <div class="footer-bot">
     <span>© 2025 Premium Rentals. All rights reserved.</span>
-    <span>Powered by <span style="color:var(--gold)">Guesty Pro</span></span>
-    <span><a href="#">Privacy Policy</a> &nbsp;·&nbsp; <a href="#">Terms of Service</a></span>
+    <span><a href="#contact">Privacy Policy</a> &nbsp;·&nbsp; <a href="#contact">Terms of Service</a></span>
   </div>
 </footer>
 
@@ -488,61 +519,53 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
         <div class="price-row total"><span>Total</span><span id="total-amt"></span></div>
       </div>
       <button class="modal-book-btn" id="modal-book-btn" onclick="proceedBooking()">Check Availability First</button>
-      <p style="font-size:11px;color:#bbb;text-align:center;margin-top:10px">Secure booking · Instant confirmation · Powered by Guesty Pro</p>
+      <p style="font-size:11px;color:#bbb;text-align:center;margin-top:10px">Secure booking · Instant confirmation</p>
     </div>
   </div>
 </div>
 
 <script>
-// ─────────────────────────────────────────
-// CONFIG — update this after Step 4
-// ─────────────────────────────────────────
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-// Your Guesty Direct Booking subdomain — update after confirming in Guesty
 const GUESTY_BOOKING_BASE = 'https://premiumrentals.guesty.com';
 
-// ─────────────────────────────────────────
-// LISTINGS
-// ─────────────────────────────────────────
 let allListings = [];
 let activeListing = null;
 
+// ── Load & randomly rotate 6 featured listings ──
 async function loadListings() {
   try {
     const res = await fetch(`${API_BASE}/api/website/listings`);
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
     allListings = data.listings;
-    document.getElementById('stat-props').textContent = allListings.length;
-    renderListings(allListings);
+    // Shuffle and pick 6
+    const shuffled = allListings.sort(() => Math.random() - 0.5);
+    const featured = shuffled.slice(0, 6);
+    renderListings(featured);
   } catch(e) {
-    console.warn('API not yet connected — showing placeholder cards');
+    console.warn('API not connected — showing placeholders');
     renderPlaceholders();
   }
 }
 
 function renderListings(listings) {
   const grid = document.getElementById('properties-grid');
-  if (!listings.length) {
-    grid.innerHTML = `<div style="grid-column:1/-1;text-align:center;padding:60px;color:var(--mid)"><p>No properties found matching your search.</p></div>`;
-    return;
-  }
+  if (!listings.length) { renderPlaceholders(); return; }
   grid.innerHTML = listings.map((l, i) => {
     const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
     const price = l.prices?.basePrice || l.prices?.nightlyRate;
-    const badge = i === 0 ? 'Featured' : i === 1 ? 'New' : '';
-    const badgeColor = i === 1 ? 'background:var(--accent)' : '';
+    const badge = i === 0 ? 'Featured' : '';
     return `
       <div class="prop-card fade-up" onclick="openModal('${l._id}')">
         <div class="prop-img-wrap">
           <img src="${photo}" alt="${name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'">
-          ${badge ? `<div class="prop-badge" style="${badgeColor}">${badge}</div>` : ''}
+          ${badge ? `<div class="prop-badge">${badge}</div>` : ''}
           <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
         </div>
         <div class="prop-body">
-          <p class="prop-location">📍 ${city || 'Location on booking'}</p>
+          <p class="prop-location">📍 ${city || 'Idaho'}</p>
           <h3 class="prop-name serif">${name}</h3>
           <div class="prop-meta">
             <span>🛏 ${l.bedrooms || '—'} beds</span>
@@ -564,15 +587,15 @@ function renderListings(listings) {
 
 function renderPlaceholders() {
   const ph = [
-    {img:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75',city:'Malibu, California',name:'Villa Meridian — Oceanfront Estate',beds:5,baths:4,g:10,price:850,badge:'Featured'},
-    {img:'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',city:'Aspen, Colorado',name:'The Alpine Residence — Ski-In',beds:5,baths:4,g:10,price:990,badge:'New'},
-    {img:'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75',city:'Manhattan, New York',name:'Skyline Penthouse — City Views',beds:3,baths:3,g:6,price:620,badge:''}
+    {img:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75',city:'Meridian, Idaho',name:'The Lyrical Estate',beds:5,baths:4,g:10,price:850,badge:'Featured'},
+    {img:'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',city:'Nampa, Idaho',name:'Rivendell Grand Estate',beds:7,baths:4,g:16,price:990,badge:''},
+    {img:'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75',city:'Meridian, Idaho',name:'The Morpheus Retreat',beds:4,baths:3,g:8,price:620,badge:''}
   ];
   document.getElementById('properties-grid').innerHTML = ph.map(p => `
     <div class="prop-card fade-up" onclick="openModal(null,'${p.name}','${p.city}',${p.price})">
       <div class="prop-img-wrap">
         <img src="${p.img}" alt="${p.name}">
-        ${p.badge ? `<div class="prop-badge" ${p.badge==='New'?'style="background:var(--accent)"':''}>${p.badge}</div>` : ''}
+        ${p.badge ? `<div class="prop-badge">${p.badge}</div>` : ''}
         <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
       </div>
       <div class="prop-body">
@@ -591,25 +614,7 @@ function renderPlaceholders() {
   document.querySelectorAll('.prop-card.fade-up').forEach(el => io.observe(el));
 }
 
-// ─────────────────────────────────────────
-// SEARCH / FILTER
-// ─────────────────────────────────────────
-function filterProperties() {
-  const loc = document.getElementById('search-location').value.toLowerCase().trim();
-  const guests = parseInt(document.getElementById('search-guests').value) || 0;
-  const filtered = allListings.filter(l => {
-    const city  = (l.address?.city || '').toLowerCase();
-    const title = (l.title || '').toLowerCase();
-    return (!loc || city.includes(loc) || title.includes(loc)) &&
-           (!guests || (l.accommodates || 0) >= guests);
-  });
-  renderListings(filtered.length ? filtered : allListings);
-  document.getElementById('properties').scrollIntoView({behavior:'smooth'});
-}
-
-// ─────────────────────────────────────────
-// MODAL + AVAILABILITY
-// ─────────────────────────────────────────
+// ── Modal ──
 function openModal(id, fbName, fbLoc, fbPrice) {
   activeListing = id ? allListings.find(l => l._id === id) : null;
   document.getElementById('modal-name').textContent = activeListing?.title || activeListing?.nickname || fbName || 'Luxury Property';
@@ -631,24 +636,20 @@ async function checkAvail() {
   const ci = document.getElementById('modal-ci').value;
   const co = document.getElementById('modal-co').value;
   if (!ci || !co || ci >= co) return;
-
   const resultEl  = document.getElementById('avail-result');
   const spinnerEl = document.getElementById('avail-spinner');
   const breakEl   = document.getElementById('price-breakdown');
   const btn       = document.getElementById('modal-book-btn');
-
   spinnerEl.style.display = 'block';
   resultEl.style.display  = 'none';
   breakEl.style.display   = 'none';
   btn.disabled = true;
-
   try {
     const id = activeListing?._id;
     if (!id) throw new Error('no id');
     const res  = await fetch(`${API_BASE}/api/website/availability/${id}?checkIn=${ci}&checkOut=${co}`);
     const data = await res.json();
     spinnerEl.style.display = 'none';
-
     if (data.available === false) {
       resultEl.className = 'avail-result no';
       resultEl.textContent = '✗ These dates are unavailable — please try different dates';
@@ -656,17 +657,14 @@ async function checkAvail() {
       btn.textContent = 'Try Different Dates';
       return;
     }
-
     resultEl.className = 'avail-result ok';
     resultEl.textContent = '✓ Dates are available!';
     resultEl.style.display = 'block';
-
     const nights   = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
     const nightly  = data.price?.basePrice || activeListing?.prices?.basePrice || 0;
-    const cleaning = data.price?.cleaningFee || 0;
+    const cleaning = data.price?.cleaningFee || activeListing?.prices?.cleaningFee || 0;
     const sub      = nightly * nights;
     const svc      = Math.round(sub * 0.12);
-
     if (nightly) {
       document.getElementById('nights-lbl').textContent  = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('nights-amt').textContent  = `$${sub.toLocaleString()}`;
@@ -677,11 +675,10 @@ async function checkAvail() {
     }
     btn.textContent = 'Reserve Now →';
     btn.disabled = false;
-
   } catch {
     spinnerEl.style.display = 'none';
     resultEl.className = 'avail-result ok';
-    resultEl.textContent = '✓ Proceed to Guesty checkout to confirm availability';
+    resultEl.textContent = '✓ Proceed to checkout to confirm availability';
     resultEl.style.display = 'block';
     btn.textContent = 'Proceed to Booking →';
     btn.disabled = false;
@@ -693,15 +690,11 @@ function proceedBooking() {
   const ci     = document.getElementById('modal-ci').value;
   const co     = document.getElementById('modal-co').value;
   const guests = document.getElementById('modal-guests').value;
-  const url    = id
-    ? `${GUESTY_BOOKING_BASE}/listing/${id}?checkIn=${ci}&checkOut=${co}&guests=${guests}`
-    : `${GUESTY_BOOKING_BASE}`;
+  const url    = id ? `${GUESTY_BOOKING_BASE}/listing/${id}?checkIn=${ci}&checkOut=${co}&guests=${guests}` : GUESTY_BOOKING_BASE;
   window.open(url, '_blank');
 }
 
-// ─────────────────────────────────────────
-// CONTACT FORM
-// ─────────────────────────────────────────
+// ── Contact Form ──
 async function submitContact() {
   const btn = document.getElementById('submitBtn');
   const body = {
@@ -717,18 +710,13 @@ async function submitContact() {
     await fetch(`${API_BASE}/api/website/contact`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
     });
-    btn.textContent = 'Message Sent ✓';
-    btn.style.background = 'var(--accent)';
-  } catch {
-    btn.textContent = 'Message Sent ✓';
-    btn.style.background = 'var(--accent)';
-  }
+  } catch {}
+  btn.textContent = 'Message Sent ✓';
+  btn.style.background = 'var(--accent)';
   setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; }, 3000);
 }
 
-// ─────────────────────────────────────────
-// NEWSLETTER
-// ─────────────────────────────────────────
+// ── Newsletter ──
 async function submitNewsletter() {
   const btn   = document.querySelector('.nl-btn');
   const email = document.getElementById('nl-email').value;
@@ -743,12 +731,9 @@ async function submitNewsletter() {
   setTimeout(() => { btn.textContent = 'Subscribe'; }, 3000);
 }
 
-// ─────────────────────────────────────────
-// UI HELPERS
-// ─────────────────────────────────────────
+// ── UI ──
 const nav = document.getElementById('mainNav');
 window.addEventListener('scroll', () => nav.classList.toggle('scrolled', scrollY > 50));
-
 const io = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:.1});
 document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
 
@@ -765,7 +750,6 @@ document.querySelectorAll('a[href^="#"]').forEach(a => {
   });
 });
 
-// Boot
 loadListings();
 </script>
 </body>

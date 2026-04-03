@@ -222,13 +222,40 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     if (cached) return res.json({ success: true, days: cached, cached: true });
 
     const token = await getGuestyToken();
+
+    // Try the availability-pricing endpoint which we know works
     const response = await fetch(
-      `https://open-api.guesty.com/v1/listings/${listingId}/calendar?startDate=${startDate}&endDate=${endDate}`,
+      `https://open-api.guesty.com/v1/availability-pricing/api/v3/listings/${listingId}?startDate=${startDate}&endDate=${endDate}&currency=USD`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
-    const data = await response.json();
-    setCache(cacheKey, data, 60 * 60 * 1000); // 1 hour cache
-    res.json({ success: true, days: data, cached: false });
+    const text = await response.text();
+    let data;
+    try { data = JSON.parse(text); } catch(e) {
+      return res.status(500).json({ success: false, error: 'Invalid JSON from Guesty', raw: text.slice(0, 200) });
+    }
+
+    // Extract day-by-day availability
+    const days = {};
+    if (data.days && Array.isArray(data.days)) {
+      data.days.forEach(d => {
+        days[d.date] = {
+          available: d.status === 'available',
+          price: d.price || null,
+          status: d.status
+        };
+      });
+    } else if (data.calendarDays && Array.isArray(data.calendarDays)) {
+      data.calendarDays.forEach(d => {
+        days[d.date] = {
+          available: d.status === 'available' || d.available === true,
+          price: d.price || null,
+          status: d.status
+        };
+      });
+    }
+
+    setCache(cacheKey, { days, raw: data }, 60 * 60 * 1000);
+    res.json({ success: true, days, rawKeys: Object.keys(data), cached: false });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

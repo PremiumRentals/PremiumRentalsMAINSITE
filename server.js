@@ -449,7 +449,25 @@ app.post('/api/website/reserve', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-
+// ── Temp: Check account taxes ──
+app.get('/api/website/test-taxes', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const [accountRes, taxRes] = await Promise.all([
+      fetch('https://open-api.guesty.com/v1/accounts/me', {
+        headers: { Authorization: `Bearer ${token}` }
+      }),
+      fetch('https://open-api.guesty.com/v1/taxes', {
+        headers: { Authorization: `Bearer ${token}` }
+      })
+    ]);
+    const account = await accountRes.json();
+    const taxes   = await taxRes.json();
+    res.json({ account: account?.taxes || account?.money || 'no tax field', taxes });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

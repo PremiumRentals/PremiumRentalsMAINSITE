@@ -87,7 +87,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-day{text-align:center;padding:9px 4px;font-size:13px;border-radius:2px;transition:all .15s;min-width:0;line-height:1}
 .cal-day.available{cursor:pointer}
 .cal-day.available:hover{background:var(--light)}
-.cal-day.selected{background:var(--accent);color:#fff;font-weight:600;border-radius:2px}
+.cal-day.selected{background:var(--accent);color:#fff;font-weight:600}
 .cal-day.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
 .cal-day.blocked{color:#ccc;text-decoration:line-through;cursor:not-allowed;background:#fafafa}
 .cal-day.past{color:#ddd;cursor:not-allowed}
@@ -103,27 +103,29 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 
 /* BOOKING SIDEBAR */
 .booking-card{background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-.booking-price-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;color:var(--dark)}
-.booking-price-label{font-size:13px;color:var(--mid);margin-left:4px}
+.from-price{margin-bottom:16px}
+.from-price-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;color:var(--dark)}
+.from-price-label{font-size:13px;color:var(--mid);margin-left:4px}
+.from-price-note{font-size:11px;color:var(--mid);margin-top:2px}
+.from-price-loading{font-size:13px;color:var(--mid);font-style:italic}
 .booking-fields{border:1px solid #e0ddd8;border-radius:4px;overflow:hidden;margin:16px 0 12px}
 .booking-field-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e0ddd8}
-.booking-field{padding:12px 14px;cursor:pointer}
+.booking-field{padding:12px 14px;cursor:pointer;transition:background .15s}
 .booking-field:first-child{border-right:1px solid #e0ddd8}
 .booking-field:hover{background:var(--light)}
 .booking-field-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:4px}
 .booking-field input{border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;cursor:pointer}
 .booking-field-guests{padding:12px 14px}
 .booking-field-guests select{border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;-webkit-appearance:none;cursor:pointer}
-.check-avail-btn{width:100%;background:var(--accent);color:#fff;border:none;padding:16px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:12px}
-.check-avail-btn:hover{background:#1e3329}
-.reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:12px;display:none}
-.reserve-btn:hover{background:#b8914e}
+.avail-loading{text-align:center;padding:12px;font-size:13px;color:var(--mid);font-style:italic}
 .booking-avail{padding:12px 14px;border-radius:4px;font-size:13px;font-weight:500;margin-bottom:12px;display:none}
 .booking-avail.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
 .booking-avail.no{background:rgba(192,57,43,.07);color:#c0392b;border:1px solid rgba(192,57,43,.2)}
 .price-breakdown{margin-bottom:12px;display:none}
 .price-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mid);padding:5px 0}
 .price-row.total{font-weight:600;color:var(--dark);font-size:16px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:4px}
+.reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:12px;display:none}
+.reserve-btn:hover{background:#b8914e}
 .booking-note{font-size:11px;color:var(--mid);text-align:center;line-height:1.6}
 
 /* MOBILE BAR */
@@ -257,11 +259,14 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <!-- SIDEBAR -->
   <div class="content-sidebar">
     <div class="booking-card">
-      <div style="margin-bottom:16px">
-        <span class="booking-price-num serif" id="sidebar-price">—</span>
-        <span class="booking-price-label">/ night</span>
-        <div style="font-size:11px;color:var(--mid);margin-top:2px" id="sidebar-price-note">Select dates for exact nightly rate</div>
+
+      <!-- FROM PRICE — loaded from first available date -->
+      <div class="from-price">
+        <div id="from-price-display">
+          <span class="from-price-loading">Loading pricing…</span>
+        </div>
       </div>
+
       <div class="booking-fields">
         <div class="booking-field-row">
           <div class="booking-field" onclick="document.getElementById('sb-checkin').showPicker?.()">
@@ -275,22 +280,29 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         </div>
         <div class="booking-field-guests">
           <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:4px">Guests</div>
-          <select id="sb-guests">
-            <option value="1">1 guest</option><option value="2" selected>2 guests</option>
-            <option value="3">3 guests</option><option value="4">4 guests</option>
-            <option value="6">6 guests</option><option value="8">8 guests</option>
-            <option value="10">10 guests</option><option value="16">16+ guests</option>
+          <select id="sb-guests" onchange="onDateChange()">
+            <option value="1">1 guest</option>
+            <option value="2" selected>2 guests</option>
+            <option value="3">3 guests</option>
+            <option value="4">4 guests</option>
+            <option value="6">6 guests</option>
+            <option value="8">8 guests</option>
+            <option value="10">10 guests</option>
+            <option value="16">16+ guests</option>
           </select>
         </div>
       </div>
+
       <div class="booking-avail" id="sb-avail"></div>
-      <button class="check-avail-btn" onclick="checkSidebarAvail()">Check Availability</button>
+      <div id="sb-avail-loading" style="display:none" class="avail-loading">Checking availability…</div>
+
       <div class="price-breakdown" id="sb-breakdown">
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
         <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
       </div>
+
       <button class="reserve-btn" id="sb-reserve-btn" onclick="proceedBooking()">Reserve Now →</button>
       <div class="booking-note">You won't be charged yet · Secure booking</div>
     </div>
@@ -301,7 +313,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 <div class="mobile-bar">
   <div>
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
-    <div style="font-size:11px;color:var(--mid)">Select dates for total</div>
+    <div style="font-size:11px;color:var(--mid)" id="mobile-price-sub">Select dates to see pricing</div>
   </div>
   <button class="mobile-bar-btn" onclick="document.querySelector('.section-block:nth-child(3)').scrollIntoView({behavior:'smooth'})">Reserve</button>
 </div>
@@ -326,7 +338,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-// ✅ FIXED: correct Guesty direct booking base URL
 const GUESTY_BOOKING_BASE = 'https://book.premiumrentals.com';
 
 const params = new URLSearchParams(window.location.search);
@@ -342,6 +353,11 @@ let calMode = 'checkin';
 let blockedDates = new Set();
 let propertyMap = null;
 
+// Booking state — carries through to checkout
+let bookingData = {
+  nightly: 0, nights: 0, cleaning: 0, service: 0, total: 0
+};
+
 // ── Load listing ──
 async function loadListing() {
   try {
@@ -355,14 +371,52 @@ async function loadListing() {
     listing = listData.listings?.find(l => l._id === listingId);
     if (!listing) throw new Error('Listing not found');
 
-    const priceEntry = priceData.pricing?.find(p => p.listing_id === listingId);
-    if (priceEntry) listing._realPrice = priceEntry.nightly_rate;
-
     renderListing();
     loadCalendar();
+    loadFromPrice(); // Load real "from" price on page load
   } catch(e) {
     console.error('Failed to load listing:', e);
     document.getElementById('prop-title').textContent = 'Property not found';
+  }
+}
+
+// ── Load "From" price using first available date's real rate ──
+async function loadFromPrice() {
+  try {
+    const today = new Date();
+    const future = new Date(); future.setDate(future.getDate() + 30);
+    const fmt = d => d.toISOString().split('T')[0];
+    const startDate = fmt(today);
+    const endDate   = fmt(future);
+
+    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${startDate}&checkOut=${endDate}`);
+    const data = await res.json();
+
+    // Find the first available night with a real price
+    let fromPrice = null;
+    if (data.days && Array.isArray(data.days)) {
+      const firstAvail = data.days.find(d => d.status === 'available' && (d.price || d.prices?.nightlyRate));
+      if (firstAvail) fromPrice = firstAvail.price || firstAvail.prices?.nightlyRate;
+    }
+    // Fallback to money fields
+    if (!fromPrice) fromPrice = data.price?.nightlyRate || data.price?.basePrice || data.nightlyRate;
+
+    const display = document.getElementById('from-price-display');
+    if (fromPrice) {
+      display.innerHTML = `
+        <span class="from-price-num serif">$${Number(fromPrice).toLocaleString()}</span>
+        <span class="from-price-label">/ night</span>
+        <div class="from-price-note">Starting price · Select dates for exact rate</div>`;
+      document.getElementById('mobile-price').textContent = `From $${Number(fromPrice).toLocaleString()}/night`;
+    } else {
+      display.innerHTML = `
+        <span class="from-price-num serif">—</span>
+        <div class="from-price-note">Select dates to see pricing</div>`;
+    }
+  } catch(e) {
+    document.getElementById('from-price-display').innerHTML = `
+      <span class="from-price-num serif">—</span>
+      <div class="from-price-note">Select dates to see pricing</div>`;
   }
 }
 
@@ -392,13 +446,6 @@ function renderListing() {
   }
 
   renderAmenities();
-
-  const price = listing._realPrice || listing.prices?.basePrice;
-  const priceDisplay = price ? `From ${Number(price).toLocaleString()}` : 'Contact for pricing';
-  document.getElementById('sidebar-price').textContent = priceDisplay;
-  document.getElementById('mobile-price').textContent  = price ? `${priceDisplay}/night` : 'Contact for pricing';
-  document.getElementById('sidebar-price-note').textContent = price ? 'Starting price · Select dates for exact nightly rate' : 'Select dates to see pricing';
-
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
 }
 
@@ -503,10 +550,8 @@ async function loadCalendar() {
 function renderCalendar() {
   const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
   const today  = new Date(); today.setHours(0,0,0,0);
-
   let m2 = calMonth+1, y2 = calYear;
   if (m2 > 11) { m2 = 0; y2++; }
-
   document.getElementById('cal-month-lbl').textContent = `${MONTHS[calMonth]} ${calYear}  —  ${MONTHS[m2]} ${y2}`;
   document.getElementById('cal-months').innerHTML =
     `<div>${renderMonthGrid(calYear, calMonth, today)}</div>` +
@@ -555,6 +600,7 @@ function calNav(dir) {
   renderCalendar();
 }
 
+// ── Date selection — calendar clicks sync to sidebar ──
 function selectDate(dateStr) {
   if (blockedDates.has(dateStr)) return;
 
@@ -563,6 +609,10 @@ function selectDate(dateStr) {
     selectedCheckOut = null;
     calMode = 'checkout';
     setHint('Now select your check-out date');
+    // Sync to sidebar inputs
+    document.getElementById('sb-checkin').value  = dateStr;
+    document.getElementById('sb-checkout').value = '';
+    resetSidebarPricing();
   } else if (dateStr > selectedCheckIn) {
     let blocked = false;
     const s = new Date(selectedCheckIn), e = new Date(dateStr);
@@ -571,77 +621,119 @@ function selectDate(dateStr) {
     }
     if (blocked) {
       selectedCheckIn = dateStr; selectedCheckOut = null; calMode='checkout';
-      setHint('Selected dates contain unavailable nights. Now select check-out.');
+      document.getElementById('sb-checkin').value  = dateStr;
+      document.getElementById('sb-checkout').value = '';
+      setHint('Range contains unavailable nights. Pick a new check-out.');
+      resetSidebarPricing();
     } else {
       selectedCheckOut = dateStr; calMode='checkin';
       document.getElementById('sb-checkin').value  = selectedCheckIn;
       document.getElementById('sb-checkout').value = selectedCheckOut;
-      setHint('Dates selected! Check availability in the booking panel →');
-      onDateChange();
+      setHint('✓ Dates selected — checking availability…');
+      autoCheckAvail(selectedCheckIn, selectedCheckOut);
     }
   } else {
     selectedCheckIn = dateStr; selectedCheckOut = null; calMode='checkout';
+    document.getElementById('sb-checkin').value  = dateStr;
+    document.getElementById('sb-checkout').value = '';
     setHint('Now select your check-out date');
+    resetSidebarPricing();
   }
   renderCalendar();
 }
 
 function setHint(msg) { document.getElementById('cal-hint').textContent = msg; }
 
-// ── Sidebar booking ──
+// ── Sidebar date inputs also trigger auto-check ──
 function onDateChange() {
   const ci = document.getElementById('sb-checkin').value;
   const co = document.getElementById('sb-checkout').value;
-  if (ci && co && ci < co) { selectedCheckIn=ci; selectedCheckOut=co; renderCalendar(); }
+  if (ci && co && ci < co) {
+    selectedCheckIn  = ci;
+    selectedCheckOut = co;
+    renderCalendar();
+    autoCheckAvail(ci, co);
+  }
 }
 
-async function checkSidebarAvail() {
-  const ci = document.getElementById('sb-checkin').value;
-  const co = document.getElementById('sb-checkout').value;
-  if (!ci || !co || ci >= co) { alert('Please select valid check-in and check-out dates'); return; }
+// ── Auto check availability + pricing (no button needed) ──
+let availDebounce = null;
+function autoCheckAvail(ci, co) {
+  clearTimeout(availDebounce);
+  availDebounce = setTimeout(() => checkAvailAndPrice(ci, co), 400);
+}
 
-  const availEl = document.getElementById('sb-avail');
-  const breakEl = document.getElementById('sb-breakdown');
-  const resBtn  = document.getElementById('sb-reserve-btn');
+function resetSidebarPricing() {
+  document.getElementById('sb-avail').style.display   = 'none';
+  document.getElementById('sb-breakdown').style.display = 'none';
+  document.getElementById('sb-reserve-btn').style.display = 'none';
+  document.getElementById('sb-avail-loading').style.display = 'none';
+  bookingData = { nightly:0, nights:0, cleaning:0, service:0, total:0 };
+}
 
-  availEl.style.display = 'none';
-  breakEl.style.display = 'none';
-  resBtn.style.display  = 'none';
+async function checkAvailAndPrice(ci, co) {
+  const availEl   = document.getElementById('sb-avail');
+  const breakEl   = document.getElementById('sb-breakdown');
+  const resBtn    = document.getElementById('sb-reserve-btn');
+  const loadingEl = document.getElementById('sb-avail-loading');
+
+  availEl.style.display   = 'none';
+  breakEl.style.display   = 'none';
+  resBtn.style.display    = 'none';
+  loadingEl.style.display = 'block';
 
   try {
     const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
     const data = await res.json();
+    loadingEl.style.display = 'none';
 
     if (data.available === false) {
       availEl.className = 'booking-avail no';
       availEl.textContent = '✗ These dates are unavailable — please try different dates';
       availEl.style.display = 'block';
+      setHint('These dates are unavailable. Please select different dates.');
       return;
     }
-
-    availEl.className = 'booking-avail ok';
-    availEl.textContent = '✓ Dates are available!';
-    availEl.style.display = 'block';
 
     const nights  = Math.ceil((new Date(co)-new Date(ci))/86400000);
     const nightly = data.price?.nightlyRate || data.price?.basePrice ||
                     data.nightlyRate || data.basePrice || 0;
-    const cleaning= data.price?.cleaningFee || listing.prices?.cleaningFee || 0;
+    const cleaning= data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
     const sub     = nightly * nights;
     const svc     = Math.round(sub * 0.12);
+    const total   = sub + cleaning + svc;
+
+    availEl.className = 'booking-avail ok';
+    availEl.textContent = '✓ Available!';
+    availEl.style.display = 'block';
+    setHint('✓ Dates available — ready to reserve');
 
     if (nightly) {
-      document.getElementById('sidebar-price').textContent = `${Number(nightly).toLocaleString()}`;
-      document.getElementById('sidebar-price-note').textContent = 'Per night for selected dates';
+      // Update the from-price to show selected rate
+      document.getElementById('from-price-display').innerHTML = `
+        <span class="from-price-num serif">$${Number(nightly).toLocaleString()}</span>
+        <span class="from-price-label">/ night</span>
+        <div class="from-price-note">Rate for selected dates</div>`;
+
       document.getElementById('sb-nights-lbl').textContent = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent = `$${sub.toLocaleString()}`;
       document.getElementById('sb-clean').textContent      = cleaning ? `$${cleaning.toLocaleString()}` : 'Included';
       document.getElementById('sb-svc').textContent        = `$${svc.toLocaleString()}`;
-      document.getElementById('sb-total').textContent      = `$${(sub+cleaning+svc).toLocaleString()}`;
+      document.getElementById('sb-total').textContent      = `$${total.toLocaleString()}`;
       breakEl.style.display = 'block';
+
+      // Update mobile bar
+      document.getElementById('mobile-price').textContent    = `$${total.toLocaleString()} total`;
+      document.getElementById('mobile-price-sub').textContent = `$${nightly.toLocaleString()}/night · ${nights} nights`;
+
+      // Save for checkout
+      bookingData = { nightly, nights, cleaning, service: svc, total };
     }
+
     resBtn.style.display = 'block';
-  } catch {
+
+  } catch(e) {
+    loadingEl.style.display = 'none';
     availEl.className = 'booking-avail ok';
     availEl.textContent = '✓ Proceed to checkout to confirm availability';
     availEl.style.display = 'block';
@@ -649,14 +741,25 @@ async function checkSidebarAvail() {
   }
 }
 
-// ✅ FIXED: correct path /en/properties/ and minOccupancy param
-// Now routes through checkout.html instead of jumping straight to Guesty
+// ── Reserve Now — passes all pricing to checkout ──
 function proceedBooking() {
   const ci     = document.getElementById('sb-checkin').value;
   const co     = document.getElementById('sb-checkout').value;
   const guests = document.getElementById('sb-guests').value;
   if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
-  window.location.href = `checkout.html?id=${listingId}&checkIn=${ci}&checkOut=${co}&guests=${guests}`;
+
+  const p = new URLSearchParams({
+    id: listingId,
+    checkIn: ci,
+    checkOut: co,
+    guests,
+    nightly:  bookingData.nightly,
+    nights:   bookingData.nights,
+    cleaning: bookingData.cleaning,
+    service:  bookingData.service,
+    total:    bookingData.total
+  });
+  window.location.href = `checkout.html?${p.toString()}`;
 }
 
 // ── Property Map ──

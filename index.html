@@ -522,7 +522,7 @@ function renderListings(listings) {
             <span>👥 Up to ${l.accommodates || '—'}</span>
           </div>
           <div class="prop-footer">
-            <div class="prop-price serif">${price ? `<small>From </small>$${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
+            <div class="prop-price serif"><small style="font-size:13px;font-weight:400;color:var(--mid)">Select dates for pricing</small></div>
             <button class="book-btn" onclick="event.stopPropagation();window.location.href='property.html?id=${l._id}'">View</button>
           </div>
         </div>

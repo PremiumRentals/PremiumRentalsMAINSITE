@@ -210,6 +210,30 @@ app.get('/api/website/reviews', async (req, res) => {
   }
 });
 
+// ── Route 3b: Get listing calendar (blocked/available dates) ──
+app.get('/api/website/calendar/:listingId', async (req, res) => {
+  try {
+    const { listingId } = req.params;
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
+
+    const cacheKey = `cal_${listingId}_${startDate}_${endDate}`;
+    const cached = getCache(cacheKey);
+    if (cached) return res.json({ success: true, days: cached, cached: true });
+
+    const token = await getGuestyToken();
+    const response = await fetch(
+      `https://open-api.guesty.com/v1/listings/${listingId}/calendar?startDate=${startDate}&endDate=${endDate}`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    setCache(cacheKey, data, 60 * 60 * 1000); // 1 hour cache
+    res.json({ success: true, days: data, cached: false });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ── Route 4: Get pricing from Supabase (fast, no Guesty call) ──
 app.get('/api/website/pricing', async (req, res) => {
   try {

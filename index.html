@@ -244,9 +244,19 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 <!-- SEARCH -->
 <div class="search-section">
   <div class="search-bar fade-up">
-    <div class="sf"><span class="sf-label">Location</span><input type="text" id="search-location" placeholder="City or property name"></div>
-    <div class="sf"><span class="sf-label">Check In</span><input type="date" id="search-checkin"></div>
-    <div class="sf"><span class="sf-label">Check Out</span><input type="date" id="search-checkout"></div>
+    <div class="sf"><span class="sf-label">Location</span>
+      <select id="search-location" style="border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;-webkit-appearance:none">
+        <option value="">All Locations</option>
+      </select>
+    </div>
+    <div class="sf" onclick="document.getElementById('search-checkin').showPicker?.() || document.getElementById('search-checkin').focus()">
+      <span class="sf-label">Check In</span>
+      <input type="date" id="search-checkin" style="cursor:pointer">
+    </div>
+    <div class="sf" onclick="document.getElementById('search-checkout').showPicker?.() || document.getElementById('search-checkout').focus()">
+      <span class="sf-label">Check Out</span>
+      <input type="date" id="search-checkout" style="cursor:pointer">
+    </div>
     <div class="sf"><span class="sf-label">Guests</span>
       <select id="search-guests">
         <option value="1">1 guest</option><option value="2" selected>2 guests</option>
@@ -254,7 +264,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
         <option value="8">8 guests</option><option value="10">10+ guests</option>
       </select>
     </div>
-    <button class="search-btn" onclick="window.location.href='properties.html'">Search</button>
+    <button class="search-btn" onclick="goSearch()">Search</button>
   </div>
 </div>
 
@@ -445,12 +455,46 @@ async function loadListings() {
     const data = await res.json();
     if (!data.success) throw new Error(data.error);
     allListings = data.listings;
+    buildLocationDropdown();
     const shuffled = [...allListings].sort(() => Math.random() - 0.5);
     renderListings(shuffled.slice(0, 6));
   } catch(e) {
     console.warn('API not connected — showing placeholders');
     renderPlaceholders();
   }
+}
+
+function buildLocationDropdown() {
+  const cities = {};
+  allListings.forEach(l => {
+    const city  = l.address?.city;
+    const state = l.address?.state;
+    if (city) {
+      const key = `${city}, ${state || ''}`.trim().replace(/,$/, '');
+      cities[key] = (cities[key] || 0) + 1;
+    }
+  });
+  const select = document.getElementById('search-location');
+  while (select.options.length > 1) select.remove(1);
+  Object.keys(cities).sort().forEach(city => {
+    const opt = document.createElement('option');
+    opt.value = city;
+    opt.textContent = city;
+    select.appendChild(opt);
+  });
+}
+
+function goSearch() {
+  const loc    = document.getElementById('search-location').value;
+  const ci     = document.getElementById('search-checkin').value;
+  const co     = document.getElementById('search-checkout').value;
+  const guests = document.getElementById('search-guests').value;
+  const params = new URLSearchParams();
+  if (loc)    params.set('location', loc);
+  if (ci)     params.set('checkin',  ci);
+  if (co)     params.set('checkout', co);
+  if (guests) params.set('guests',   guests);
+  window.location.href = `properties.html${params.toString() ? '?' + params.toString() : ''}`;
 }
 
 function renderListings(listings) {

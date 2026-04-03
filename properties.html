@@ -40,7 +40,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .filter-clear:hover{border-color:var(--gold);color:var(--gold)}
 .results-count{font-size:13px;color:var(--mid);margin-left:auto;padding-bottom:1px}
 
-/* MAIN LAYOUT — cards left, map right */
+/* MAIN LAYOUT */
 .main-layout{display:grid;grid-template-columns:1fr 440px;height:calc(100vh - 72px - 57px - 130px);min-height:600px}
 .cards-col{overflow-y:auto;padding:28px 32px 40px;background:var(--light)}
 .map-col{position:sticky;top:calc(72px + 57px);height:calc(100vh - 72px - 57px);background:#e8e8e8}
@@ -48,13 +48,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 
 /* PROPERTY CARDS */
 .properties-grid{display:flex;flex-direction:column;gap:16px}
-.prop-card{background:var(--white);border-radius:4px;overflow:hidden;transition:transform .25s,box-shadow .25s;cursor:pointer;border:1px solid #f0ede8;display:grid;grid-template-columns:200px 1fr}
+.prop-card{background:var(--white);border-radius:4px;overflow:hidden;transition:transform .25s,box-shadow .25s;cursor:pointer;border:1px solid #f0ede8;display:grid;grid-template-columns:200px 1fr;text-decoration:none;color:inherit}
 .prop-card:hover{transform:translateY(-2px);box-shadow:0 8px 32px rgba(0,0,0,.1)}
 .prop-card.highlighted{border:2px solid var(--gold);box-shadow:0 8px 32px rgba(201,169,110,.25)}
 .prop-img-wrap{position:relative;height:160px;overflow:hidden;background:#f0ede8}
 .prop-img-wrap img{width:100%;height:100%;object-fit:cover;transition:transform .5s}
 .prop-card:hover .prop-img-wrap img{transform:scale(1.05)}
-.prop-badge{position:absolute;top:10px;left:10px;background:var(--gold);color:#fff;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:2px}
 .prop-fav{position:absolute;top:8px;right:8px;width:28px;height:28px;background:rgba(255,255,255,.9);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;border:none;transition:all .2s}
 .prop-body{padding:16px 18px;display:flex;flex-direction:column;justify-content:space-between}
 .prop-location{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:4px}
@@ -65,10 +64,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .prop-footer{display:flex;align-items:center;justify-content:space-between;border-top:1px solid #f0ede8;padding-top:10px;gap:8px}
 .prop-price{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:600}
 .prop-price small{font-family:'Inter',sans-serif;font-size:11px;color:var(--mid);font-weight:400}
-.prop-rating{display:flex;align-items:center;gap:4px;font-size:12px;font-weight:500}
-.stars{color:var(--gold);font-size:11px}
-.book-btn{background:var(--accent);color:#fff;border:none;padding:7px 16px;border-radius:2px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap}
-.book-btn:hover{background:#1e3329}
+.view-btn{background:var(--accent);color:#fff;border:none;padding:7px 16px;border-radius:2px;font-size:11px;font-weight:600;cursor:pointer;transition:background .2s;white-space:nowrap}
+.view-btn:hover{background:#1e3329}
 
 /* SKELETON */
 .skeleton{background:linear-gradient(90deg,#f0ede8 25%,#e8e3db 50%,#f0ede8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
@@ -80,31 +77,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .empty-state h3{font-family:'Playfair Display',serif;font-size:24px;color:var(--dark);margin-bottom:10px}
 .empty-state p{font-size:14px;color:var(--mid);margin-bottom:20px}
 
-/* MODAL */
-#modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.8);z-index:999;align-items:center;justify-content:center;backdrop-filter:blur(4px)}
-.modal-box{background:#fff;max-width:560px;width:92%;border-radius:4px;overflow:hidden;position:relative;max-height:90vh;overflow-y:auto}
-.modal-header{padding:28px 32px 20px;border-bottom:1px solid #f0ede8;display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
-.modal-eyebrow{font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--gold);margin-bottom:6px}
-.modal-prop-name{font-family:'Playfair Display',serif;font-size:24px;color:var(--dark);font-weight:500}
-.modal-close{background:none;border:none;font-size:24px;cursor:pointer;color:var(--mid);padding:4px;flex-shrink:0}
-.modal-body{padding:24px 32px 32px}
-.modal-dates{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
-.modal-field{display:flex;flex-direction:column;gap:6px}
-.modal-field label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid)}
-.modal-field input,.modal-field select{border:1px solid #e0ddd8;padding:11px 14px;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);outline:none;border-radius:2px;transition:border-color .2s}
-.modal-field input:focus,.modal-field select:focus{border-color:var(--gold)}
-.avail-result{padding:13px 16px;border-radius:2px;font-size:13px;font-weight:500;margin:14px 0;display:none}
-.avail-result.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
-.avail-result.no{background:rgba(192,57,43,.07);color:#c0392b;border:1px solid rgba(192,57,43,.2)}
-.price-breakdown{background:var(--light);border-radius:4px;padding:18px;margin-bottom:18px;display:none}
-.price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:4px 0}
-.price-row.total{font-weight:600;color:var(--dark);font-size:15px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:6px}
-.modal-book-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;border-radius:2px;transition:background .25s}
-.modal-book-btn:hover{background:#b8914e}
-.modal-book-btn:disabled{background:#ccc;cursor:default}
-
 /* FOOTER */
-footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
+footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margin-top:40px}
 .footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px}
 .footer-brand p{font-size:13px;line-height:1.8;max-width:260px;font-weight:300;margin-top:14px}
 .footer-socials{display:flex;gap:10px;margin-top:20px}
@@ -117,12 +91,12 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 .footer-bot a{color:rgba(255,255,255,.28);text-decoration:none}
 .footer-bot a:hover{color:var(--gold)}
 
-/* MAP INFO WINDOW */
+/* MAP INFO */
 .map-info{font-family:'Inter',sans-serif;max-width:200px}
 .map-info-name{font-family:'Playfair Display',serif;font-size:14px;font-weight:500;color:var(--dark);margin-bottom:4px}
 .map-info-city{font-size:11px;color:var(--mid);margin-bottom:6px}
 .map-info-price{font-size:13px;font-weight:600;color:var(--accent)}
-.map-info-btn{display:block;margin-top:8px;background:var(--gold);color:#fff;border:none;padding:6px 14px;border-radius:2px;font-size:11px;font-weight:600;cursor:pointer;width:100%;text-align:center;font-family:'Inter',sans-serif}
+.map-info-btn{display:block;margin-top:8px;background:var(--gold);color:#fff;border:none;padding:6px 14px;border-radius:2px;font-size:11px;font-weight:600;cursor:pointer;width:100%;text-align:center;font-family:'Inter',sans-serif;text-decoration:none}
 
 @media(max-width:1024px){
   .main-layout{grid-template-columns:1fr;height:auto}
@@ -134,7 +108,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   .prop-card{grid-template-columns:1fr;grid-template-rows:180px 1fr}
   .prop-img-wrap{height:180px}
   .footer-grid{grid-template-columns:1fr 1fr}
-  .modal-dates{grid-template-columns:1fr}
 }
 </style>
 </head>
@@ -209,7 +182,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 
 <!-- MAIN LAYOUT -->
 <div class="main-layout">
-  <!-- LEFT: Property Cards -->
   <div class="cards-col" id="cards-col">
     <div class="properties-grid" id="properties-grid">
       <div class="skel-card skeleton"></div>
@@ -218,7 +190,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
       <div class="skel-card skeleton"></div>
     </div>
   </div>
-  <!-- RIGHT: Google Map -->
   <div class="map-col">
     <div id="map"></div>
   </div>
@@ -242,59 +213,21 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   </div>
 </footer>
 
-<!-- MODAL -->
-<div id="modal">
-  <div class="modal-box">
-    <div class="modal-header">
-      <div>
-        <div class="modal-eyebrow">Reserve Your Stay</div>
-        <div class="modal-prop-name serif" id="modal-name"></div>
-        <div style="font-size:12px;color:var(--mid);margin-top:4px" id="modal-loc"></div>
-      </div>
-      <button class="modal-close" onclick="closeModal()">×</button>
-    </div>
-    <div class="modal-body">
-      <div class="modal-dates">
-        <div class="modal-field"><label>Check In</label><input type="date" id="modal-ci" onchange="checkAvail()"></div>
-        <div class="modal-field"><label>Check Out</label><input type="date" id="modal-co" onchange="checkAvail()"></div>
-      </div>
-      <div class="modal-field" style="margin-bottom:14px">
-        <label>Guests</label>
-        <select id="modal-guests"><option value="1">1 guest</option><option value="2" selected>2 guests</option><option value="3">3 guests</option><option value="4">4 guests</option><option value="6">6 guests</option><option value="8">8 guests</option><option value="10">10 guests</option><option value="16">16+ guests</option></select>
-      </div>
-      <div id="avail-spinner" style="display:none;font-size:12px;color:var(--mid);padding:10px 0;text-align:center">Checking availability…</div>
-      <div class="avail-result" id="avail-result"></div>
-      <div class="price-breakdown" id="price-breakdown">
-        <div class="price-row"><span id="nights-lbl">Nights</span><span id="nights-amt"></span></div>
-        <div class="price-row"><span>Cleaning fee</span><span id="clean-amt"></span></div>
-        <div class="price-row"><span>Service fee</span><span id="svc-amt"></span></div>
-        <div class="price-row total"><span>Total</span><span id="total-amt"></span></div>
-      </div>
-      <button class="modal-book-btn" id="modal-book-btn" onclick="proceedBooking()">Check Availability First</button>
-      <p style="font-size:11px;color:#bbb;text-align:center;margin-top:10px">Secure booking · Instant confirmation</p>
-    </div>
-  </div>
-</div>
-
-<!-- GOOGLE MAPS -->
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBu6vSVVZbMOuYda9EFwXovXTBpL8SEIfE&callback=initMap" async defer></script>
 
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-const GUESTY_BOOKING_BASE = 'https://premiumrentals.guesty.com';
 
 let allListings = [];
 let filteredListings = [];
-let activeListing = null;
 let map = null;
 let markers = [];
 let infoWindow = null;
 
-// ── Init Google Map ──
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
     zoom: 9,
-    center: { lat: 43.6, lng: -116.5 }, // Default: Boise/Meridian area
+    center: { lat: 43.6, lng: -116.5 },
     styles: [
       { featureType: 'all', elementType: 'geometry', stylers: [{ saturation: -20 }] },
       { featureType: 'water', elementType: 'geometry', stylers: [{ color: '#d4e6f1' }] },
@@ -303,17 +236,12 @@ function initMap() {
       { featureType: 'poi', elementType: 'labels', stylers: [{ visibility: 'off' }] },
       { featureType: 'transit', stylers: [{ visibility: 'off' }] }
     ],
-    mapTypeControl: false,
-    streetViewControl: false,
-    fullscreenControl: true,
-    zoomControl: true
+    mapTypeControl: false, streetViewControl: false, fullscreenControl: true
   });
   infoWindow = new google.maps.InfoWindow();
-  // Load listings after map is ready
   loadListings();
 }
 
-// ── Load Listings ──
 async function loadListings() {
   try {
     const res = await fetch(`${API_BASE}/api/website/listings?limit=100`);
@@ -333,7 +261,6 @@ async function loadListings() {
   }
 }
 
-// ── Build city dropdown dynamically from listings ──
 function buildLocationDropdown() {
   const cities = {};
   allListings.forEach(l => {
@@ -345,9 +272,7 @@ function buildLocationDropdown() {
     }
   });
   const select = document.getElementById('f-location');
-  // Clear existing options except first
   while (select.options.length > 1) select.remove(1);
-  // Sort cities alphabetically
   Object.keys(cities).sort().forEach(city => {
     const opt = document.createElement('option');
     opt.value = city;
@@ -356,12 +281,10 @@ function buildLocationDropdown() {
   });
 }
 
-// ── Apply Filters ──
 function applyFilters() {
   const loc    = document.getElementById('f-location').value.toLowerCase().trim();
   const beds   = parseInt(document.getElementById('f-beds').value) || 0;
   const guests = parseInt(document.getElementById('f-guests').value) || 0;
-
   filteredListings = allListings.filter(l => {
     const city  = (l.address?.city || '').toLowerCase();
     const state = (l.address?.state || '').toLowerCase();
@@ -383,7 +306,6 @@ function clearFilters() {
   renderAll();
 }
 
-// ── Render cards + map pins ──
 function renderAll() {
   document.getElementById('results-count').textContent = `${filteredListings.length} properties`;
   renderCards();
@@ -401,17 +323,17 @@ function renderCards() {
       </div>`;
     return;
   }
-  grid.innerHTML = filteredListings.map((l, i) => {
+  grid.innerHTML = filteredListings.map(l => {
     const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
     const price = l._realPrice || l.prices?.basePrice || l.prices?.nightlyRate;
     const desc  = l.publicDescription?.summary || '';
     return `
-      <div class="prop-card" id="card-${l._id}" onclick="openModal('${l._id}')">
+      <a class="prop-card" id="card-${l._id}" href="property.html?id=${l._id}">
         <div class="prop-img-wrap">
           <img src="${photo}" alt="${name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=75'">
-          <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
+          <button class="prop-fav" onclick="event.preventDefault();event.stopPropagation();toggleFav(this)">♡</button>
         </div>
         <div class="prop-body">
           <div>
@@ -425,160 +347,55 @@ function renderCards() {
             </div>
           </div>
           <div class="prop-footer">
-            <div class="prop-price serif">${price ? `<small>From </small>${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
-            <button class="book-btn" onclick="event.stopPropagation();openModal('${l._id}')">Book</button>
+            <div class="prop-price serif">${price ? `<small>From </small>$${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
+            <span class="view-btn">View →</span>
           </div>
         </div>
-      </div>`;
+      </a>`;
   }).join('');
 }
 
-// ── Render Map Pins ──
 function renderMapPins() {
-  // Clear existing markers
   markers.forEach(m => m.setMap(null));
   markers = [];
   if (!map) return;
-
   const bounds = new google.maps.LatLngBounds();
   let validCoords = 0;
-
   filteredListings.forEach(l => {
     const lat = l.address?.lat;
     const lng = l.address?.lng;
     if (!lat || !lng) return;
     validCoords++;
-
-    const price = l.prices?.basePrice || l.prices?.nightlyRate;
+    const price = l._realPrice || l.prices?.basePrice || l.prices?.nightlyRate;
     const name  = l.title || l.nickname || 'Luxury Property';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
-
-    // Custom gold marker
     const marker = new google.maps.Marker({
-      position: { lat, lng },
-      map,
+      position: { lat, lng }, map,
       title: name,
-      icon: {
-        path: google.maps.SymbolPath.CIRCLE,
-        scale: 10,
-        fillColor: '#C9A96E',
-        fillOpacity: 1,
-        strokeColor: '#ffffff',
-        strokeWeight: 2
-      }
+      icon: { path: google.maps.SymbolPath.CIRCLE, scale: 10, fillColor: '#C9A96E', fillOpacity: 1, strokeColor: '#ffffff', strokeWeight: 2 }
     });
-
     marker.addListener('click', () => {
-      const content = `
+      infoWindow.setContent(`
         <div class="map-info">
           <div class="map-info-name">${name}</div>
           <div class="map-info-city">📍 ${city}</div>
-          <div class="map-info-price">${price ? `$${Number(price).toLocaleString()}/night` : 'Contact for pricing'}</div>
-          <button class="map-info-btn" onclick="highlightCard('${l._id}');openModal('${l._id}')">View & Book</button>
-        </div>`;
-      infoWindow.setContent(content);
+          <div class="map-info-price">${price ? `From $${Number(price).toLocaleString()}/night` : 'Contact for pricing'}</div>
+          <a class="map-info-btn" href="property.html?id=${l._id}">View Property →</a>
+        </div>`);
       infoWindow.open(map, marker);
       highlightCard(l._id);
     });
-
     bounds.extend({ lat, lng });
     markers.push(marker);
   });
-
-  // Auto-zoom map to fit all visible pins
-  if (validCoords > 1) {
-    map.fitBounds(bounds, { padding: 60 });
-  } else if (validCoords === 1) {
-    map.setCenter(bounds.getCenter());
-    map.setZoom(13);
-  }
+  if (validCoords > 1) map.fitBounds(bounds, { padding: 60 });
+  else if (validCoords === 1) { map.setCenter(bounds.getCenter()); map.setZoom(13); }
 }
 
-// ── Highlight card when pin clicked ──
 function highlightCard(id) {
   document.querySelectorAll('.prop-card').forEach(c => c.classList.remove('highlighted'));
   const card = document.getElementById(`card-${id}`);
-  if (card) {
-    card.classList.add('highlighted');
-    card.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-  }
-}
-
-// ── Modal ──
-function openModal(id) {
-  activeListing = allListings.find(l => l._id === id);
-  if (!activeListing) return;
-  document.getElementById('modal-name').textContent = activeListing.title || activeListing.nickname || 'Luxury Property';
-  document.getElementById('modal-loc').textContent  = [activeListing.address?.city, activeListing.address?.state].filter(Boolean).join(', ');
-  document.getElementById('modal-ci').value  = document.getElementById('f-checkin').value || '';
-  document.getElementById('modal-co').value  = document.getElementById('f-checkout').value || '';
-  document.getElementById('avail-result').style.display   = 'none';
-  document.getElementById('price-breakdown').style.display = 'none';
-  document.getElementById('modal-book-btn').textContent   = 'Check Availability First';
-  document.getElementById('modal-book-btn').disabled = false;
-  document.getElementById('modal').style.display = 'flex';
-  if (document.getElementById('modal-ci').value && document.getElementById('modal-co').value) checkAvail();
-}
-
-function closeModal() { document.getElementById('modal').style.display = 'none'; }
-document.getElementById('modal').addEventListener('click', e => { if(e.target===document.getElementById('modal')) closeModal(); });
-
-async function checkAvail() {
-  const ci = document.getElementById('modal-ci').value;
-  const co = document.getElementById('modal-co').value;
-  if (!ci || !co || ci >= co) return;
-  const resultEl  = document.getElementById('avail-result');
-  const spinnerEl = document.getElementById('avail-spinner');
-  const breakEl   = document.getElementById('price-breakdown');
-  const btn       = document.getElementById('modal-book-btn');
-  spinnerEl.style.display = 'block';
-  resultEl.style.display  = 'none';
-  breakEl.style.display   = 'none';
-  btn.disabled = true;
-  try {
-    const res  = await fetch(`${API_BASE}/api/website/availability/${activeListing._id}?checkIn=${ci}&checkOut=${co}`);
-    const data = await res.json();
-    spinnerEl.style.display = 'none';
-    if (data.available === false) {
-      resultEl.className = 'avail-result no';
-      resultEl.textContent = '✗ These dates are unavailable — please try different dates';
-      resultEl.style.display = 'block';
-      btn.textContent = 'Try Different Dates';
-      return;
-    }
-    resultEl.className = 'avail-result ok';
-    resultEl.textContent = '✓ Dates are available!';
-    resultEl.style.display = 'block';
-    const nights   = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-    const nightly  = data.price?.basePrice || activeListing?.prices?.basePrice || 0;
-    const cleaning = data.price?.cleaningFee || activeListing?.prices?.cleaningFee || 0;
-    const sub      = nightly * nights;
-    const svc      = Math.round(sub * 0.12);
-    if (nightly) {
-      document.getElementById('nights-lbl').textContent  = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
-      document.getElementById('nights-amt').textContent  = `$${sub.toLocaleString()}`;
-      document.getElementById('clean-amt').textContent   = cleaning ? `$${cleaning.toLocaleString()}` : 'Included';
-      document.getElementById('svc-amt').textContent     = `$${svc.toLocaleString()}`;
-      document.getElementById('total-amt').textContent   = `$${(sub+cleaning+svc).toLocaleString()}`;
-      breakEl.style.display = 'block';
-    }
-    btn.textContent = 'Reserve Now →';
-    btn.disabled = false;
-  } catch {
-    spinnerEl.style.display = 'none';
-    resultEl.className = 'avail-result ok';
-    resultEl.textContent = '✓ Proceed to checkout to confirm availability';
-    resultEl.style.display = 'block';
-    btn.textContent = 'Proceed to Booking →';
-    btn.disabled = false;
-  }
-}
-
-function proceedBooking() {
-  const ci     = document.getElementById('modal-ci').value;
-  const co     = document.getElementById('modal-co').value;
-  const guests = document.getElementById('modal-guests').value;
-  window.open(`${GUESTY_BOOKING_BASE}/listing/${activeListing._id}?checkIn=${ci}&checkOut=${co}&guests=${guests}`, '_blank');
+  if (card) { card.classList.add('highlighted'); card.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); }
 }
 
 function toggleFav(btn) {

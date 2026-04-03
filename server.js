@@ -167,22 +167,26 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const token = await getGuestyToken();
 
     const response = await fetch(
-      `https://open-api.guesty.com/v1/reservations?listingId=${listingId}&checkIn=${startDate}&checkOut=${endDate}&limit=100&fields=checkIn,checkOut,status`,
+      `https://open-api.guesty.com/v1/reservations?listingId=${listingId}&checkIn=${startDate}&checkOut=${endDate}&limit=100`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();
+    const reservations = data.results || [];
 
-    // Dump raw structure to find where reservations array lives
-    const topKeys = Object.keys(data);
-    const firstValue = data[topKeys[0]];
-    return res.json({ 
-      success: true, 
-      topKeys, 
-      firstValueType: typeof firstValue,
-      firstValueIsArray: Array.isArray(firstValue),
-      firstValueLength: Array.isArray(firstValue) ? firstValue.length : null,
-      firstItem: Array.isArray(firstValue) ? firstValue[0] : firstValue,
-      cached: false 
+    // Show first item fields so we can confirm checkIn/checkOut/status field names
+    return res.json({
+      success: true,
+      reservationCount: reservations.length,
+      firstItemKeys: reservations[0] ? Object.keys(reservations[0]) : [],
+      firstItem: reservations[0] ? {
+        checkIn: reservations[0].checkIn,
+        checkOut: reservations[0].checkOut,
+        checkInDateLocalized: reservations[0].checkInDateLocalized,
+        checkOutDateLocalized: reservations[0].checkOutDateLocalized,
+        status: reservations[0].status,
+        nightsCount: reservations[0].nightsCount
+      } : null,
+      cached: false
     });
 
     reservations.forEach(r => {

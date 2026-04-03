@@ -137,37 +137,27 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const calData = await calRes.json();
-    console.log('Availability raw sample:', JSON.stringify(calData).slice(0, 800));
 
     const days = calData.data?.days || calData.days || [];
 
-    // Check availability
     const hasBlocked = days.some(d => {
       const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
       return !isAvail;
     });
 
-    // Extract nightly rate from first available day
     let nightlyRate = null;
-    let cleaningFee = 0;
     const firstAvailDay = days.find(d => {
       const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
       return isAvail;
     });
-
     if (firstAvailDay) {
-      console.log('First avail day:', JSON.stringify(firstAvailDay));
-      nightlyRate = firstAvailDay.price ||
-                   firstAvailDay.prices?.nightlyRate ||
-                   firstAvailDay.money?.nightlyRate ||
-                   firstAvailDay.ratePlan?.price ||
-                   null;
+      nightlyRate = firstAvailDay.price || firstAvailDay.prices?.nightlyRate || null;
     }
 
     const result = {
       available: !hasBlocked,
       days,
-      price: { nightlyRate, cleaningFee },
+      price: { nightlyRate, cleaningFee: 0 },
       nightlyRate
     };
 
@@ -275,7 +265,90 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
-// ── Route 9: Create reservation + charge via Stripe ──
+// ── Route 9: Get real quote from Guesty (taxes + exact fees) ──
+app.get('/api/website/quote/:listingId', async (req, res) => {
+  try {
+    const { listingId } = req.params;
+    const { checkIn, checkOut, guests } = req.query;
+    if (!checkIn || !checkOut) return res.status(400).json({ error: 'checkIn and checkOut required' });
+
+    const cacheKey = `quote_${listingId}_${checkIn}_${checkOut}_${guests||2}`;
+    const cached = getCache(cacheKey);
+    if (cached) return res.json({ success: true, ...cached, cached: true });
+
+    const token = await getGuestyToken();
+
+    // Try Guesty reservations quote endpoint
+    const quoteRes = await fetch('https://open-api.guesty.com/v1/reservations/quotes', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listingId,
+        checkInDateLocalized: checkIn,
+        checkOutDateLocalized: checkOut,
+        guestsCount: parseInt(guests) || 2
+      })
+    });
+    const quoteData = await quoteRes.json();
+    console.log('Quote raw response:', JSON.stringify(quoteData).slice(0, 1500));
+
+    // Extract pricing from quote response
+    // Structure varies — log it so we can see exact fields
+    const money = quoteData.money || quoteData.quote?.money || quoteData.data?.money || {};
+    const invoiceItems = quoteData.invoiceItems || quoteData.quote?.invoiceItems || 
+                         quoteData.data?.invoiceItems || money.invoiceItems || [];
+
+    let nightlyTotal = 0, cleaningFee = 0, serviceFee = 0, taxes = 0, total = 0;
+    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+
+    // Parse invoice items
+    invoiceItems.forEach(item => {
+      const amt = item.amount || item.total || 0;
+      const type = (item.type || item.title || '').toLowerCase();
+      if (type.includes('accommodation') || type.includes('night') || type.includes('rental')) {
+        nightlyTotal += amt;
+      } else if (type.includes('clean')) {
+        cleaningFee += amt;
+      } else if (type.includes('service') || type.includes('host fee')) {
+        serviceFee += amt;
+      } else if (type.includes('tax') || type.includes('vat') || type.includes('toc')) {
+        taxes += amt;
+      }
+    });
+
+    // Fallback to money fields
+    if (!total) {
+      total = money.total || money.totalCharge || money.hostPayout || 
+              quoteData.total || quoteData.quote?.total || 0;
+    }
+    if (!nightlyTotal) nightlyTotal = money.accommodation || money.nightlyRate * nights || 0;
+    if (!cleaningFee) cleaningFee = money.cleaningFee || money.cleaning || 0;
+    if (!taxes) taxes = money.taxes || money.tax || money.totalTax || 0;
+
+    const nightlyAvg = nights > 0 ? Math.round(nightlyTotal / nights) : 0;
+    if (!total) total = nightlyTotal + cleaningFee + serviceFee + taxes;
+
+    const result = {
+      nightlyAvg,
+      nightlyTotal,
+      nights,
+      cleaningFee,
+      serviceFee,
+      taxes,
+      total,
+      raw: quoteData
+    };
+
+    setCache(cacheKey, result, 2 * 60 * 1000);
+    res.json({ success: true, ...result });
+
+  } catch (e) {
+    console.error('Quote error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Route 10: Create reservation + charge via Stripe ──
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -301,6 +374,7 @@ app.post('/api/website/reserve', async (req, res) => {
     const existingGuest = guestSearchData.results?.[0];
     if (existingGuest) {
       guestId = existingGuest._id;
+      console.log('Found existing guest:', guestId);
     } else {
       const guestCreateRes = await fetch('https://open-api.guesty.com/v1/guests', {
         method: 'POST',
@@ -310,6 +384,7 @@ app.post('/api/website/reserve', async (req, res) => {
       const guestCreateData = await guestCreateRes.json();
       if (!guestCreateData._id) throw new Error('Failed to create guest: ' + JSON.stringify(guestCreateData));
       guestId = guestCreateData._id;
+      console.log('Created new guest:', guestId);
     }
 
     // Step 2: Create reservation
@@ -332,7 +407,7 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!reservationData._id) throw new Error('Failed to create reservation: ' + JSON.stringify(reservationData));
     const reservationId = reservationData._id;
     const confirmationCode = reservationData.confirmationCode || reservationId;
-    console.log('Created reservation:', reservationId);
+    console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
     // Step 3: Charge via Stripe
     const amountInCents = Math.round(totalAmount * 100);
@@ -342,13 +417,17 @@ app.post('/api/website/reserve', async (req, res) => {
       payment_method: stripePaymentMethodId,
       confirm: true,
       automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      metadata: { reservationId, confirmationCode, listingId, guestEmail: email, checkIn, checkOut },
+      metadata: {
+        reservationId, confirmationCode, listingId,
+        guestEmail: email, checkIn, checkOut
+      },
       description: `Premium Rentals booking ${confirmationCode} — ${checkIn} to ${checkOut}`
     });
 
     if (paymentIntent.status !== 'succeeded') {
       throw new Error('Payment did not succeed: ' + paymentIntent.status);
     }
+    console.log('Payment succeeded:', paymentIntent.id);
 
     // Step 4: Save to Supabase
     await supabase.from('website_contacts').insert([{

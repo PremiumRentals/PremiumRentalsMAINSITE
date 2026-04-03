@@ -173,21 +173,21 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const data = await response.json();
     const reservations = data.results || [];
 
-    // Show first item fields so we can confirm checkIn/checkOut/status field names
-    return res.json({
-      success: true,
-      reservationCount: reservations.length,
-      firstItemKeys: reservations[0] ? Object.keys(reservations[0]) : [],
-      firstItem: reservations[0] ? {
-        checkIn: reservations[0].checkIn,
-        checkOut: reservations[0].checkOut,
-        checkInDateLocalized: reservations[0].checkInDateLocalized,
-        checkOutDateLocalized: reservations[0].checkOutDateLocalized,
-        status: reservations[0].status,
-        nightsCount: reservations[0].nightsCount
-      } : null,
-      cached: false
+    // Build blocked dates from reservations
+    // Guesty only returns active/confirmed reservations by default
+    const blockedDates = new Set();
+    reservations.forEach(r => {
+      if (!r.checkIn || !r.checkOut) return;
+      const start = new Date(r.checkIn);
+      const end   = new Date(r.checkOut);
+      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
+        blockedDates.add(d.toISOString().split('T')[0]);
+      }
     });
+
+    const result = Array.from(blockedDates).sort();
+    setCache(cacheKey, result, 4 * 60 * 60 * 1000);
+    res.json({ success: true, blockedDates: result, reservationCount: reservations.length, cached: false });
 
     reservations.forEach(r => {
       if (['confirmed', 'reserved', 'checked_in', 'checked_out', 'owner_stay', 'blocked'].includes(r.status)) {

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Booking Confirmed – Premium Rentals</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#C9A96E;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
+body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);min-height:100vh;display:flex;flex-direction:column}
+.serif{font-family:'Playfair Display',serif}
+nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:center;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
+.nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
+.nav-logo span{color:var(--gold)}
+.confirm-wrap{max-width:640px;margin:0 auto;padding:120px 5% 80px;flex:1;text-align:center}
+.checkmark{width:80px;height:80px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:36px}
+.confirm-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,42px);font-weight:500;color:var(--dark);margin-bottom:16px;line-height:1.2}
+.confirm-sub{font-size:16px;color:var(--mid);line-height:1.7;margin-bottom:48px}
+.confirm-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:32px;text-align:left;margin-bottom:32px}
+.confirm-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:20px}
+.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0ede8;font-size:14px}
+.confirm-row:last-child{border-bottom:none}
+.confirm-row-label{color:var(--mid)}
+.confirm-row-val{color:var(--dark);font-weight:600;text-align:right}
+.confirm-id{font-family:monospace;font-size:12px;background:var(--light);padding:4px 8px;border-radius:3px;color:var(--accent)}
+.btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
+.btn-primary{background:var(--gold);color:#fff;border:none;padding:14px 32px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.btn-primary:hover{background:#b8914e}
+.btn-secondary{background:transparent;color:var(--dark);border:1px solid #e0ddd8;padding:14px 32px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-secondary:hover{border-color:var(--gold);color:var(--gold)}
+.contact-note{margin-top:40px;padding:20px;background:var(--white);border-radius:8px;border:1px solid #eeede9;font-size:13px;color:var(--mid);line-height:1.7}
+.contact-note a{color:var(--gold);text-decoration:none}
+footer{background:#0a0a0a;color:rgba(255,255,255,.4);padding:24px 5%;text-align:center;font-size:12px}
+</style>
+</head>
+<body>
+
+<nav>
+  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+</nav>
+
+<div class="confirm-wrap">
+  <div class="checkmark">✓</div>
+  <h1 class="confirm-title serif">You're all booked, <span id="guest-name">there</span>!</h1>
+  <p class="confirm-sub">Your reservation is confirmed and a receipt has been sent to <strong id="guest-email"></strong>. We can't wait to host you.</p>
+
+  <div class="confirm-card">
+    <div class="confirm-card-title">Booking Details</div>
+    <div class="confirm-row">
+      <span class="confirm-row-label">Confirmation ID</span>
+      <span class="confirm-row-val"><span class="confirm-id" id="conf-id">—</span></span>
+    </div>
+    <div class="confirm-row">
+      <span class="confirm-row-label">Property</span>
+      <span class="confirm-row-val" id="conf-property">—</span>
+    </div>
+    <div class="confirm-row">
+      <span class="confirm-row-label">Check In</span>
+      <span class="confirm-row-val" id="conf-checkin">—</span>
+    </div>
+    <div class="confirm-row">
+      <span class="confirm-row-label">Check Out</span>
+      <span class="confirm-row-val" id="conf-checkout">—</span>
+    </div>
+    <div class="confirm-row">
+      <span class="confirm-row-label">Total Charged</span>
+      <span class="confirm-row-val" id="conf-total">—</span>
+    </div>
+  </div>
+
+  <div class="btn-group">
+    <a href="properties.html" class="btn-secondary">Browse More Properties</a>
+    <a href="/" class="btn-primary">Back to Home</a>
+  </div>
+
+  <div class="contact-note">
+    Questions about your stay? We're here 24/7.<br>
+    📞 <a href="tel:2088073302">208-807-3302</a> &nbsp;·&nbsp;
+    ✉️ <a href="mailto:info@premiumrentals.com">info@premiumrentals.com</a><br><br>
+    You'll receive check-in instructions closer to your arrival date.
+  </div>
+</div>
+
+<footer>© 2025 Premium Rentals. All rights reserved.</footer>
+
+<script>
+const params = new URLSearchParams(window.location.search);
+function fmtDate(str) {
+  if (!str) return '—';
+  return new Date(str + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+}
+
+const name  = params.get('name')  || 'there';
+const email = params.get('email') || '';
+const id    = params.get('id')    || '—';
+
+document.getElementById('guest-name').textContent    = name.split(' ')[0];
+document.getElementById('guest-email').textContent   = email;
+document.getElementById('conf-id').textContent       = id;
+document.getElementById('conf-property').textContent = params.get('property') || '—';
+document.getElementById('conf-checkin').textContent  = fmtDate(params.get('checkIn'));
+document.getElementById('conf-checkout').textContent = fmtDate(params.get('checkOut'));
+
+const total = parseFloat(params.get('total'));
+document.getElementById('conf-total').textContent = total ? `$${total.toLocaleString()}` : '—';
+</script>
+</body>
+</html>

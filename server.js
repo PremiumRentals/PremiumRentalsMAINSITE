@@ -185,9 +185,9 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       }
     });
 
-    const result = Array.from(blockedDates).sort();
-    setCache(cacheKey, result, 4 * 60 * 60 * 1000);
-    res.json({ success: true, blockedDates: result, totalDays: days.length, cached: false });
+    const blockedArr = Array.from(blockedDates).sort();
+    setCache(cacheKey, blockedArr, 4 * 60 * 60 * 1000);
+    res.json({ success: true, blockedDates: blockedArr, totalDays: days.length, cached: false });
 
     reservations.forEach(r => {
       if (['confirmed', 'reserved', 'checked_in', 'checked_out', 'owner_stay', 'blocked'].includes(r.status)) {
@@ -284,11 +284,12 @@ app.get('/', (req, res) => res.json({
   }
 }));
 
-// ── Auto pricing sync ──
-setTimeout(async () => {
-  console.log('Running initial pricing sync on startup...');
-  try { await syncPricing(); } catch(e) { console.error('Initial sync failed:', e.message); }
-}, 10000);
+// ── Auto pricing sync - disabled on startup to prevent rate limiting
+// Uncomment setTimeout below to re-enable startup sync
+// setTimeout(async () => {
+//   console.log('Running initial pricing sync on startup...');
+//   try { await syncPricing(); } catch(e) { console.error('Initial sync failed:', e.message); }
+// }, 10000);
 
 setInterval(async () => {
   console.log('Running scheduled daily pricing sync...');

@@ -111,17 +111,7 @@ app.get('/api/website/listings', async (req, res) => {
     });
     const data = await response.json();
     const results = (data.results || []).filter(l => l.active !== false);
-    const { data: pricing } = await supabase.from('listing_pricing').select('*');
-    if (pricing && pricing.length) {
-      const priceMap = {};
-      pricing.forEach(p => { priceMap[p.listing_id] = p; });
-      results.forEach(l => {
-        if (priceMap[l._id]) {
-          l._realPrice = priceMap[l._id].nightly_rate;
-          l._nextAvailable = priceMap[l._id].next_available_date;
-        }
-      });
-    }
+    // Don't enrich with bad pricing data — pricing is dynamic per day
     setCache('listings_all', results);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch (e) {

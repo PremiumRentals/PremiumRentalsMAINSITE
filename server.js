@@ -509,6 +509,21 @@ app.get('/api/website/test-account-fees', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// ── Temp: Check additional fees ──
+app.get('/api/website/test-additional-fees', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const [r1, r2, r3] = await Promise.all([
+      fetch('https://open-api.guesty.com/v1/additional-fees', { headers: { Authorization: `Bearer ${token}` } }),
+      fetch('https://open-api.guesty.com/v1/fees', { headers: { Authorization: `Bearer ${token}` } }),
+      fetch('https://open-api.guesty.com/v1/accounts/me', { headers: { Authorization: `Bearer ${token}` } })
+    ]);
+    const [fees1, fees2, account] = await Promise.all([r1.json(), r2.json(), r3.json()]);
+    res.json({ additionalFees: fees1, fees: fees2, accountAdditionalFees: account.additionalFees });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

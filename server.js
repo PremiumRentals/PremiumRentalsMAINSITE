@@ -234,18 +234,13 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       return res.status(500).json({ success: false, error: 'Invalid JSON from Guesty', raw: text.slice(0, 200) });
     }
 
-    // Extract day-by-day availability
+    // Extract day-by-day availability — handle Guesty wrapper
     const days = {};
-    if (data.days && Array.isArray(data.days)) {
-      data.days.forEach(d => {
-        days[d.date] = {
-          available: d.status === 'available',
-          price: d.price || null,
-          status: d.status
-        };
-      });
-    } else if (data.calendarDays && Array.isArray(data.calendarDays)) {
-      data.calendarDays.forEach(d => {
+    const payload = data.data || data;
+    const daysList = payload.days || payload.calendarDays || payload.availability || [];
+
+    if (Array.isArray(daysList)) {
+      daysList.forEach(d => {
         days[d.date] = {
           available: d.status === 'available' || d.available === true,
           price: d.price || null,
@@ -254,8 +249,9 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       });
     }
 
+    // Debug: also return raw data structure so we can see what's inside
     setCache(cacheKey, { days, raw: data }, 60 * 60 * 1000);
-    res.json({ success: true, days, rawKeys: Object.keys(data), cached: false });
+    res.json({ success: true, days, payloadKeys: Object.keys(payload), daysList: Array.isArray(daysList) ? daysList.slice(0,3) : daysList, cached: false });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

@@ -7,8 +7,8 @@ const app = express();
 app.use(express.json());
 app.use(cors({
   origin: [
-    'https://premiumrentals.ai',
-    'https://www.premiumrentals.ai',
+    'https://premiumrentals.homes',
+    'https://www.premiumrentals.homes',
     'https://premium-rentals-mainsite.vercel.app',
     'http://localhost:3000'
   ]

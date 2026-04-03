@@ -555,7 +555,7 @@ function renderListings(listings) {
     const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
-    const price = l.prices?.basePrice || l.prices?.nightlyRate;
+    const price = l._realPrice || l.prices?.basePrice || l.prices?.nightlyRate;
     const badge = i === 0 ? 'Featured' : '';
     return `
       <div class="prop-card fade-up" onclick="openModal('${l._id}')">
@@ -573,11 +573,8 @@ function renderListings(listings) {
             <span>👥 Up to ${l.accommodates || '—'}</span>
           </div>
           <div class="prop-footer">
-            <div class="prop-price serif">${price ? `$${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
-            <div style="display:flex;align-items:center;gap:8px">
-              <span class="prop-rating"><span class="stars">★★★★★</span> 4.9</span>
-              <button class="book-btn" onclick="event.stopPropagation();openModal('${l._id}')">Book</button>
-            </div>
+            <div class="prop-price serif">${price ? `<small>From </small>${Number(price).toLocaleString()}<small>/night</small>` : '<small>Contact for pricing</small>'}</div>
+            <button class="book-btn" onclick="event.stopPropagation();openModal('${l._id}')">Book</button>
           </div>
         </div>
       </div>`;

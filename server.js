@@ -167,27 +167,27 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const token = await getGuestyToken();
 
     const response = await fetch(
-      `https://open-api.guesty.com/v1/reservations?listingId=${listingId}&checkIn=${startDate}&checkOut=${endDate}&limit=100`,
+      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${startDate}&endDate=${endDate}&includeAllotment=true`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();
-    const reservations = data.results || [];
 
-    // Build blocked dates from reservations
-    // Guesty only returns active/confirmed reservations by default
+    // Build blocked dates from calendar response
     const blockedDates = new Set();
-    reservations.forEach(r => {
-      if (!r.checkIn || !r.checkOut) return;
-      const start = new Date(r.checkIn);
-      const end   = new Date(r.checkOut);
-      for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-        blockedDates.add(d.toISOString().split('T')[0]);
+    const days = data.data?.days || data.days || [];
+
+    days.forEach(day => {
+      const isAvailable = typeof day.allotment === 'number'
+        ? day.allotment > 0
+        : day.status === 'available';
+      if (!isAvailable) {
+        blockedDates.add(day.date);
       }
     });
 
     const result = Array.from(blockedDates).sort();
     setCache(cacheKey, result, 4 * 60 * 60 * 1000);
-    res.json({ success: true, blockedDates: result, reservationCount: reservations.length, cached: false });
+    res.json({ success: true, blockedDates: result, totalDays: days.length, cached: false });
 
     reservations.forEach(r => {
       if (['confirmed', 'reserved', 'checked_in', 'checked_out', 'owner_stay', 'blocked'].includes(r.status)) {

@@ -249,9 +249,8 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       });
     }
 
-    // Debug: also return raw data structure so we can see what's inside
-    setCache(cacheKey, { days, raw: data }, 60 * 60 * 1000);
-    res.json({ success: true, days, payloadKeys: Object.keys(payload), daysList: Array.isArray(daysList) ? daysList.slice(0,3) : daysList, cached: false });
+    // Return full raw response so we can see exact structure
+    res.json({ success: true, days: {}, fullRaw: data, cached: false });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }

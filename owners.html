@@ -1,0 +1,470 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Owner Services – Premium Rentals</title>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{margin:0;padding:0;box-sizing:border-box}
+:root{--gold:#C9A96E;--gold-light:#E8D5B0;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
+body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);overflow-x:hidden}
+.serif{font-family:'Playfair Display',serif}
+
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:100;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:72px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
+.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
+.nav-logo span{color:var(--gold)}
+.nav-links{display:flex;gap:32px;list-style:none;align-items:center}
+.nav-links a{text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.5px;color:var(--mid);transition:color .3s}
+.nav-links a:hover{color:var(--gold)}
+.nav-cta{background:var(--gold);color:var(--white)!important;padding:10px 24px;border-radius:2px;font-size:13px!important;font-weight:600!important;transition:background .3s!important}
+.nav-cta:hover{background:#b8914e!important}
+
+/* HERO */
+.hero{position:relative;height:80vh;min-height:560px;display:flex;align-items:center;overflow:hidden;margin-top:72px}
+.hero-bg{position:absolute;inset:0;background:linear-gradient(135deg,#1a2e28,#2C4A3E,#1a3028)}
+.hero-img{position:absolute;inset:0;background:url('https://images.unsplash.com/photo-1560518883-ce09059eeffa?w=1600&q=80') center/cover no-repeat;opacity:.3}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to right,rgba(0,0,0,.6),rgba(0,0,0,.1))}
+.hero-content{position:relative;z-index:2;padding:0 5%;max-width:760px}
+.hero-badge{display:inline-flex;align-items:center;gap:8px;background:rgba(201,169,110,.15);border:1px solid rgba(201,169,110,.4);color:var(--gold-light);padding:7px 18px;border-radius:30px;font-size:11px;font-weight:500;letter-spacing:1.5px;text-transform:uppercase;margin-bottom:28px}
+.hero-badge::before{content:'';width:6px;height:6px;background:var(--gold);border-radius:50%}
+.hero h1{font-family:'Playfair Display',serif;font-size:clamp(36px,5vw,64px);color:#fff;font-weight:500;line-height:1.1;margin-bottom:20px}
+.hero h1 em{font-style:italic;color:var(--gold)}
+.hero-sub{font-size:17px;color:rgba(255,255,255,.75);line-height:1.7;max-width:520px;margin-bottom:40px}
+.btn-primary{background:var(--gold);color:#fff;padding:16px 36px;border:none;border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .25s;text-decoration:none;display:inline-block}
+.btn-primary:hover{background:#b8914e;transform:translateY(-1px)}
+.btn-outline-white{background:transparent;color:#fff;padding:16px 36px;border:1px solid rgba(255,255,255,.5);border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .25s;text-decoration:none;display:inline-block}
+.btn-outline-white:hover{border-color:#fff;background:rgba(255,255,255,.08)}
+
+/* STATS BAR */
+.stats-bar{background:var(--dark);padding:40px 5%}
+.stats-inner{display:flex;justify-content:space-around;flex-wrap:wrap;gap:32px;max-width:1000px;margin:0 auto;text-align:center}
+.stat-item{}
+.stat-num{font-family:'Playfair Display',serif;font-size:44px;color:var(--gold);font-weight:500;line-height:1}
+.stat-lbl{font-size:12px;color:rgba(255,255,255,.55);letter-spacing:.5px;margin-top:6px}
+
+/* SECTIONS */
+section{padding:90px 5%}
+.section-label{font-size:11px;font-weight:600;letter-spacing:2px;text-transform:uppercase;color:var(--gold);margin-bottom:12px}
+.section-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,44px);font-weight:500;line-height:1.2;color:var(--dark);margin-bottom:16px}
+.section-sub{font-size:16px;color:var(--mid);line-height:1.7;max-width:580px}
+.fade-up{opacity:0;transform:translateY(24px);transition:opacity .6s ease,transform .6s ease}
+.fade-up.visible{opacity:1;transform:none}
+
+/* WHY US */
+.why-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.why-img{position:relative;overflow:hidden;border-radius:4px}
+.why-img img{width:100%;height:520px;object-fit:cover}
+.why-img-badge{position:absolute;bottom:28px;right:-20px;background:var(--gold);color:#fff;padding:20px 24px;border-radius:4px}
+.why-img-badge-num{font-family:'Playfair Display',serif;font-size:32px;font-weight:500;line-height:1}
+.why-img-badge-txt{font-size:11px;letter-spacing:.5px;margin-top:4px;opacity:.85}
+.why-features{display:flex;flex-direction:column;gap:0}
+.why-feat{display:flex;gap:16px;align-items:flex-start;padding:22px 0;border-bottom:1px solid #f0ede8}
+.why-feat:first-child{padding-top:0}
+.why-feat:last-child{border-bottom:none}
+.why-feat-num{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold-light);font-weight:500;min-width:40px;line-height:1;margin-top:2px}
+.why-feat-text h4{font-size:16px;font-weight:600;color:var(--dark);margin-bottom:5px}
+.why-feat-text p{font-size:14px;color:var(--mid);line-height:1.7}
+
+/* WHAT WE DO */
+.what-section{background:var(--light)}
+.what-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:2px;background:var(--gold-light);margin-top:56px}
+.what-card{background:var(--white);padding:40px 36px}
+.what-card-icon{font-size:28px;margin-bottom:16px}
+.what-card-title{font-family:'Playfair Display',serif;font-size:22px;font-weight:500;color:var(--dark);margin-bottom:16px}
+.what-list{list-style:none;display:flex;flex-direction:column;gap:10px}
+.what-list li{font-size:14px;color:var(--mid);padding-left:20px;position:relative;line-height:1.6}
+.what-list li::before{content:'✓';position:absolute;left:0;color:var(--gold);font-weight:600;font-size:12px}
+
+/* PROCESS */
+.process-section{background:var(--accent);padding:90px 5%}
+.process-title{font-family:'Playfair Display',serif;font-size:clamp(28px,4vw,44px);font-weight:500;color:#fff;margin-bottom:12px;text-align:center}
+.process-sub{font-size:16px;color:rgba(255,255,255,.65);text-align:center;margin-bottom:64px}
+.process-steps{display:grid;grid-template-columns:repeat(auto-fit,minmax(200px,1fr));gap:2px;background:rgba(255,255,255,.08)}
+.process-step{background:var(--accent);padding:40px 28px;text-align:center}
+.process-step-num{width:52px;height:52px;border:1px solid rgba(201,169,110,.5);border-radius:50%;display:flex;align-items:center;justify-content:center;font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);margin:0 auto 20px}
+.process-step-title{font-weight:600;font-size:14px;color:#fff;margin-bottom:10px;letter-spacing:.3px}
+.process-step-text{font-size:13px;color:rgba(255,255,255,.55);line-height:1.7}
+
+/* TECH */
+.tech-section{background:var(--white)}
+.tech-grid{display:grid;grid-template-columns:1fr 1fr;gap:80px;align-items:center}
+.tech-content .section-sub{margin-bottom:36px}
+.tech-items{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+.tech-item{background:var(--light);padding:22px 20px;border-radius:4px;border:1px solid #eeede9}
+.tech-item-icon{font-size:24px;margin-bottom:10px}
+.tech-item-title{font-size:14px;font-weight:600;color:var(--dark);margin-bottom:4px}
+.tech-item-desc{font-size:12px;color:var(--mid);line-height:1.6}
+.tech-img img{width:100%;height:480px;object-fit:cover;border-radius:4px}
+
+/* CHANNELS */
+.channels-section{background:var(--light);text-align:center}
+.channels-section .section-title{text-align:center;margin:0 auto 12px}
+.channels-section .section-sub{text-align:center;margin:0 auto 48px}
+.channels-grid{display:flex;flex-wrap:wrap;justify-content:center;gap:16px;max-width:800px;margin:0 auto}
+.channel-badge{background:var(--white);border:1px solid #eeede9;padding:14px 28px;border-radius:4px;font-size:14px;font-weight:600;color:var(--dark);transition:all .3s}
+.channel-badge:hover{border-color:var(--gold);color:var(--gold)}
+
+/* TESTIMONIAL */
+.owner-testi{background:var(--dark);padding:90px 5%;text-align:center}
+.owner-testi-quote{font-family:'Playfair Display',serif;font-size:clamp(20px,3vw,30px);font-weight:400;font-style:italic;color:#fff;line-height:1.6;max-width:800px;margin:0 auto 32px}
+.owner-testi-name{font-size:14px;font-weight:600;color:var(--gold);letter-spacing:.5px}
+.owner-testi-role{font-size:13px;color:rgba(255,255,255,.45);margin-top:4px}
+
+/* CTA */
+.cta-section{background:var(--light);padding:90px 5%;text-align:center}
+.cta-section .section-title{text-align:center;margin:0 auto 12px}
+.cta-section .section-sub{text-align:center;margin:0 auto 48px}
+.cta-form{background:var(--white);border:1px solid #eeede9;padding:48px 40px;max-width:640px;margin:0 auto;border-radius:4px}
+.cta-form-title{font-family:'Playfair Display',serif;font-size:26px;color:var(--dark);margin-bottom:28px;font-weight:500}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:14px}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
+.fg label{font-size:9px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:rgba(0,0,0,.4)}
+.fg input,.fg select,.fg textarea{background:var(--light);border:1px solid #e0ddd8;color:var(--dark);font-family:'Inter',sans-serif;font-size:13px;padding:12px 14px;outline:none;transition:border-color .2s;width:100%;border-radius:2px}
+.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold)}
+.fg input::placeholder,.fg textarea::placeholder{color:#bbb}
+.fg textarea{resize:vertical;min-height:90px}
+.form-submit{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:background .25s;border-radius:2px}
+.form-submit:hover{background:#b8914e}
+
+/* FOOTER */
+footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
+.footer-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr;gap:48px;margin-bottom:48px}
+.footer-brand p{font-size:13px;line-height:1.8;max-width:260px;font-weight:300;margin-top:14px}
+.footer-socials{display:flex;gap:10px;margin-top:20px}
+.soc{width:36px;height:36px;border:1px solid rgba(255,255,255,.1);border-radius:2px;display:flex;align-items:center;justify-content:center;font-size:13px;cursor:pointer;transition:all .2s;color:rgba(255,255,255,.4);text-decoration:none}
+.soc:hover{border-color:var(--gold);color:var(--gold)}
+.fc h5{font-size:10px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#fff;margin-bottom:16px}
+.fc a{display:block;font-size:13px;color:rgba(255,255,255,.4);text-decoration:none;margin-bottom:10px;font-weight:300;transition:color .2s}
+.fc a:hover{color:var(--gold)}
+.footer-bot{border-top:1px solid rgba(255,255,255,.06);padding-top:24px;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:11px}
+.footer-bot a{color:rgba(255,255,255,.28);text-decoration:none}
+.footer-bot a:hover{color:var(--gold)}
+
+@media(max-width:820px){
+  .nav-links{display:none}
+  .why-grid,.tech-grid{grid-template-columns:1fr}
+  .what-grid{grid-template-columns:1fr}
+  .tech-items{grid-template-columns:1fr}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .why-img-badge{right:0}
+  .form-row{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- NAV -->
+<nav>
+  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <ul class="nav-links">
+    <li><a href="properties.html">Properties</a></li>
+    <li><a href="/#about">About</a></li>
+    <li><a href="/#amenities">Amenities</a></li>
+    <li><a href="owners.html" style="color:var(--gold)">Owner Services</a></li>
+    <li><a href="/#contact">Contact</a></li>
+    <li><a href="properties.html" class="nav-cta">Book Now</a></li>
+  </ul>
+</nav>
+
+<!-- HERO -->
+<section class="hero">
+  <div class="hero-bg"></div>
+  <div class="hero-img"></div>
+  <div class="hero-overlay"></div>
+  <div class="hero-content fade-up">
+    <div class="hero-badge">Property Owner Services</div>
+    <h1 class="serif">Your Property.<br>Our Expertise.<br><em>Maximum Returns.</em></h1>
+    <p class="hero-sub">We handle everything — from listing and marketing to cleaning, guest communication, and maintenance. You collect the revenue. We do the work.</p>
+    <div style="display:flex;gap:16px;flex-wrap:wrap">
+      <a href="#inquiry" class="btn-primary">Request a Free Analysis</a>
+      <a href="#what-we-do" class="btn-outline-white">What We Do</a>
+    </div>
+  </div>
+</section>
+
+<!-- STATS BAR -->
+<div class="stats-bar">
+  <div class="stats-inner">
+    <div class="stat-item"><div class="stat-num">92%</div><div class="stat-lbl">Average Occupancy Rate</div></div>
+    <div class="stat-item"><div class="stat-num">38%</div><div class="stat-lbl">More Revenue vs. Self-Managing</div></div>
+    <div class="stat-item"><div class="stat-num">$4.2K</div><div class="stat-lbl">Avg. Monthly Owner Revenue</div></div>
+    <div class="stat-item"><div class="stat-num">80+</div><div class="stat-lbl">Properties Under Management</div></div>
+    <div class="stat-item"><div class="stat-num">4.97★</div><div class="stat-lbl">Average Guest Rating</div></div>
+  </div>
+</div>
+
+<!-- WHY PREMIUM RENTALS -->
+<section>
+  <div class="why-grid">
+    <div class="why-img fade-up">
+      <img src="https://images.unsplash.com/photo-1551836022-d5d88e9218df?w=800&q=80" alt="Property management results">
+      <div class="why-img-badge">
+        <div class="why-img-badge-num">33%</div>
+        <div class="why-img-badge-txt">more bookings<br>than competitors</div>
+      </div>
+    </div>
+    <div class="fade-up">
+      <p class="section-label">Why Choose Us</p>
+      <h2 class="section-title serif">We Out-Earn &<br>Out-Book the Rest</h2>
+      <p class="section-sub" style="margin-bottom:32px">Independent data consistently shows that professionally managed properties outperform self-managed ones — and our portfolio proves it. Here's why owners choose Premium Rentals.</p>
+      <div class="why-features">
+        <div class="why-feat">
+          <div class="why-feat-num">01</div>
+          <div class="why-feat-text"><h4>Revenue-First Pricing Strategy</h4><p>Our dynamic pricing technology analyzes market demand, local events, and competitor rates in real time — automatically adjusting your nightly rate to maximize revenue every single day.</p></div>
+        </div>
+        <div class="why-feat">
+          <div class="why-feat-num">02</div>
+          <div class="why-feat-text"><h4>Maximum Market Exposure</h4><p>Your property is listed and optimized across all major booking platforms simultaneously — Airbnb, Vrbo, Booking.com, Google Vacation Rentals, and more. More eyes, more bookings.</p></div>
+        </div>
+        <div class="why-feat">
+          <div class="why-feat-num">03</div>
+          <div class="why-feat-text"><h4>Hands-Off Ownership</h4><p>From guest inquiries at 2am to coordinating cleaners between same-day turnovers — we handle every operational detail so you never have to pick up the phone.</p></div>
+        </div>
+        <div class="why-feat">
+          <div class="why-feat-num">04</div>
+          <div class="why-feat-text"><h4>Complete Transparency</h4><p>Real-time owner dashboard gives you full visibility into bookings, revenue, cleaning schedules, and maintenance — any time, from anywhere.</p></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- WHAT WE DO -->
+<section class="what-section" id="what-we-do">
+  <div class="fade-up" style="text-align:center">
+    <p class="section-label" style="text-align:center">Full Service Management</p>
+    <h2 class="section-title serif" style="text-align:center;margin:0 auto 12px">Everything Included.<br>One Simple Fee.</h2>
+    <p class="section-sub" style="text-align:center;margin:0 auto">No hidden charges, no surprise invoices. Our all-inclusive management fee covers every service below.</p>
+  </div>
+  <div class="what-grid fade-up">
+    <div class="what-card">
+      <div class="what-card-icon">📸</div>
+      <div class="what-card-title serif">Getting You Listed</div>
+      <ul class="what-list">
+        <li>Professional high-definition photography</li>
+        <li>3D virtual tour creation</li>
+        <li>Compelling, SEO-optimized listing copy</li>
+        <li>Best-in-class listing presentation</li>
+        <li>Onboarding and setup handled for you</li>
+      </ul>
+    </div>
+    <div class="what-card">
+      <div class="what-card-icon">📅</div>
+      <div class="what-card-title serif">Filling Your Calendar</div>
+      <ul class="what-list">
+        <li>Dynamic pricing technology</li>
+        <li>Listings on all top booking platforms</li>
+        <li>Targeted digital marketing campaigns</li>
+        <li>Dedicated reservation management</li>
+        <li>24/7 guest inquiry response</li>
+      </ul>
+    </div>
+    <div class="what-card">
+      <div class="what-card-icon">🏠</div>
+      <div class="what-card-title serif">Managing Every Detail</div>
+      <ul class="what-list">
+        <li>Professional hotel-grade cleaning</li>
+        <li>Premium linen and towel service</li>
+        <li>Guest amenity restocking</li>
+        <li>Maintenance coordination and inspections</li>
+        <li>Smart lock and access management</li>
+      </ul>
+    </div>
+    <div class="what-card">
+      <div class="what-card-icon">👤</div>
+      <div class="what-card-title serif">Taking Care of You</div>
+      <ul class="what-list">
+        <li>Real-time owner revenue dashboard</li>
+        <li>Monthly performance reports</li>
+        <li>Unlimited owner holds — block dates anytime</li>
+        <li>No long-term contracts required</li>
+        <li>Dedicated owner support team</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+<!-- HOW IT WORKS -->
+<section class="process-section">
+  <p class="section-label" style="color:var(--gold);text-align:center;margin-bottom:12px">Simple Onboarding</p>
+  <h2 class="process-title serif">From Sign-Up to First Booking<br>in as Little as 2 Weeks</h2>
+  <p class="process-sub">We make getting started effortless. Here's exactly what happens when you partner with us.</p>
+  <div class="process-steps fade-up">
+    <div class="process-step">
+      <div class="process-step-num">1</div>
+      <div class="process-step-title">Free Property Analysis</div>
+      <p class="process-step-text">We evaluate your property, analyze your local market, and provide a detailed revenue projection — completely free, no obligation.</p>
+    </div>
+    <div class="process-step">
+      <div class="process-step-num">2</div>
+      <div class="process-step-title">Onboarding & Setup</div>
+      <p class="process-step-text">We handle everything — professional photography, listing creation, smart lock setup, and platform registration across all channels.</p>
+    </div>
+    <div class="process-step">
+      <div class="process-step-num">3</div>
+      <div class="process-step-title">Go Live</div>
+      <p class="process-step-text">Your property goes live across all major booking platforms. Our pricing engine starts optimizing your rates from day one.</p>
+    </div>
+    <div class="process-step">
+      <div class="process-step-num">4</div>
+      <div class="process-step-title">Sit Back & Earn</div>
+      <p class="process-step-text">We manage guests, cleaning, maintenance, and communication. You receive monthly owner statements and direct deposits.</p>
+    </div>
+  </div>
+</section>
+
+<!-- TECHNOLOGY -->
+<section class="tech-section">
+  <div class="tech-grid">
+    <div class="tech-content fade-up">
+      <p class="section-label">State-of-the-Art Technology</p>
+      <h2 class="section-title serif">Smart Homes.<br>Smarter Management.</h2>
+      <p class="section-sub">We leverage cutting-edge property technology to deliver a better experience for guests — and better results for owners.</p>
+      <div class="tech-items">
+        <div class="tech-item">
+          <div class="tech-item-icon">🔑</div>
+          <div class="tech-item-title">Smart Lock Access</div>
+          <div class="tech-item-desc">Keyless, touchless check-in with unique codes for every guest. Managed remotely by our team.</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">🌡️</div>
+          <div class="tech-item-title">Smart Thermostats</div>
+          <div class="tech-item-desc">Automated climate control that saves on utilities between stays while keeping guests comfortable.</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">📊</div>
+          <div class="tech-item-title">Owner Dashboard</div>
+          <div class="tech-item-desc">Real-time visibility into bookings, revenue, cleaning status, and performance analytics.</div>
+        </div>
+        <div class="tech-item">
+          <div class="tech-item-icon">💬</div>
+          <div class="tech-item-title">Automated Messaging</div>
+          <div class="tech-item-desc">Intelligent guest communication ensures fast, consistent responses around the clock.</div>
+        </div>
+      </div>
+    </div>
+    <div class="tech-img fade-up">
+      <img src="https://images.unsplash.com/photo-1558618666-fcd25c85cd64?w=800&q=80" alt="Smart home technology">
+    </div>
+  </div>
+</section>
+
+<!-- CHANNELS -->
+<section class="channels-section">
+  <div class="fade-up">
+    <p class="section-label" style="text-align:center">Maximum Exposure</p>
+    <h2 class="section-title serif">Listed Everywhere<br>Guests Are Searching</h2>
+    <p class="section-sub">We list, optimize, and manage your property across every major booking platform — so you never miss a booking.</p>
+    <div class="channels-grid">
+      <div class="channel-badge">Airbnb</div>
+      <div class="channel-badge">Vrbo</div>
+      <div class="channel-badge">Booking.com</div>
+      <div class="channel-badge">Google Vacation Rentals</div>
+      <div class="channel-badge">Expedia</div>
+      <div class="channel-badge">Homes & Villas by Marriott</div>
+      <div class="channel-badge">Hopper</div>
+      <div class="channel-badge">HomeToGo</div>
+      <div class="channel-badge">Direct Booking Site</div>
+    </div>
+  </div>
+</section>
+
+<!-- OWNER TESTIMONIAL -->
+<section class="owner-testi">
+  <div class="fade-up">
+    <div style="color:var(--gold);font-size:18px;margin-bottom:24px">★★★★★</div>
+    <p class="owner-testi-quote">"Partnering with Premium Rentals was the best decision I made for my investment property. They handle absolutely everything — I check my dashboard once a week to see the revenue coming in. My occupancy has never been higher and I haven't had to deal with a single guest issue."</p>
+    <div class="owner-testi-name">Michael R.</div>
+    <div class="owner-testi-role">Property Owner — Meridian, Idaho</div>
+  </div>
+</section>
+
+<!-- INQUIRY FORM -->
+<section class="cta-section" id="inquiry">
+  <div class="fade-up">
+    <p class="section-label" style="text-align:center">Get Started</p>
+    <h2 class="section-title serif" style="text-align:center;margin:0 auto 12px">Request Your Free<br>Property Analysis</h2>
+    <p class="section-sub" style="text-align:center;margin:0 auto">Tell us about your property and we'll put together a custom revenue projection and management proposal — completely free, no strings attached.</p>
+  </div>
+  <div class="cta-form fade-up">
+    <div class="cta-form-title serif">Tell Us About Your Property</div>
+    <div class="form-row">
+      <div class="fg"><label>First Name</label><input type="text" id="of-first" placeholder="First name"></div>
+      <div class="fg"><label>Last Name</label><input type="text" id="of-last" placeholder="Last name"></div>
+    </div>
+    <div class="form-row">
+      <div class="fg"><label>Email</label><input type="email" id="of-email" placeholder="your@email.com"></div>
+      <div class="fg"><label>Phone</label><input type="tel" id="of-phone" placeholder="(208) 555-0100"></div>
+    </div>
+    <div class="fg"><label>Property Address</label><input type="text" id="of-address" placeholder="City, State or full address"></div>
+    <div class="form-row">
+      <div class="fg"><label>Bedrooms</label>
+        <select id="of-beds"><option>1 bedroom</option><option>2 bedrooms</option><option>3 bedrooms</option><option>4 bedrooms</option><option>5 bedrooms</option><option>6+ bedrooms</option></select>
+      </div>
+      <div class="fg"><label>Currently Renting?</label>
+        <select id="of-status"><option>Not currently renting</option><option>Self-managing on Airbnb/Vrbo</option><option>With another manager</option></select>
+      </div>
+    </div>
+    <div class="fg"><label>Tell Us More</label><textarea id="of-message" placeholder="Any questions or details about your property..."></textarea></div>
+    <button class="form-submit" id="ownerSubmitBtn" onclick="submitOwnerInquiry()">Request Free Analysis</button>
+  </div>
+</section>
+
+<!-- FOOTER -->
+<footer>
+  <div class="footer-grid">
+    <div class="footer-brand">
+      <a href="/" class="nav-logo serif" style="color:#fff;font-size:22px;display:block">Premium<span style="color:var(--gold)">Rentals</span></a>
+      <p>Premium short-term rental management. We turn exceptional properties into unforgettable experiences — every stay, every time.</p>
+      <div class="footer-socials"><a href="#" class="soc">f</a><a href="#" class="soc">in</a><a href="#" class="soc">ig</a><a href="#" class="soc">yt</a></div>
+    </div>
+    <div class="fc"><h5>Properties</h5><a href="properties.html">All Listings</a><a href="properties.html">Browse by Location</a><a href="properties.html">Browse by Size</a><a href="properties.html">Pet Friendly</a></div>
+    <div class="fc"><h5>Company</h5><a href="/#about">About Us</a><a href="/#about">How It Works</a><a href="owners.html">Owner Services</a><a href="/#contact">Contact</a></div>
+    <div class="fc"><h5>Support</h5><a href="/#contact">Contact Us</a><a href="/#contact">FAQs</a><a href="/#contact">Cancellation Policy</a><a href="https://login.premiumrentals.com">Owner Login</a></div>
+  </div>
+  <div class="footer-bot">
+    <span>© 2025 Premium Rentals. All rights reserved.</span>
+    <span><a href="/#contact">Privacy Policy</a> &nbsp;·&nbsp; <a href="/#contact">Terms of Service</a></span>
+  </div>
+</footer>
+
+<script>
+const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
+
+// Scroll animations
+const io = new IntersectionObserver(e => e.forEach(x => { if(x.isIntersecting) x.target.classList.add('visible'); }), {threshold:.1});
+document.querySelectorAll('.fade-up').forEach(el => io.observe(el));
+
+// Smooth scroll for anchor links
+document.querySelectorAll('a[href^="#"]').forEach(a => {
+  a.addEventListener('click', e => {
+    const t = document.querySelector(a.getAttribute('href'));
+    if(t){ e.preventDefault(); t.scrollIntoView({behavior:'smooth'}); }
+  });
+});
+
+// Owner inquiry form
+async function submitOwnerInquiry() {
+  const btn = document.getElementById('ownerSubmitBtn');
+  const body = {
+    firstName: document.getElementById('of-first').value,
+    lastName:  document.getElementById('of-last').value,
+    email:     document.getElementById('of-email').value,
+    interest:  'Listing My Property',
+    message:   `Phone: ${document.getElementById('of-phone').value} | Address: ${document.getElementById('of-address').value} | Beds: ${document.getElementById('of-beds').value} | Status: ${document.getElementById('of-status').value} | Notes: ${document.getElementById('of-message').value}`
+  };
+  if (!body.email) return;
+  btn.textContent = 'Sending…';
+  try {
+    await fetch(`${API_BASE}/api/website/contact`, {
+      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+    });
+  } catch {}
+  btn.textContent = 'Request Sent ✓ We\'ll be in touch shortly!';
+  btn.style.background = 'var(--accent)';
+}
+</script>
+</body>
+</html>

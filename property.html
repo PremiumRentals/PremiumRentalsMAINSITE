@@ -18,9 +18,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .nav-right{display:flex;gap:12px;align-items:center}
 .nav-action{background:transparent;border:1px solid #e0ddd8;padding:8px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--mid)}
 .nav-action:hover{border-color:var(--gold);color:var(--gold)}
-.gallery{margin-top:64px;cursor:pointer}
+
+/* GALLERY */
+.gallery{margin-top:64px}
 .gallery-grid{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:300px 300px;gap:4px;height:600px;position:relative}
-.gallery-cell{overflow:hidden;background:#f0ede8}
+.gallery-cell{overflow:hidden;background:#f0ede8;cursor:pointer}
 .gallery-cell:first-child{grid-row:1/3}
 .gallery-cell:nth-child(3){border-radius:0 8px 0 0}
 .gallery-cell:nth-child(5){border-radius:0 0 8px 0}
@@ -28,6 +30,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .gallery-grid:hover .gallery-cell img{transform:scale(1.03)}
 .gallery-show-all{position:absolute;bottom:20px;right:20px;background:rgba(255,255,255,.95);border:1px solid #e0ddd8;padding:10px 20px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s}
 .gallery-show-all:hover{border-color:var(--gold);color:var(--gold)}
+
+/* LIGHTBOX */
 #lightbox{display:none;position:fixed;inset:0;background:rgba(0,0,0,.96);z-index:999;flex-direction:column;align-items:center;justify-content:center}
 #lightbox.open{display:flex}
 .lb-close{position:absolute;top:20px;right:24px;background:none;border:none;color:#fff;font-size:28px;cursor:pointer;line-height:1}
@@ -41,25 +45,35 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .lb-thumbs{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:90vw;overflow-x:auto;padding:4px}
 .lb-thumb{width:52px;height:40px;object-fit:cover;border-radius:2px;cursor:pointer;opacity:.5;transition:opacity .2s;flex-shrink:0;border:2px solid transparent}
 .lb-thumb.active{opacity:1;border-color:var(--gold)}
-.content-wrap{max-width:1200px;margin:0 auto;padding:40px 5% 120px;display:grid;grid-template-columns:1fr 380px;gap:64px;align-items:start}
+
+/* CONTENT LAYOUT */
+.content-wrap{max-width:1200px;margin:0 auto;padding:40px 5% 120px;display:grid;grid-template-columns:1fr 400px;gap:64px;align-items:start}
 .section-block{padding:28px 0;border-bottom:1px solid #f0ede8}
 .section-block:last-child{border-bottom:none}
 .block-title{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark);margin-bottom:16px}
+
+/* PROP HEADER */
 .prop-header{margin-bottom:28px;padding-bottom:28px;border-bottom:1px solid #f0ede8}
 .prop-location-tag{font-size:12px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:10px}
 .prop-title{font-family:'Playfair Display',serif;font-size:clamp(24px,3.5vw,38px);font-weight:500;line-height:1.2;margin-bottom:16px}
 .prop-stats{display:flex;gap:20px;flex-wrap:wrap}
 .prop-stat{font-size:14px;color:var(--mid)}
 .prop-stat strong{color:var(--dark);font-weight:600}
+
+/* DESCRIPTION */
 .description-text{font-size:15px;color:var(--mid);line-height:1.8;white-space:pre-line}
 .description-collapsed{max-height:120px;overflow:hidden;position:relative}
 .description-collapsed::after{content:'';position:absolute;bottom:0;left:0;right:0;height:40px;background:linear-gradient(to bottom,transparent,#fff)}
 .read-more-btn{background:none;border:none;color:var(--dark);font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:underline;margin-top:12px;padding:0}
+
+/* AMENITIES */
 .amenities-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:4px}
 .amenity-item{display:flex;align-items:center;gap:10px;font-size:14px;color:var(--dark);padding:10px 0}
 .amenity-ico{width:24px;text-align:center;font-size:18px;flex-shrink:0}
 .show-all-btn{background:transparent;border:1px solid var(--dark);padding:12px 24px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-top:16px;transition:all .2s}
 .show-all-btn:hover{border-color:var(--gold);color:var(--gold)}
+
+/* MAIN CALENDAR (availability section) */
 .cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:20px}
 .cal-nav-btn{background:none;border:1px solid #e0ddd8;width:36px;height:36px;border-radius:50%;cursor:pointer;font-size:16px;display:flex;align-items:center;justify-content:center;transition:all .2s}
 .cal-nav-btn:hover{border-color:var(--gold);color:var(--gold)}
@@ -81,47 +95,93 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid)}
 .cal-legend-dot{width:12px;height:12px;border-radius:2px}
 .cal-hint{font-size:13px;color:var(--accent);font-weight:500;margin-bottom:16px;min-height:20px}
+
+/* PROPERTY MAP */
 .property-map{height:280px;border-radius:4px;overflow:hidden;background:#f0ede8}
-.booking-card{background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:28px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
-.from-price{margin-bottom:16px}
+
+/* ── SIDEBAR BOOKING CARD ── */
+.booking-card{background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+
+/* From price */
+.from-price{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f0ede8}
 .from-price-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;color:var(--dark)}
 .from-price-label{font-size:13px;color:var(--mid);margin-left:4px}
-.from-price-note{font-size:11px;color:var(--mid);margin-top:2px}
-.from-price-loading{font-size:13px;color:var(--mid);font-style:italic}
-.booking-fields{border:1px solid #e0ddd8;border-radius:4px;overflow:hidden;margin:16px 0 12px}
-.booking-field-row{display:grid;grid-template-columns:1fr 1fr;border-bottom:1px solid #e0ddd8}
-.booking-field{padding:12px 14px;cursor:pointer;transition:background .15s}
-.booking-field:first-child{border-right:1px solid #e0ddd8}
-.booking-field:hover{background:var(--light)}
-.booking-field-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:4px}
-.booking-field input{border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;cursor:pointer}
-.booking-field-guests{padding:12px 14px}
-.booking-field-guests select{border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;-webkit-appearance:none;cursor:pointer}
-.avail-loading{text-align:center;padding:12px;font-size:13px;color:var(--mid);font-style:italic}
-.booking-avail{padding:12px 14px;border-radius:4px;font-size:13px;font-weight:500;margin-bottom:12px;display:none}
+.from-price-note{font-size:11px;color:var(--mid);margin-top:3px}
+
+/* Selected dates display */
+.selected-dates{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px}
+.sel-date-box{background:var(--light);border:1px solid #e0ddd8;border-radius:4px;padding:8px 10px;cursor:pointer;transition:border-color .2s}
+.sel-date-box.active{border-color:var(--accent);background:rgba(44,74,62,.05)}
+.sel-date-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:3px}
+.sel-date-val{font-size:13px;font-weight:600;color:var(--dark)}
+.sel-date-val.placeholder{color:#bbb;font-weight:400}
+
+/* Sidebar mini calendar */
+.sb-cal{margin-bottom:12px}
+.sb-cal-header{display:flex;justify-content:space-between;align-items:center;margin-bottom:10px}
+.sb-cal-nav{background:none;border:1px solid #e0ddd8;width:28px;height:28px;border-radius:50%;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;transition:all .2s;flex-shrink:0}
+.sb-cal-nav:hover{border-color:var(--gold);color:var(--gold)}
+.sb-cal-lbl{font-size:12px;font-weight:600;color:var(--dark);text-align:center;flex:1}
+.sb-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;margin-bottom:14px}
+.sb-cal-day-name{text-align:center;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--mid);padding:4px 0;text-transform:uppercase}
+.sb-cal-day{text-align:center;padding:6px 2px;font-size:12px;border-radius:2px;transition:all .12s;line-height:1;min-width:0}
+.sb-cal-day.available{cursor:pointer}
+.sb-cal-day.available:hover{background:var(--light)}
+.sb-cal-day.selected{background:var(--accent);color:#fff;font-weight:700;border-radius:2px}
+.sb-cal-day.in-range{background:rgba(44,74,62,.12);color:var(--accent)}
+.sb-cal-day.blocked{color:#ddd;cursor:not-allowed;text-decoration:line-through}
+.sb-cal-day.past{color:#e0e0e0;cursor:not-allowed}
+.sb-cal-day.today{font-weight:800;color:var(--accent)}
+.sb-cal-day.today.available:not(.selected){text-decoration:underline}
+.sb-cal-day.empty{cursor:default}
+.sb-cal-hint{font-size:11px;color:var(--accent);font-weight:500;text-align:center;margin-bottom:8px;min-height:16px}
+
+/* Guests */
+.guests-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #f0ede8;margin-bottom:12px}
+.guests-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dark)}
+.guests-select{border:1px solid #e0ddd8;padding:6px 10px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:#fff;-webkit-appearance:none;cursor:pointer;outline:none}
+.guests-select:focus{border-color:var(--gold)}
+
+/* Availability + pricing */
+.avail-loading{text-align:center;padding:10px;font-size:12px;color:var(--mid);font-style:italic}
+.booking-avail{padding:10px 12px;border-radius:4px;font-size:13px;font-weight:500;margin-bottom:10px;display:none}
 .booking-avail.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
 .booking-avail.no{background:rgba(192,57,43,.07);color:#c0392b;border:1px solid rgba(192,57,43,.2)}
 .price-breakdown{margin-bottom:12px;display:none}
-.price-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mid);padding:5px 0}
-.price-row.total{font-weight:600;color:var(--dark);font-size:16px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:4px}
-.reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:16px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:12px;display:none}
+.price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:4px 0}
+.price-row.total{font-weight:700;color:var(--dark);font-size:15px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:4px}
+.reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:15px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:10px;display:none}
 .reserve-btn:hover{background:#b8914e}
 .booking-note{font-size:11px;color:var(--mid);text-align:center;line-height:1.6}
+.clear-dates-btn{background:none;border:none;font-size:11px;color:var(--mid);cursor:pointer;text-decoration:underline;display:block;margin:0 auto 8px;font-family:'Inter',sans-serif}
+.clear-dates-btn:hover{color:var(--gold)}
+
+/* MOBILE BAR */
 .mobile-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:#fff;border-top:1px solid #e0ddd8;padding:12px 5%;align-items:center;justify-content:space-between;gap:12px}
 .mobile-bar-price{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
 .mobile-bar-btn{background:var(--gold);color:#fff;border:none;padding:13px 28px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
+
+/* AMENITIES MODAL */
 #amenities-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.7);z-index:998;align-items:center;justify-content:center;padding:20px}
 #amenities-modal.open{display:flex}
 .am-box{background:#fff;border-radius:8px;max-width:640px;width:100%;max-height:80vh;overflow-y:auto;padding:32px}
 .am-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:24px;font-weight:500}
 .am-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px}
 .am-close{float:right;background:none;border:none;font-size:22px;cursor:pointer;color:var(--mid)}
+
+/* SKELETON */
 .skeleton{background:linear-gradient(90deg,#f0ede8 25%,#e8e3db 50%,#f0ede8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
 @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+
+/* FOOTER */
 footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .footer-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px}
 .footer-bot a{color:rgba(255,255,255,.3);text-decoration:none}
 .footer-bot a:hover{color:var(--gold)}
+
+@media(max-width:1024px){
+  .content-wrap{grid-template-columns:1fr 340px;gap:40px}
+}
 @media(max-width:900px){
   .content-wrap{grid-template-columns:1fr;padding-bottom:100px}
   .content-sidebar{display:none}
@@ -149,7 +209,8 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   </div>
 </nav>
 
-<div class="gallery" id="gallery">
+<!-- GALLERY -->
+<div class="gallery">
   <div class="gallery-grid" id="gallery-grid">
     <div class="gallery-cell skeleton" style="grid-row:1/3"></div>
     <div class="gallery-cell skeleton"></div>
@@ -160,6 +221,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <button class="gallery-show-all" onclick="openLightbox(0)">☰ Show all photos</button>
 </div>
 
+<!-- LIGHTBOX -->
 <div id="lightbox">
   <button class="lb-close" onclick="closeLightbox()">×</button>
   <button class="lb-nav lb-prev" onclick="lbNav(-1)">‹</button>
@@ -169,6 +231,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <div class="lb-thumbs" id="lb-thumbs"></div>
 </div>
 
+<!-- MAIN CONTENT -->
 <div class="content-wrap">
   <div class="content-main">
 
@@ -190,9 +253,10 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
       <button class="show-all-btn" id="show-all-amenities" onclick="openAmenitiesModal()" style="display:none">Show all amenities</button>
     </div>
 
+    <!-- MAIN AVAILABILITY CALENDAR -->
     <div class="section-block">
       <h2 class="block-title serif">Availability</h2>
-      <div class="cal-hint" id="cal-hint">Select your check-in date</div>
+      <div class="cal-hint" id="cal-hint">Select your check-in date below or in the booking panel →</div>
       <div class="cal-header">
         <button class="cal-nav-btn" onclick="calNav(-1)">‹</button>
         <div class="cal-month-lbl" id="cal-month-lbl"></div>
@@ -224,52 +288,85 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
   </div>
 
+  <!-- SIDEBAR -->
   <div class="content-sidebar">
     <div class="booking-card">
+
+      <!-- FROM PRICE -->
       <div class="from-price">
         <div id="from-price-display">
-          <span class="from-price-loading">Loading pricing…</span>
+          <span style="font-size:13px;color:var(--mid);font-style:italic">Loading pricing…</span>
         </div>
       </div>
-      <div class="booking-fields">
-        <div class="booking-field-row">
-          <div class="booking-field" onclick="document.getElementById('sb-checkin').showPicker?.()">
-            <div class="booking-field-label">Check In</div>
-            <input type="date" id="sb-checkin" onchange="onDateChange()">
-          </div>
-          <div class="booking-field" onclick="document.getElementById('sb-checkout').showPicker?.()">
-            <div class="booking-field-label">Check Out</div>
-            <input type="date" id="sb-checkout" onchange="onDateChange()">
-          </div>
+
+      <!-- SELECTED DATES DISPLAY -->
+      <div class="selected-dates">
+        <div class="sel-date-box" id="sel-checkin-box" onclick="resetToCheckin()">
+          <div class="sel-date-label">Check In</div>
+          <div class="sel-date-val placeholder" id="sel-checkin-val">Add date</div>
         </div>
-        <div class="booking-field-guests">
-          <div style="font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:4px">Guests</div>
-          <select id="sb-guests" onchange="onDateChange()">
-            <option value="1">1 guest</option>
-            <option value="2" selected>2 guests</option>
-            <option value="3">3 guests</option>
-            <option value="4">4 guests</option>
-            <option value="6">6 guests</option>
-            <option value="8">8 guests</option>
-            <option value="10">10 guests</option>
-            <option value="16">16+ guests</option>
-          </select>
+        <div class="sel-date-box" id="sel-checkout-box">
+          <div class="sel-date-label">Check Out</div>
+          <div class="sel-date-val placeholder" id="sel-checkout-val">Add date</div>
         </div>
       </div>
+
+      <!-- SIDEBAR MINI CALENDAR -->
+      <div class="sb-cal">
+        <div class="sb-cal-hint" id="sb-cal-hint">Select check-in date</div>
+
+        <!-- Month 1 -->
+        <div class="sb-cal-header">
+          <button class="sb-cal-nav" onclick="sbCalNav(-1)">‹</button>
+          <div class="sb-cal-lbl" id="sb-cal-lbl1"></div>
+          <button class="sb-cal-nav" onclick="sbCalNav(1)">›</button>
+        </div>
+        <div class="sb-cal-grid" id="sb-cal-grid1"></div>
+
+        <!-- Month 2 -->
+        <div class="sb-cal-header" style="margin-top:12px">
+          <div style="width:28px"></div>
+          <div class="sb-cal-lbl" id="sb-cal-lbl2"></div>
+          <div style="width:28px"></div>
+        </div>
+        <div class="sb-cal-grid" id="sb-cal-grid2"></div>
+      </div>
+
+      <!-- GUESTS -->
+      <div class="guests-row">
+        <span class="guests-label">Guests</span>
+        <select class="guests-select" id="sb-guests" onchange="onGuestsChange()">
+          <option value="1">1 guest</option>
+          <option value="2" selected>2 guests</option>
+          <option value="3">3 guests</option>
+          <option value="4">4 guests</option>
+          <option value="6">6 guests</option>
+          <option value="8">8 guests</option>
+          <option value="10">10 guests</option>
+          <option value="16">16+ guests</option>
+        </select>
+      </div>
+
+      <button class="clear-dates-btn" id="clear-dates-btn" onclick="clearDates()" style="display:none">Clear dates</button>
+
+      <!-- AVAILABILITY + PRICING -->
       <div class="booking-avail" id="sb-avail"></div>
       <div id="sb-avail-loading" style="display:none" class="avail-loading">Checking availability…</div>
+
       <div class="price-breakdown" id="sb-breakdown">
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
         <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
       </div>
+
       <button class="reserve-btn" id="sb-reserve-btn" onclick="proceedBooking()">Reserve Now →</button>
       <div class="booking-note">You won't be charged yet · Secure booking</div>
     </div>
   </div>
 </div>
 
+<!-- MOBILE BAR -->
 <div class="mobile-bar">
   <div>
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
@@ -278,6 +375,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <button class="mobile-bar-btn" onclick="document.querySelector('.section-block:nth-child(3)').scrollIntoView({behavior:'smooth'})">Reserve</button>
 </div>
 
+<!-- AMENITIES MODAL -->
 <div id="amenities-modal">
   <div class="am-box">
     <button class="am-close" onclick="closeAmenitiesModal()">×</button>
@@ -305,67 +403,67 @@ if (!listingId) window.location.href = 'properties.html';
 let listing = null;
 let allPhotos = [];
 let lbIndex = 0;
-let calYear, calMonth;
-let selectedCheckIn = null, selectedCheckOut = null;
-let calMode = 'checkin';
-let blockedDates = new Set();
 let propertyMap = null;
+
+// Shared calendar state (both main + sidebar share same selection)
+let selectedCheckIn  = null;
+let selectedCheckOut = null;
+let calMode = 'checkin'; // 'checkin' | 'checkout'
+let blockedDates = new Set();
+
+// Main calendar
+let calYear, calMonth;
+
+// Sidebar calendar
+let sbYear, sbMonth;
+
+// Booking data
 let bookingData = { nightly:0, nights:0, cleaning:0, service:0, total:0 };
 
 // ── Load listing ──
 async function loadListing() {
   try {
     const res = await fetch(`${API_BASE}/api/website/listings`);
-    const listData = await res.json();
-    listing = listData.listings?.find(l => l._id === listingId);
-    if (!listing) throw new Error('Listing not found');
+    const data = await res.json();
+    listing = data.listings?.find(l => l._id === listingId);
+    if (!listing) throw new Error('Not found');
     renderListing();
     loadCalendar();
     loadFromPrice();
   } catch(e) {
-    console.error('Failed to load listing:', e);
+    console.error(e);
     document.getElementById('prop-title').textContent = 'Property not found';
   }
 }
 
-// ── Load real "from" price — lowest available rate in next 30 days ──
+// ── Real "from" price ──
 async function loadFromPrice() {
   try {
-    const today = new Date();
+    const today  = new Date();
     const future = new Date(); future.setDate(future.getDate() + 30);
     const fmt = d => d.toISOString().split('T')[0];
-
     const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${fmt(today)}&checkOut=${fmt(future)}`);
     const data = await res.json();
-
     let fromPrice = null;
-    if (data.days && Array.isArray(data.days)) {
-      const availPrices = data.days
-        .filter(d => d.status === 'available' && d.price)
-        .map(d => d.price);
-      if (availPrices.length) fromPrice = Math.min(...availPrices);
+    if (data.days?.length) {
+      const prices = data.days.filter(d => d.status==='available' && d.price).map(d => d.price);
+      if (prices.length) fromPrice = Math.min(...prices);
     }
     if (!fromPrice) fromPrice = data.nightlyRate || data.price?.nightlyRate;
-
-    const display = document.getElementById('from-price-display');
+    const el = document.getElementById('from-price-display');
     if (fromPrice) {
-      display.innerHTML = `
-        <span class="from-price-num serif">$${Number(fromPrice).toLocaleString()}</span>
-        <span class="from-price-label">/ night</span>
-        <div class="from-price-note">From price · Select dates for exact rate</div>`;
+      el.innerHTML = `<span class="from-price-num serif">$${Number(fromPrice).toLocaleString()}</span><span class="from-price-label">/ night</span><div class="from-price-note">From price · Select dates for exact rate</div>`;
       document.getElementById('mobile-price').textContent = `From $${Number(fromPrice).toLocaleString()}/night`;
     } else {
-      display.innerHTML = `<span class="from-price-num serif">—</span><div class="from-price-note">Select dates to see pricing</div>`;
+      el.innerHTML = `<span class="from-price-num serif">—</span><div class="from-price-note">Select dates to see pricing</div>`;
     }
   } catch(e) {
-    document.getElementById('from-price-display').innerHTML = `
-      <span class="from-price-num serif">—</span>
-      <div class="from-price-note">Select dates to see pricing</div>`;
+    document.getElementById('from-price-display').innerHTML = `<span class="from-price-num serif">—</span><div class="from-price-note">Select dates to see pricing</div>`;
   }
 }
 
 function renderListing() {
-  document.title = `${listing.title || 'Property'} – Premium Rentals`;
+  document.title = `${listing.title||'Property'} – Premium Rentals`;
   allPhotos = listing.pictures || [];
   renderGallery();
   const city = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
@@ -380,11 +478,8 @@ function renderListing() {
   const desc = [listing.publicDescription?.summary, listing.publicDescription?.access].filter(Boolean).join('\n\n');
   const descEl = document.getElementById('prop-desc');
   descEl.textContent = desc || 'Contact us for more information about this property.';
-  if (desc && desc.length > 300) {
-    document.getElementById('read-more-btn').style.display = 'block';
-  } else {
-    descEl.classList.remove('description-collapsed');
-  }
+  if (desc && desc.length > 300) document.getElementById('read-more-btn').style.display = 'block';
+  else descEl.classList.remove('description-collapsed');
   renderAmenities();
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
 }
@@ -392,9 +487,9 @@ function renderListing() {
 // ── Gallery ──
 function renderGallery() {
   const grid = document.getElementById('gallery-grid');
-  const photos = allPhotos.slice(0, 5);
+  const photos = allPhotos.slice(0,5);
   if (!photos.length) return;
-  grid.innerHTML = photos.map((p, i) => `
+  grid.innerHTML = photos.map((p,i) => `
     <div class="gallery-cell${i===0?' style="grid-row:1/3"':''}" onclick="openLightbox(${i})">
       <img src="${i===0?p.original:p.thumbnail||p.original}" alt="Photo ${i+1}" loading="${i===0?'eager':'lazy'}">
     </div>`).join('') +
@@ -402,182 +497,248 @@ function renderGallery() {
 }
 
 // ── Lightbox ──
-function openLightbox(idx) { lbIndex=idx; document.getElementById('lightbox').classList.add('open'); document.body.style.overflow='hidden'; updateLightbox(); }
-function closeLightbox() { document.getElementById('lightbox').classList.remove('open'); document.body.style.overflow=''; }
-function lbNav(dir) { lbIndex=(lbIndex+dir+allPhotos.length)%allPhotos.length; updateLightbox(); }
-function updateLightbox() {
-  document.getElementById('lb-img').src = allPhotos[lbIndex]?.original || '';
-  document.getElementById('lb-counter').textContent = `${lbIndex+1} / ${allPhotos.length}`;
-  const wrap = document.getElementById('lb-thumbs');
-  wrap.innerHTML = allPhotos.map((p,i) => `<img class="lb-thumb${i===lbIndex?' active':''}" src="${p.thumbnail||p.original}" onclick="lbIndex=${i};updateLightbox()" alt="">`).join('');
+function openLightbox(idx){lbIndex=idx;document.getElementById('lightbox').classList.add('open');document.body.style.overflow='hidden';updateLightbox();}
+function closeLightbox(){document.getElementById('lightbox').classList.remove('open');document.body.style.overflow='';}
+function lbNav(dir){lbIndex=(lbIndex+dir+allPhotos.length)%allPhotos.length;updateLightbox();}
+function updateLightbox(){
+  document.getElementById('lb-img').src=allPhotos[lbIndex]?.original||'';
+  document.getElementById('lb-counter').textContent=`${lbIndex+1} / ${allPhotos.length}`;
+  const wrap=document.getElementById('lb-thumbs');
+  wrap.innerHTML=allPhotos.map((p,i)=>`<img class="lb-thumb${i===lbIndex?' active':''}" src="${p.thumbnail||p.original}" onclick="lbIndex=${i};updateLightbox()" alt="">`).join('');
   wrap.querySelector('.active')?.scrollIntoView({inline:'center',behavior:'smooth'});
 }
-document.addEventListener('keydown', e => {
-  if (!document.getElementById('lightbox').classList.contains('open')) return;
-  if (e.key==='ArrowLeft') lbNav(-1);
-  if (e.key==='ArrowRight') lbNav(1);
-  if (e.key==='Escape') closeLightbox();
+document.addEventListener('keydown',e=>{
+  if(!document.getElementById('lightbox').classList.contains('open'))return;
+  if(e.key==='ArrowLeft')lbNav(-1);
+  if(e.key==='ArrowRight')lbNav(1);
+  if(e.key==='Escape')closeLightbox();
 });
 
 // ── Amenities ──
-const amenityIcons = {
-  'Air conditioning':'❄️','Wifi':'📶','Wireless Internet':'📶','Internet':'📶',
-  'Kitchen':'🍳','Washer':'👕','Dryer':'👕','Free parking on premises':'🅿️','Parking':'🅿️',
-  'TV':'📺','Heating':'🔥','Smoke detector':'🔔','Carbon monoxide detector':'🔔',
-  'First aid kit':'🩺','Fire extinguisher':'🧯','Pool':'🏊','Hot tub':'🛁',
-  'Gym':'🏋️','Sauna':'🧖','Game room':'🎮','Dvd player':'📀',
-  'Dishwasher':'🍽️','Refrigerator':'🧊','Microwave':'📡','Coffee maker':'☕',
-  'Hair dryer':'💨','Iron':'👔','Essentials':'🧴','Shampoo':'🧴',
-  'Bed linens':'🛌','Extra pillows and blankets':'🛌','Crib':'👶','High chair':'👶',
-  'Pets allowed':'🐾','Pet allowed':'🐾','Suitable for events':'🎉',
-  'Patio or balcony':'🌿','Garden or backyard':'🌿','Indoor fireplace':'🔥',
-  'Laptop friendly workspace':'💼','Sound system':'🔊','Garage':'🚗',
-  'Ping pong table':'🏓','Board games':'🎲','Game console':'🎮',
-  'Wine glasses':'🍷','Oven':'🍳','Stove':'🍳','Toaster':'🍞',
-  'Blender':'🥤','Cookware':'🍳','Dining table':'🪑','Desk':'💻',
-};
-function getIcon(a) { return amenityIcons[a] || '✓'; }
-function renderAmenities() {
-  const amenities = listing.amenities || [];
-  document.getElementById('amenities-grid').innerHTML = amenities.slice(0,10).map(a =>
-    `<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span>${a}</span></div>`).join('');
-  if (amenities.length > 10) {
-    const btn = document.getElementById('show-all-amenities');
-    btn.style.display = 'block';
-    btn.textContent = `Show all ${amenities.length} amenities`;
-  }
-  document.getElementById('am-grid').innerHTML = amenities.map(a =>
-    `<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span style="font-size:14px">${a}</span></div>`).join('');
+const amenityIcons={'Air conditioning':'❄️','Wifi':'📶','Wireless Internet':'📶','Internet':'📶','Kitchen':'🍳','Washer':'👕','Dryer':'👕','Free parking on premises':'🅿️','Parking':'🅿️','TV':'📺','Heating':'🔥','Smoke detector':'🔔','Carbon monoxide detector':'🔔','First aid kit':'🩺','Fire extinguisher':'🧯','Pool':'🏊','Hot tub':'🛁','Gym':'🏋️','Sauna':'🧖','Game room':'🎮','Dvd player':'📀','Dishwasher':'🍽️','Refrigerator':'🧊','Microwave':'📡','Coffee maker':'☕','Hair dryer':'💨','Iron':'👔','Essentials':'🧴','Shampoo':'🧴','Bed linens':'🛌','Extra pillows and blankets':'🛌','Crib':'👶','High chair':'👶','Pets allowed':'🐾','Pet allowed':'🐾','Suitable for events':'🎉','Patio or balcony':'🌿','Garden or backyard':'🌿','Indoor fireplace':'🔥','Laptop friendly workspace':'💼','Sound system':'🔊','Garage':'🚗','Ping pong table':'🏓','Board games':'🎲','Game console':'🎮','Wine glasses':'🍷','Oven':'🍳','Stove':'🍳','Toaster':'🍞','Blender':'🥤','Cookware':'🍳','Dining table':'🪑','Desk':'💻'};
+function getIcon(a){return amenityIcons[a]||'✓';}
+function renderAmenities(){
+  const am=listing.amenities||[];
+  document.getElementById('amenities-grid').innerHTML=am.slice(0,10).map(a=>`<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span>${a}</span></div>`).join('');
+  if(am.length>10){const btn=document.getElementById('show-all-amenities');btn.style.display='block';btn.textContent=`Show all ${am.length} amenities`;}
+  document.getElementById('am-grid').innerHTML=am.map(a=>`<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span style="font-size:14px">${a}</span></div>`).join('');
 }
-function openAmenitiesModal() { document.getElementById('amenities-modal').classList.add('open'); }
-function closeAmenitiesModal() { document.getElementById('amenities-modal').classList.remove('open'); }
-document.getElementById('amenities-modal').addEventListener('click', e => {
-  if (e.target===document.getElementById('amenities-modal')) closeAmenitiesModal();
-});
+function openAmenitiesModal(){document.getElementById('amenities-modal').classList.add('open');}
+function closeAmenitiesModal(){document.getElementById('amenities-modal').classList.remove('open');}
+document.getElementById('amenities-modal').addEventListener('click',e=>{if(e.target===document.getElementById('amenities-modal'))closeAmenitiesModal();});
 
-// ── Calendar ──
+// ── Load calendar blocked dates ──
 async function loadCalendar() {
   const now = new Date();
-  calYear = now.getFullYear();
-  calMonth = now.getMonth();
-  renderCalendar();
+  calYear=now.getFullYear(); calMonth=now.getMonth();
+  sbYear=now.getFullYear();  sbMonth=now.getMonth();
+  renderMainCal();
+  renderSbCal();
   try {
-    const future = new Date(); future.setMonth(future.getMonth()+14);
-    const startDate = now.toISOString().split('T')[0];
-    const endDate   = future.toISOString().split('T')[0];
-    const res  = await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${startDate}&endDate=${endDate}`);
-    const data = await res.json();
-    if (data.blockedDates?.length) { blockedDates = new Set(data.blockedDates); renderCalendar(); }
-  } catch(e) { console.warn('Calendar load failed:', e.message); }
+    const future=new Date(); future.setMonth(future.getMonth()+14);
+    const res=await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${now.toISOString().split('T')[0]}&endDate=${future.toISOString().split('T')[0]}`);
+    const data=await res.json();
+    if(data.blockedDates?.length){
+      blockedDates=new Set(data.blockedDates);
+      renderMainCal();
+      renderSbCal();
+    }
+  } catch(e){console.warn('Calendar load failed:',e.message);}
 }
 
-function renderCalendar() {
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const today = new Date(); today.setHours(0,0,0,0);
-  let m2 = calMonth+1, y2 = calYear;
-  if (m2 > 11) { m2=0; y2++; }
-  document.getElementById('cal-month-lbl').textContent = `${MONTHS[calMonth]} ${calYear}  —  ${MONTHS[m2]} ${y2}`;
-  document.getElementById('cal-months').innerHTML =
-    `<div>${renderMonthGrid(calYear,calMonth,today)}</div><div>${renderMonthGrid(y2,m2,today)}</div>`;
-}
-
-function renderMonthGrid(year, month, today) {
-  const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
-  const DAYS = ['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const first = new Date(year,month,1).getDay();
-  const total = new Date(year,month+1,0).getDate();
-  let html = `<div class="cal-month-title">${MONTHS[month]} ${year}</div><div class="cal-days-grid">`;
-  html += DAYS.map(d => `<div class="cal-day-name">${d}</div>`).join('');
-  for (let i=0;i<first;i++) html += `<div class="cal-day empty"></div>`;
-  for (let d=1;d<=total;d++) {
-    const date    = new Date(year,month,d);
-    const dateStr = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isPast  = date < today;
-    const isBlocked = blockedDates.has(dateStr);
-    const isToday   = date.toDateString()===today.toDateString();
-    const isCIdate  = selectedCheckIn===dateStr;
-    const isCOdate  = selectedCheckOut===dateStr;
-    const inRange   = selectedCheckIn && selectedCheckOut && dateStr>selectedCheckIn && dateStr<selectedCheckOut;
-    let cls = 'cal-day';
-    if (isPast) cls+=' past';
-    else if (isBlocked) cls+=' blocked';
-    else cls+=' available';
-    if (isCIdate||isCOdate) cls+=' selected';
-    if (inRange) cls+=' in-range';
-    if (isToday) cls+=' today';
-    const clickable = !isPast && !isBlocked;
-    html += `<div class="${cls}"${clickable?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
-  }
-  html += '</div>';
-  return html;
-}
-
-function calNav(dir) {
-  calMonth+=dir;
-  if (calMonth>11){calMonth=0;calYear++;}
-  if (calMonth<0){calMonth=11;calYear--;}
-  renderCalendar();
-}
-
-// ── Date selection — syncs calendar to sidebar ──
+// ── SHARED date selection logic ──
 function selectDate(dateStr) {
-  if (blockedDates.has(dateStr)) return;
-  if (calMode==='checkin' || !selectedCheckIn || (selectedCheckIn && selectedCheckOut)) {
+  if(blockedDates.has(dateStr)) return;
+  const today=new Date(); today.setHours(0,0,0,0);
+  if(new Date(dateStr)<today) return;
+
+  if(calMode==='checkin' || !selectedCheckIn || (selectedCheckIn && selectedCheckOut)){
     selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
-    document.getElementById('sb-checkin').value=dateStr;
-    document.getElementById('sb-checkout').value='';
-    setHint('Now select your check-out date');
-    resetSidebarPricing();
-  } else if (dateStr > selectedCheckIn) {
+    updateDateDisplay();
+    resetPricing();
+  } else if(dateStr > selectedCheckIn){
+    // Check no blocked dates in range
     let blocked=false;
     const s=new Date(selectedCheckIn), e=new Date(dateStr);
-    for (let d=new Date(s);d<e;d.setDate(d.getDate()+1)) {
-      if (blockedDates.has(d.toISOString().split('T')[0])){blocked=true;break;}
+    for(let d=new Date(s);d<e;d.setDate(d.getDate()+1)){
+      if(blockedDates.has(d.toISOString().split('T')[0])){blocked=true;break;}
     }
-    if (blocked) {
+    if(blocked){
       selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
-      document.getElementById('sb-checkin').value=dateStr;
-      document.getElementById('sb-checkout').value='';
-      setHint('Range contains unavailable nights. Pick a new check-out.');
-      resetSidebarPricing();
+      updateDateDisplay();
+      resetPricing();
+      setSbHint('Range has unavailable nights. Pick a new check-out.');
     } else {
       selectedCheckOut=dateStr; calMode='checkin';
-      document.getElementById('sb-checkin').value=selectedCheckIn;
-      document.getElementById('sb-checkout').value=selectedCheckOut;
-      setHint('✓ Dates selected — checking availability…');
+      updateDateDisplay();
       autoCheckAvail(selectedCheckIn, selectedCheckOut);
     }
   } else {
     selectedCheckIn=dateStr; selectedCheckOut=null; calMode='checkout';
-    document.getElementById('sb-checkin').value=dateStr;
-    document.getElementById('sb-checkout').value='';
-    setHint('Now select your check-out date');
-    resetSidebarPricing();
+    updateDateDisplay();
+    resetPricing();
   }
-  renderCalendar();
+  renderMainCal();
+  renderSbCal();
 }
 
-function setHint(msg) { document.getElementById('cal-hint').textContent=msg; }
+function updateDateDisplay(){
+  const fmtShort = str => {
+    if(!str) return null;
+    const d=new Date(str+'T12:00:00');
+    return d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  };
+  // Sidebar date boxes
+  const ciVal=document.getElementById('sel-checkin-val');
+  const coVal=document.getElementById('sel-checkout-val');
+  const ciBox=document.getElementById('sel-checkin-box');
+  const coBox=document.getElementById('sel-checkout-box');
 
-// ── Sidebar date inputs also trigger auto-check ──
-function onDateChange() {
-  const ci = document.getElementById('sb-checkin').value;
-  const co = document.getElementById('sb-checkout').value;
-  if (ci && co && ci < co) {
-    selectedCheckIn=ci; selectedCheckOut=co;
-    renderCalendar();
-    autoCheckAvail(ci, co);
+  if(selectedCheckIn){
+    ciVal.textContent=fmtShort(selectedCheckIn);
+    ciVal.classList.remove('placeholder');
+    ciBox.classList.remove('active');
+  } else {
+    ciVal.textContent='Add date'; ciVal.classList.add('placeholder');
   }
+  if(selectedCheckOut){
+    coVal.textContent=fmtShort(selectedCheckOut);
+    coVal.classList.remove('placeholder');
+    coBox.classList.remove('active');
+  } else {
+    coVal.textContent='Add date'; coVal.classList.add('placeholder');
+    if(selectedCheckIn) coBox.classList.add('active');
+  }
+
+  // Hint
+  if(!selectedCheckIn) setSbHint('Select check-in date');
+  else if(!selectedCheckOut) setSbHint('Now select check-out date');
+  else setSbHint('✓ Checking availability…');
+
+  // Main cal hint
+  if(!selectedCheckIn) document.getElementById('cal-hint').textContent='Select your check-in date';
+  else if(!selectedCheckOut) document.getElementById('cal-hint').textContent='Now select your check-out date';
+  else document.getElementById('cal-hint').textContent='✓ Dates selected';
+
+  // Clear button
+  document.getElementById('clear-dates-btn').style.display = selectedCheckIn ? 'block' : 'none';
 }
 
-// ── Auto check — fires 400ms after dates picked ──
-let availDebounce = null;
-function autoCheckAvail(ci, co) {
+function setSbHint(msg){document.getElementById('sb-cal-hint').textContent=msg;}
+
+function resetToCheckin(){
+  if(selectedCheckIn){selectedCheckIn=null;selectedCheckOut=null;calMode='checkin';updateDateDisplay();resetPricing();renderMainCal();renderSbCal();}
+}
+
+function clearDates(){
+  selectedCheckIn=null;selectedCheckOut=null;calMode='checkin';
+  updateDateDisplay();resetPricing();renderMainCal();renderSbCal();
+}
+
+// ── Main calendar render ──
+function renderMainCal(){
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today=new Date();today.setHours(0,0,0,0);
+  let m2=calMonth+1,y2=calYear;
+  if(m2>11){m2=0;y2++;}
+  document.getElementById('cal-month-lbl').textContent=`${MONTHS[calMonth]} ${calYear}  —  ${MONTHS[m2]} ${y2}`;
+  document.getElementById('cal-months').innerHTML=
+    `<div>${renderMonthGrid(calYear,calMonth,today,'main')}</div>` +
+    `<div>${renderMonthGrid(y2,m2,today,'main')}</div>`;
+}
+
+function calNav(dir){
+  calMonth+=dir;
+  if(calMonth>11){calMonth=0;calYear++;}
+  if(calMonth<0){calMonth=11;calYear--;}
+  renderMainCal();
+}
+
+// ── Sidebar calendar render ──
+function renderSbCal(){
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const today=new Date();today.setHours(0,0,0,0);
+  let m2=sbMonth+1,y2=sbYear;
+  if(m2>11){m2=0;y2++;}
+  document.getElementById('sb-cal-lbl1').textContent=`${MONTHS[sbMonth]} ${sbYear}`;
+  document.getElementById('sb-cal-lbl2').textContent=`${MONTHS[m2]} ${y2}`;
+  document.getElementById('sb-cal-grid1').innerHTML=renderSbMonthGrid(sbYear,sbMonth,today);
+  document.getElementById('sb-cal-grid2').innerHTML=renderSbMonthGrid(y2,m2,today);
+}
+
+function sbCalNav(dir){
+  sbMonth+=dir;
+  if(sbMonth>11){sbMonth=0;sbYear++;}
+  if(sbMonth<0){sbMonth=11;sbYear--;}
+  renderSbCal();
+}
+
+// ── Generic month grid renderer ──
+function renderMonthGrid(year,month,today,type){
+  const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
+  const DAYS=['Su','Mo','Tu','We','Th','Fr','Sa'];
+  const first=new Date(year,month,1).getDay();
+  const total=new Date(year,month+1,0).getDate();
+  let html=`<div class="cal-month-title">${MONTHS[month]} ${year}</div><div class="cal-days-grid">`;
+  html+=DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
+  for(let i=0;i<first;i++) html+=`<div class="cal-day empty"></div>`;
+  for(let d=1;d<=total;d++){
+    const date=new Date(year,month,d);
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast=date<today;
+    const isBlocked=blockedDates.has(dateStr);
+    const isToday=date.toDateString()===today.toDateString();
+    const isSel=(dateStr===selectedCheckIn||dateStr===selectedCheckOut);
+    const inRange=selectedCheckIn&&selectedCheckOut&&dateStr>selectedCheckIn&&dateStr<selectedCheckOut;
+    let cls='cal-day';
+    if(isPast)cls+=' past';
+    else if(isBlocked)cls+=' blocked';
+    else cls+=' available';
+    if(isSel)cls+=' selected';
+    if(inRange)cls+=' in-range';
+    if(isToday)cls+=' today';
+    const clickable=!isPast&&!isBlocked;
+    html+=`<div class="${cls}"${clickable?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
+  }
+  html+='</div>';
+  return html;
+}
+
+function renderSbMonthGrid(year,month,today){
+  const DAYS=['S','M','T','W','T','F','S'];
+  const first=new Date(year,month,1).getDay();
+  const total=new Date(year,month+1,0).getDate();
+  let html=DAYS.map(d=>`<div class="sb-cal-day-name">${d}</div>`).join('');
+  for(let i=0;i<first;i++) html+=`<div class="sb-cal-day empty"></div>`;
+  for(let d=1;d<=total;d++){
+    const date=new Date(year,month,d);
+    const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast=date<today;
+    const isBlocked=blockedDates.has(dateStr);
+    const isToday=date.toDateString()===today.toDateString();
+    const isSel=(dateStr===selectedCheckIn||dateStr===selectedCheckOut);
+    const inRange=selectedCheckIn&&selectedCheckOut&&dateStr>selectedCheckIn&&dateStr<selectedCheckOut;
+    let cls='sb-cal-day';
+    if(isPast)cls+=' past';
+    else if(isBlocked)cls+=' blocked';
+    else cls+=' available';
+    if(isSel)cls+=' selected';
+    if(inRange)cls+=' in-range';
+    if(isToday)cls+=' today';
+    const clickable=!isPast&&!isBlocked;
+    html+=`<div class="${cls}"${clickable?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
+  }
+  return html;
+}
+
+// ── Auto availability check ──
+let availDebounce=null;
+function autoCheckAvail(ci,co){
   clearTimeout(availDebounce);
-  availDebounce = setTimeout(() => checkAvailAndPrice(ci, co), 400);
+  availDebounce=setTimeout(()=>checkAvailAndPrice(ci,co),400);
 }
 
-function resetSidebarPricing() {
+function resetPricing(){
   document.getElementById('sb-avail').style.display='none';
   document.getElementById('sb-breakdown').style.display='none';
   document.getElementById('sb-reserve-btn').style.display='none';
@@ -585,73 +746,56 @@ function resetSidebarPricing() {
   bookingData={nightly:0,nights:0,cleaning:0,service:0,total:0};
 }
 
-async function checkAvailAndPrice(ci, co) {
-  const availEl   = document.getElementById('sb-avail');
-  const breakEl   = document.getElementById('sb-breakdown');
-  const resBtn    = document.getElementById('sb-reserve-btn');
-  const loadingEl = document.getElementById('sb-avail-loading');
-
-  availEl.style.display='none';
-  breakEl.style.display='none';
-  resBtn.style.display='none';
-  loadingEl.style.display='block';
-
+async function checkAvailAndPrice(ci,co){
+  const availEl=document.getElementById('sb-avail');
+  const breakEl=document.getElementById('sb-breakdown');
+  const resBtn=document.getElementById('sb-reserve-btn');
+  const loadEl=document.getElementById('sb-avail-loading');
+  availEl.style.display='none';breakEl.style.display='none';resBtn.style.display='none';
+  loadEl.style.display='block';
   try {
-    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
-    const data = await res.json();
-    loadingEl.style.display='none';
-
-    if (data.available === false) {
+    const res=await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
+    const data=await res.json();
+    loadEl.style.display='none';
+    if(data.available===false){
       availEl.className='booking-avail no';
       availEl.textContent='✗ These dates are unavailable — please try different dates';
       availEl.style.display='block';
-      setHint('These dates are unavailable. Please select different dates.');
+      setSbHint('Unavailable. Pick different dates.');
       return;
     }
-
-    const nights   = Math.ceil((new Date(co)-new Date(ci))/86400000);
-
-    // Average the nightly rates across selected days for accurate total
-    let nightly = 0;
-    if (data.days && Array.isArray(data.days) && data.days.length) {
-      const prices = data.days.filter(d => d.price).map(d => d.price);
-      if (prices.length) nightly = Math.round(prices.reduce((a,b)=>a+b,0) / prices.length);
+    const nights=Math.ceil((new Date(co)-new Date(ci))/86400000);
+    let nightly=0;
+    if(data.days?.length){
+      const prices=data.days.filter(d=>d.price).map(d=>d.price);
+      if(prices.length) nightly=Math.round(prices.reduce((a,b)=>a+b,0)/prices.length);
     }
-    if (!nightly) nightly = data.nightlyRate || data.price?.nightlyRate || 0;
-
-    const cleaning = data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
-    const sub      = nightly * nights;
-    const svc      = Math.round(sub * 0.12);
-    const total    = sub + cleaning + svc;
+    if(!nightly) nightly=data.nightlyRate||data.price?.nightlyRate||0;
+    const cleaning=data.price?.cleaningFee||listing?.prices?.cleaningFee||0;
+    const sub=nightly*nights;
+    const svc=Math.round(sub*0.12);
+    const total=sub+cleaning+svc;
 
     availEl.className='booking-avail ok';
     availEl.textContent='✓ Available!';
     availEl.style.display='block';
-    setHint('✓ Dates available — ready to reserve');
+    setSbHint('✓ Ready to reserve');
 
-    if (nightly) {
-      // Update from-price to show selected rate
-      document.getElementById('from-price-display').innerHTML = `
-        <span class="from-price-num serif">$${Number(nightly).toLocaleString()}</span>
-        <span class="from-price-label">/ night</span>
-        <div class="from-price-note">Rate for selected dates</div>`;
-
+    if(nightly){
+      document.getElementById('from-price-display').innerHTML=`<span class="from-price-num serif">$${Number(nightly).toLocaleString()}</span><span class="from-price-label">/ night</span><div class="from-price-note">Rate for selected dates</div>`;
       document.getElementById('sb-nights-lbl').textContent=`$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent=`$${sub.toLocaleString()}`;
       document.getElementById('sb-clean').textContent=cleaning?`$${cleaning.toLocaleString()}`:'Included';
       document.getElementById('sb-svc').textContent=`$${svc.toLocaleString()}`;
       document.getElementById('sb-total').textContent=`$${total.toLocaleString()}`;
       breakEl.style.display='block';
-
       document.getElementById('mobile-price').textContent=`$${total.toLocaleString()} total`;
       document.getElementById('mobile-price-sub').textContent=`$${nightly.toLocaleString()}/night · ${nights} nights`;
-
       bookingData={nightly,nights,cleaning,service:svc,total};
     }
     resBtn.style.display='block';
-
-  } catch(e) {
-    loadingEl.style.display='none';
+  } catch(e){
+    loadEl.style.display='none';
     availEl.className='booking-avail ok';
     availEl.textContent='✓ Proceed to checkout to confirm availability';
     availEl.style.display='block';
@@ -659,55 +803,47 @@ async function checkAvailAndPrice(ci, co) {
   }
 }
 
+function onGuestsChange(){
+  if(selectedCheckIn&&selectedCheckOut) autoCheckAvail(selectedCheckIn,selectedCheckOut);
+}
+
 // ── Reserve Now ──
-function proceedBooking() {
-  const ci     = document.getElementById('sb-checkin').value;
-  const co     = document.getElementById('sb-checkout').value;
-  const guests = document.getElementById('sb-guests').value;
-  if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
-  const p = new URLSearchParams({
-    id: listingId, checkIn: ci, checkOut: co, guests,
-    nightly:  bookingData.nightly,
-    nights:   bookingData.nights,
-    cleaning: bookingData.cleaning,
-    service:  bookingData.service,
-    total:    bookingData.total
+function proceedBooking(){
+  const ci=selectedCheckIn, co=selectedCheckOut;
+  const guests=document.getElementById('sb-guests').value;
+  if(!ci||!co){alert('Please select check-in and check-out dates first.');return;}
+  const p=new URLSearchParams({
+    id:listingId,checkIn:ci,checkOut:co,guests,
+    nightly:bookingData.nightly,nights:bookingData.nights,
+    cleaning:bookingData.cleaning,service:bookingData.service,total:bookingData.total
   });
-  window.location.href = `checkout.html?${p.toString()}`;
+  window.location.href=`checkout.html?${p.toString()}`;
 }
 
 // ── Property Map ──
-function initPropertyMap() { if (listing?.address?.lat) renderPropertyMap(); }
-function renderPropertyMap() {
-  propertyMap = new google.maps.Map(document.getElementById('property-map'), {
-    zoom:14, center:{lat:listing.address.lat,lng:listing.address.lng},
-    styles:[
-      {featureType:'all',elementType:'geometry',stylers:[{saturation:-20}]},
-      {featureType:'water',elementType:'geometry',stylers:[{color:'#d4e6f1'}]},
-      {featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},
-      {featureType:'transit',stylers:[{visibility:'off'}]}
-    ],
+function initPropertyMap(){if(listing?.address?.lat)renderPropertyMap();}
+function renderPropertyMap(){
+  propertyMap=new google.maps.Map(document.getElementById('property-map'),{
+    zoom:14,center:{lat:listing.address.lat,lng:listing.address.lng},
+    styles:[{featureType:'all',elementType:'geometry',stylers:[{saturation:-20}]},{featureType:'water',elementType:'geometry',stylers:[{color:'#d4e6f1'}]},{featureType:'poi',elementType:'labels',stylers:[{visibility:'off'}]},{featureType:'transit',stylers:[{visibility:'off'}]}],
     mapTypeControl:false,streetViewControl:false,fullscreenControl:false
   });
-  new google.maps.Marker({
-    position:{lat:listing.address.lat,lng:listing.address.lng},map:propertyMap,
-    icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#C9A96E',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}
-  });
+  new google.maps.Marker({position:{lat:listing.address.lat,lng:listing.address.lng},map:propertyMap,icon:{path:google.maps.SymbolPath.CIRCLE,scale:12,fillColor:'#C9A96E',fillOpacity:1,strokeColor:'#fff',strokeWeight:3}});
 }
 
 // ── Helpers ──
 let descExpanded=false;
-function toggleDesc() {
+function toggleDesc(){
   descExpanded=!descExpanded;
   document.getElementById('prop-desc').classList.toggle('description-collapsed',!descExpanded);
   document.getElementById('read-more-btn').textContent=descExpanded?'Show less ↑':'Show more ↓';
 }
-function shareProperty() {
-  if (navigator.share) navigator.share({title:listing?.title||'Premium Rentals',url:window.location.href});
-  else { navigator.clipboard.writeText(window.location.href); alert('Link copied!'); }
+function shareProperty(){
+  if(navigator.share)navigator.share({title:listing?.title||'Premium Rentals',url:window.location.href});
+  else{navigator.clipboard.writeText(window.location.href);alert('Link copied!');}
 }
 let favOn=false;
-function toggleFav() {
+function toggleFav(){
   favOn=!favOn;
   const btn=document.getElementById('fav-btn');
   btn.textContent=favOn?'♥ Saved':'♡ Save';

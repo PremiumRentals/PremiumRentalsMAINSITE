@@ -53,15 +53,6 @@ function setCache(key, data, ttl = CACHE_TTL) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Helper: get next 30 days date range ──
-function getDateRange() {
-  const today = new Date();
-  const future = new Date();
-  future.setDate(future.getDate() + 30);
-  const fmt = d => d.toISOString().split('T')[0];
-  return { checkIn: fmt(today), checkOut: fmt(future) };
-}
-
 // ── Pricing Sync ──
 async function syncPricing() {
   console.log('Starting pricing sync...');
@@ -72,7 +63,10 @@ async function syncPricing() {
   const listData = await listRes.json();
   const listings = (listData.results || []).filter(l => l.active !== false);
   console.log(`Syncing pricing for ${listings.length} listings...`);
-  const { checkIn, checkOut } = getDateRange();
+  const today = new Date();
+  const future = new Date(); future.setDate(future.getDate() + 30);
+  const fmt = d => d.toISOString().split('T')[0];
+  const checkIn = fmt(today), checkOut = fmt(future);
   let synced = 0, failed = 0;
   for (const listing of listings) {
     try {
@@ -111,7 +105,6 @@ app.get('/api/website/listings', async (req, res) => {
     });
     const data = await response.json();
     const results = (data.results || []).filter(l => l.active !== false);
-    // Don't enrich with bad pricing data — pricing is dynamic per day
     setCache('listings_all', results);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch (e) {
@@ -143,55 +136,30 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
   }
 });
 
-// ── Route 3: Get listing calendar via reservations (blocked dates) ──
+// ── Route 3: Get listing calendar blocked dates ──
 app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
-
     const cacheKey = `cal_${listingId}_${startDate}_${endDate}`;
     const cached = getCache(cacheKey);
     if (cached) return res.json({ success: true, blockedDates: cached, cached: true });
-
     const token = await getGuestyToken();
-
     const response = await fetch(
       `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${startDate}&endDate=${endDate}&includeAllotment=true`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();
-
-    // Build blocked dates from calendar response
     const blockedDates = new Set();
     const days = data.data?.days || data.days || [];
-
     days.forEach(day => {
-      const isAvailable = typeof day.allotment === 'number'
-        ? day.allotment > 0
-        : day.status === 'available';
-      if (!isAvailable) {
-        blockedDates.add(day.date);
-      }
+      const isAvailable = typeof day.allotment === 'number' ? day.allotment > 0 : day.status === 'available';
+      if (!isAvailable) blockedDates.add(day.date);
     });
-
     const blockedArr = Array.from(blockedDates).sort();
     setCache(cacheKey, blockedArr, 4 * 60 * 60 * 1000);
     res.json({ success: true, blockedDates: blockedArr, totalDays: days.length, cached: false });
-
-    reservations.forEach(r => {
-      if (['confirmed', 'reserved', 'checked_in', 'checked_out', 'owner_stay', 'blocked'].includes(r.status)) {
-        const start = new Date(r.checkIn);
-        const end   = new Date(r.checkOut);
-        for (let d = new Date(start); d < end; d.setDate(d.getDate() + 1)) {
-          blockedDates.add(d.toISOString().split('T')[0]);
-        }
-      }
-    });
-
-    const result = Array.from(blockedDates);
-    setCache(cacheKey, result, 4 * 60 * 60 * 1000); // 4 hour cache
-    res.json({ success: true, blockedDates: result, reservationCount: reservations.length, rawStatus: response.status, cached: false });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -233,13 +201,13 @@ app.get('/api/website/reviews', async (req, res) => {
     const allReviews = data.results || data.data || [];
     const fiveStars = allReviews.filter(r => r.rating >= 5 && r.publicReview?.trim().length > 20);
     setCache('reviews', fiveStars, 60 * 60 * 1000);
-    res.json({ success: true, count: fiveStars.length, total: allReviews.length, reviews: fiveStars });
+    res.json({ success: true, count: fiveStars.length, reviews: fiveStars });
   } catch (e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 7: Contact form → Supabase ──
+// ── Route 7: Contact form ──
 app.post('/api/website/contact', async (req, res) => {
   try {
     const { firstName, lastName, email, interest, message } = req.body;
@@ -252,7 +220,7 @@ app.post('/api/website/contact', async (req, res) => {
   }
 });
 
-// ── Route 8: Newsletter signup → Supabase ──
+// ── Route 8: Newsletter ──
 app.post('/api/website/newsletter', async (req, res) => {
   try {
     const { email } = req.body;
@@ -274,13 +242,7 @@ app.get('/', (req, res) => res.json({
   }
 }));
 
-// ── Auto pricing sync - disabled on startup to prevent rate limiting
-// Uncomment setTimeout below to re-enable startup sync
-// setTimeout(async () => {
-//   console.log('Running initial pricing sync on startup...');
-//   try { await syncPricing(); } catch(e) { console.error('Initial sync failed:', e.message); }
-// }, 10000);
-
+// ── Daily pricing sync (no startup sync to avoid rate limiting) ──
 setInterval(async () => {
   console.log('Running scheduled daily pricing sync...');
   try { await syncPricing(); } catch(e) { console.error('Scheduled sync failed:', e.message); }

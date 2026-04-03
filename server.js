@@ -16,6 +16,9 @@ app.use(cors({
 
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 
+// ── Stripe ──
+const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+
 // ── Guesty Auth ──
 let guestyToken = null;
 let guestyTokenExpiry = 0;
@@ -233,6 +236,169 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
+// ── Route 9: CREATE RESERVATION + CHARGE ──
+app.post('/api/website/reserve', async (req, res) => {
+  const {
+    listingId, checkIn, checkOut, guests,
+    firstName, lastName, email, phone, notes,
+    nights, nightlyRate, cleaningFee, serviceFee, totalAmount,
+    stripePaymentMethodId
+  } = req.body;
+
+  // Basic validation
+  if (!listingId || !checkIn || !checkOut || !firstName || !lastName || !email || !stripePaymentMethodId) {
+    return res.status(400).json({ success: false, error: 'Missing required fields' });
+  }
+
+  try {
+    const token = await getGuestyToken();
+
+    // Step 1: Find or create guest in Guesty
+    console.log(`Creating reservation for ${firstName} ${lastName} (${email})`);
+
+    // Check if guest exists
+    let guestyGuestId = null;
+    const guestSearchRes = await fetch(
+      `https://open-api.guesty.com/v1/guests-crud?email=${encodeURIComponent(email)}&limit=1`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const guestSearchData = await guestSearchRes.json();
+    if (guestSearchData.results?.length > 0) {
+      guestyGuestId = guestSearchData.results[0]._id;
+      console.log('Found existing Guesty guest:', guestyGuestId);
+    } else {
+      // Create new guest
+      const createGuestRes = await fetch('https://open-api.guesty.com/v1/guests-crud', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone: phone || undefined,
+          notes: notes || undefined
+        })
+      });
+      const newGuest = await createGuestRes.json();
+      if (!newGuest._id) throw new Error('Failed to create Guesty guest: ' + JSON.stringify(newGuest));
+      guestyGuestId = newGuest._id;
+      console.log('Created new Guesty guest:', guestyGuestId);
+    }
+
+    // Step 2: Create reservation in Guesty
+    const reservationPayload = {
+      listingId,
+      checkIn,
+      checkOut,
+      guestsCount: guests || 2,
+      guestId: guestyGuestId,
+      source: 'direct',
+      status: 'confirmed',
+      money: {
+        fareAccommodation: nightlyRate * nights,
+        fareCleaning: cleaningFee || 0,
+        invoiceItems: serviceFee ? [{ title: 'Service fee', amount: serviceFee, type: 'service_fee' }] : []
+      },
+      guestNotes: notes || undefined
+    };
+
+    const reservationRes = await fetch('https://open-api.guesty.com/v1/reservations', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(reservationPayload)
+    });
+    const reservation = await reservationRes.json();
+
+    if (!reservation._id) {
+      console.error('Guesty reservation creation failed:', JSON.stringify(reservation));
+      throw new Error(reservation.message || reservation.error || 'Failed to create reservation in Guesty');
+    }
+
+    console.log('Guesty reservation created:', reservation._id);
+
+    // Step 3: Charge via Stripe
+    const amountInCents = Math.round(totalAmount * 100);
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: amountInCents,
+      currency: 'usd',
+      payment_method: stripePaymentMethodId,
+      confirm: true,
+      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
+      description: `Premium Rentals – ${firstName} ${lastName} | ${checkIn} to ${checkOut}`,
+      metadata: {
+        guestyReservationId: reservation._id,
+        listingId,
+        guestEmail: email,
+        checkIn,
+        checkOut
+      },
+      receipt_email: email
+    });
+
+    console.log('Stripe payment intent:', paymentIntent.id, paymentIntent.status);
+
+    // Handle 3D Secure
+    if (paymentIntent.status === 'requires_action') {
+      return res.json({
+        success: true,
+        requiresAction: true,
+        clientSecret: paymentIntent.client_secret,
+        reservationId: reservation._id,
+        paymentIntentId: paymentIntent.id
+      });
+    }
+
+    if (paymentIntent.status !== 'succeeded') {
+      // Payment failed — cancel the Guesty reservation
+      await fetch(`https://open-api.guesty.com/v1/reservations/${reservation._id}/cancel`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      throw new Error('Payment was not successful. Status: ' + paymentIntent.status);
+    }
+
+    // Step 4: Log to Supabase for our records
+    await supabase.from('website_contacts').insert([{
+      first_name: firstName,
+      last_name: lastName,
+      email,
+      interest: 'reservation',
+      message: `Reservation ${reservation._id} | ${checkIn} → ${checkOut} | $${totalAmount} | Listing: ${listingId}`
+    }]);
+
+    res.json({
+      success: true,
+      reservationId: reservation._id,
+      paymentIntentId: paymentIntent.id,
+      total: totalAmount
+    });
+
+  } catch (e) {
+    console.error('Reserve error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Route 10: Confirm reservation after 3DS ──
+app.post('/api/website/reserve/confirm', async (req, res) => {
+  const { reservationId, paymentIntentId } = req.body;
+  try {
+    const paymentIntent = await stripe.paymentIntents.retrieve(paymentIntentId);
+    if (paymentIntent.status !== 'succeeded') {
+      // Cancel Guesty reservation if payment ultimately failed
+      const token = await getGuestyToken();
+      await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/cancel`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' }
+      });
+      return res.json({ success: false, error: 'Payment was not completed.' });
+    }
+    res.json({ success: true, reservationId, paymentIntentId });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',
@@ -242,7 +408,7 @@ app.get('/', (req, res) => res.json({
   }
 }));
 
-// ── Daily pricing sync (no startup sync to avoid rate limiting) ──
+// ── Daily pricing sync ──
 setInterval(async () => {
   console.log('Running scheduled daily pricing sync...');
   try { await syncPricing(); } catch(e) { console.error('Scheduled sync failed:', e.message); }

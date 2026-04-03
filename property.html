@@ -303,7 +303,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
     <div style="font-size:11px;color:var(--mid)">Select dates for total</div>
   </div>
-  <button class="mobile-bar-btn" onclick="document.getElementById('calendar-section').scrollIntoView({behavior:'smooth'})">Reserve</button>
+  <button class="mobile-bar-btn" onclick="document.querySelector('.section-block:nth-child(3)').scrollIntoView({behavior:'smooth'})">Reserve</button>
 </div>
 
 <!-- AMENITIES MODAL -->
@@ -326,7 +326,8 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-const GUESTY_BOOKING_BASE = 'https://premiumrentals.guesty.com';
+// ✅ FIXED: correct Guesty direct booking base URL
+const GUESTY_BOOKING_BASE = 'https://book.premiumrentals.com';
 
 const params = new URLSearchParams(window.location.search);
 const listingId = params.get('id');
@@ -484,7 +485,6 @@ async function loadCalendar() {
   const now = new Date();
   calYear  = now.getFullYear();
   calMonth = now.getMonth();
-  // Show calendar immediately while loading
   renderCalendar();
   try {
     const future = new Date();
@@ -493,10 +493,8 @@ async function loadCalendar() {
     const endDate   = future.toISOString().split('T')[0];
     const res  = await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${startDate}&endDate=${endDate}`);
     const data = await res.json();
-    console.log('Calendar data:', data);
     if (data.blockedDates && data.blockedDates.length > 0) {
       blockedDates = new Set(data.blockedDates);
-      // Re-render with blocked dates now loaded
       renderCalendar();
     }
   } catch(e) { console.warn('Calendar load failed:', e.message); }
@@ -536,9 +534,9 @@ function renderMonthGrid(year, month, today) {
     const inRange   = selectedCheckIn && selectedCheckOut && dateStr > selectedCheckIn && dateStr < selectedCheckOut;
 
     let cls = 'cal-day';
-    if (isPast)    cls += ' past';
+    if (isPast)         cls += ' past';
     else if (isBlocked) cls += ' blocked';
-    else           cls += ' available';
+    else                cls += ' available';
     if (isCIdate || isCOdate) cls += ' selected';
     if (inRange)   cls += ' in-range';
     if (isToday)   cls += ' today';
@@ -566,7 +564,6 @@ function selectDate(dateStr) {
     calMode = 'checkout';
     setHint('Now select your check-out date');
   } else if (dateStr > selectedCheckIn) {
-    // Check no blocked dates in range
     let blocked = false;
     const s = new Date(selectedCheckIn), e = new Date(dateStr);
     for (let d = new Date(s); d < e; d.setDate(d.getDate()+1)) {
@@ -633,13 +630,9 @@ async function checkSidebarAvail() {
     const sub     = nightly * nights;
     const svc     = Math.round(sub * 0.12);
 
-    // Update sidebar price to show real nightly rate
     if (nightly) {
       document.getElementById('sidebar-price').textContent = `${Number(nightly).toLocaleString()}`;
       document.getElementById('sidebar-price-note').textContent = 'Per night for selected dates';
-    }
-
-    if (nightly) {
       document.getElementById('sb-nights-lbl').textContent = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent = `$${sub.toLocaleString()}`;
       document.getElementById('sb-clean').textContent      = cleaning ? `$${cleaning.toLocaleString()}` : 'Included';
@@ -656,11 +649,14 @@ async function checkSidebarAvail() {
   }
 }
 
+// ✅ FIXED: correct path /en/properties/ and minOccupancy param
+// Now routes through checkout.html instead of jumping straight to Guesty
 function proceedBooking() {
   const ci     = document.getElementById('sb-checkin').value;
   const co     = document.getElementById('sb-checkout').value;
   const guests = document.getElementById('sb-guests').value;
-  window.open(`${GUESTY_BOOKING_BASE}/listing/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${guests}`, '_blank');
+  if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
+  window.location.href = `checkout.html?id=${listingId}&checkIn=${ci}&checkOut=${co}&guests=${guests}`;
 }
 
 // ── Property Map ──

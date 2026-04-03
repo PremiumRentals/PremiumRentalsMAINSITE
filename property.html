@@ -627,13 +627,17 @@ async function checkSidebarAvail() {
     availEl.style.display = 'block';
 
     const nights  = Math.ceil((new Date(co)-new Date(ci))/86400000);
-    // Use actual nightly rate from availability API if available
     const nightly = data.price?.nightlyRate || data.price?.basePrice ||
-                    data.nightlyRate || data.basePrice ||
-                    listing._realPrice || listing.prices?.basePrice || 0;
+                    data.nightlyRate || data.basePrice || 0;
     const cleaning= data.price?.cleaningFee || listing.prices?.cleaningFee || 0;
     const sub     = nightly * nights;
     const svc     = Math.round(sub * 0.12);
+
+    // Update sidebar price to show real nightly rate
+    if (nightly) {
+      document.getElementById('sidebar-price').textContent = `${Number(nightly).toLocaleString()}`;
+      document.getElementById('sidebar-price-note').textContent = 'Per night for selected dates';
+    }
 
     if (nightly) {
       document.getElementById('sb-nights-lbl').textContent = `$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;

@@ -61,10 +61,7 @@ let feeConfigCache = null;
 let feeConfigExpiry = 0;
 
 async function getFeeConfig() {
-  // Return cached if fresh (1 hour)
   if (feeConfigCache && Date.now() < feeConfigExpiry) return feeConfigCache;
-
-  const token = await getGuestyToken();
 
   // Start with Railway env var fallbacks
   let serviceFeeRate = parseFloat(process.env.SERVICE_FEE_RATE) || 0.135;
@@ -74,6 +71,7 @@ async function getFeeConfig() {
 
   // Try to get account-level taxes from Guesty
   try {
+    const token = await getGuestyToken();
     const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -81,7 +79,6 @@ async function getFeeConfig() {
     const accountTaxes = accountData.taxes || [];
 
     if (accountTaxes.length > 0) {
-      // Reset tax rates and rebuild from Guesty data
       tourismTaxRate = 0;
       salesTaxRate   = 0;
       accountTaxes.forEach(tax => {
@@ -89,7 +86,7 @@ async function getFeeConfig() {
           const rate = tax.amount / 100;
           if (tax.type === 'TOURISM_TAX') tourismTaxRate += rate;
           else if (tax.type === 'LOCAL_TAX') salesTaxRate += rate;
-          else salesTaxRate += rate; // any other tax type adds to sales
+          else salesTaxRate += rate;
         }
       });
       source = 'guesty_account';
@@ -104,36 +101,46 @@ async function getFeeConfig() {
     tourismTaxRate,
     salesTaxRate,
     totalTaxRate: tourismTaxRate + salesTaxRate,
-    source,
-    // Service fee applies to: accommodation + cleaning
-    // Tax applies to: accommodation + cleaning + service fee
+    source
   };
-  feeConfigExpiry = Date.now() + (60 * 60 * 1000); // 1 hour cache
+  feeConfigExpiry = Date.now() + (60 * 60 * 1000);
   console.log('Fee config:', JSON.stringify(feeConfigCache));
   return feeConfigCache;
 }
 
 // ── Helper: get cleaning fee for a listing ──
-function getCleaningFee(listingId) {
+// Checks listings cache first, falls back to direct API call
+async function getCleaningFee(listingId) {
   const cached = cache['listings_all'];
-  if (!cached) return 0;
-  const listing = cached.data?.find(l => l._id === listingId);
-  return listing?.prices?.cleaningFee || 0;
+  if (cached) {
+    const listing = cached.data?.find(l => l._id === listingId);
+    if (listing) return listing?.prices?.cleaningFee || 0;
+  }
+  // Cache miss — fetch listing directly
+  try {
+    const token = await getGuestyToken();
+    const res = await fetch(
+      `https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    return data?.prices?.cleaningFee || 0;
+  } catch(e) {
+    console.warn('Could not fetch cleaning fee for', listingId, e.message);
+    return 0;
+  }
 }
 
 // ── Helper: get listing-specific tax overrides ──
-// If listing has its own taxes array (not using account), use those
-// Otherwise returns null (caller should use account-level)
+// If listing uses account taxes (useAccountTaxes: true), returns null
+// If listing has its own taxes, returns those rates
 function getListingTaxOverride(listingId) {
   const cached = cache['listings_all'];
   if (!cached) return null;
   const listing = cached.data?.find(l => l._id === listingId);
   if (!listing) return null;
-
-  // If listing uses account taxes, return null so we use account level
   if (listing.useAccountTaxes !== false) return null;
 
-  // Listing has its own taxes
   const taxes = listing.taxes || [];
   if (!taxes.length) return null;
 
@@ -148,30 +155,35 @@ function getListingTaxOverride(listingId) {
   return { tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate };
 }
 
-// ── Calculate full price breakdown ──
+// ── Calculate full accurate price breakdown ──
+// No estimates — uses real Guesty rates + account/property-specific fees
 async function calculatePricing(listingId, days, nights) {
   const fees = await getFeeConfig();
 
-  // Get per-day prices
-  const availDays = days.filter(d => d.price);
+  // Average real per-day prices across the stay (exclude checkout day)
+  const stayDays = days.slice(0, nights).filter(d => d.price);
+  const allDays  = days.filter(d => d.price);
+  const priceDays = stayDays.length > 0 ? stayDays : allDays;
   let nightlyAvg = 0;
-  if (availDays.length > 0) {
-    // Use only the days in the stay range (exclude checkout day)
-    const stayDays = availDays.slice(0, nights);
-    const prices = stayDays.length > 0 ? stayDays : availDays;
-    nightlyAvg = Math.round(prices.reduce((a, b) => a + b.price, 0) / prices.length);
+  if (priceDays.length > 0) {
+    nightlyAvg = Math.round(priceDays.reduce((a, b) => a + b.price, 0) / priceDays.length);
   }
 
   const accommodation = nightlyAvg * nights;
-  const cleaningFee   = getCleaningFee(listingId);
+
+  // Real cleaning fee — property specific from Guesty
+  const cleaningFee = await getCleaningFee(listingId);
 
   // Service fee: 13.5% of (accommodation + cleaning)
+  // Applies to both — matches Guesty's "13.5% to accommodation fare and cleaning fee"
   const serviceFee = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
 
   // Taxes: check property-specific first, fall back to account level
+  // Property-specific: listing.useAccountTaxes === false && listing.taxes.length > 0
+  // Account level: useAccountTaxes === true (fetched from Guesty or Railway env vars)
   const taxOverride = getListingTaxOverride(listingId);
-  const taxRate = taxOverride ? taxOverride.totalTaxRate : fees.totalTaxRate;
-  const taxes = Math.round((accommodation + cleaningFee + serviceFee) * taxRate * 100) / 100;
+  const taxRate     = taxOverride ? taxOverride.totalTaxRate : fees.totalTaxRate;
+  const taxes       = Math.round((accommodation + cleaningFee + serviceFee) * taxRate * 100) / 100;
 
   const total = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
 
@@ -273,7 +285,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     const calData = await calRes.json();
     const days = calData.data?.days || calData.days || [];
 
-    // Check availability
+    // Check if any days in the stay are blocked
     const hasBlocked = days.some(d => {
       const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
       return !isAvail;
@@ -296,7 +308,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
   }
 });
 
-// ── Route 3: Get listing calendar blocked dates ──
+// ── Route 3: Get listing calendar blocked dates (cached 4 hours) ──
 app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -393,8 +405,7 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
-// ── Route 9: Fee config (for frontend reference) ──
-// Frontend can call this to know current rates — cached 1 hour
+// ── Route 9: Fee config (frontend reference — cached 1 hour) ──
 app.get('/api/website/fee-config', async (req, res) => {
   try {
     const fees = await getFeeConfig();
@@ -510,9 +521,9 @@ app.post('/api/website/reserve', async (req, res) => {
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',
   cache: {
-    listings: cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
-    reviews: cache['reviews'] ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}` : 'empty',
-    feeConfig: feeConfigCache ? `cached until ${new Date(feeConfigExpiry).toISOString()}` : 'empty'
+    listings:  cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
+    reviews:   cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
+    feeConfig: feeConfigCache        ? `cached until ${new Date(feeConfigExpiry).toISOString()}`              : 'empty'
   }
 }));
 
@@ -524,7 +535,7 @@ setInterval(async () => {
 
 // ── Hourly fee config refresh ──
 setInterval(async () => {
-  console.log('Refreshing fee config...');
+  console.log('Refreshing fee config from Guesty...');
   feeConfigCache = null;
   feeConfigExpiry = 0;
   try { await getFeeConfig(); } catch(e) { console.error('Fee config refresh failed:', e.message); }
@@ -532,6 +543,6 @@ setInterval(async () => {
 
 app.listen(process.env.PORT || 3001, () => {
   console.log('Server running on port', process.env.PORT || 3001);
-  // Pre-load fee config on startup
+  // Pre-load fee config on startup so first request is instant
   getFeeConfig().catch(e => console.error('Startup fee config failed:', e.message));
 });

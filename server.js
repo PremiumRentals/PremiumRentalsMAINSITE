@@ -166,16 +166,24 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
 
     const token = await getGuestyToken();
 
-    // Get reservations for this listing in the date range
     const response = await fetch(
       `https://open-api.guesty.com/v1/reservations?listingId=${listingId}&checkIn=${startDate}&checkOut=${endDate}&limit=100&fields=checkIn,checkOut,status`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();
-    console.log('Reservations raw:', JSON.stringify(data).slice(0, 500));
 
-    const blockedDates = new Set();
-    const reservations = data.results || data.data || [];
+    // Dump raw structure to find where reservations array lives
+    const topKeys = Object.keys(data);
+    const firstValue = data[topKeys[0]];
+    return res.json({ 
+      success: true, 
+      topKeys, 
+      firstValueType: typeof firstValue,
+      firstValueIsArray: Array.isArray(firstValue),
+      firstValueLength: Array.isArray(firstValue) ? firstValue.length : null,
+      firstItem: Array.isArray(firstValue) ? firstValue[0] : firstValue,
+      cached: false 
+    });
 
     reservations.forEach(r => {
       if (['confirmed', 'reserved', 'checked_in', 'checked_out', 'owner_stay', 'blocked'].includes(r.status)) {

@@ -8,30 +8,27 @@
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
 :root{--gold:#C9A96E;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
-body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);min-height:100vh;display:flex;flex-direction:column}
+body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);min-height:100vh}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:center;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
 .nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
 .nav-logo span{color:var(--gold)}
-.confirm-wrap{max-width:640px;margin:0 auto;padding:120px 5% 80px;flex:1;text-align:center}
-.checkmark{width:80px;height:80px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:36px}
-.confirm-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,42px);font-weight:500;color:var(--dark);margin-bottom:16px;line-height:1.2}
-.confirm-sub{font-size:16px;color:var(--mid);line-height:1.7;margin-bottom:48px}
-.confirm-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:32px;text-align:left;margin-bottom:32px}
-.confirm-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:20px}
-.confirm-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0ede8;font-size:14px}
-.confirm-row:last-child{border-bottom:none}
-.confirm-row-label{color:var(--mid)}
-.confirm-row-val{color:var(--dark);font-weight:600;text-align:right}
-.confirm-id{font-family:monospace;font-size:12px;background:var(--light);padding:4px 8px;border-radius:3px;color:var(--accent)}
-.btn-group{display:flex;gap:12px;justify-content:center;flex-wrap:wrap}
-.btn-primary{background:var(--gold);color:#fff;border:none;padding:14px 32px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;transition:background .2s}
+.wrap{max-width:640px;margin:0 auto;padding:120px 5% 80px;text-align:center}
+.check-circle{width:80px;height:80px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:36px}
+.conf-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:500;color:var(--dark);margin-bottom:12px}
+.conf-sub{font-size:16px;color:var(--mid);line-height:1.7;margin-bottom:40px}
+.conf-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:32px;margin-bottom:24px;text-align:left}
+.conf-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:20px}
+.conf-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0ede8;font-size:14px}
+.conf-row:last-child{border-bottom:none}
+.conf-row-label{color:var(--mid)}
+.conf-row-val{font-weight:600;color:var(--dark);text-align:right}
+.conf-code{font-family:'Playfair Display',serif;font-size:28px;color:var(--accent);font-weight:500;letter-spacing:2px}
+.btn-primary{display:inline-block;background:var(--gold);color:#fff;border:none;padding:16px 40px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin:8px;transition:background .2s}
 .btn-primary:hover{background:#b8914e}
-.btn-secondary{background:transparent;color:var(--dark);border:1px solid #e0ddd8;padding:14px 32px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;transition:all .2s}
+.btn-secondary{display:inline-block;background:transparent;color:var(--dark);border:1px solid #e0ddd8;padding:16px 40px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin:8px;transition:all .2s}
 .btn-secondary:hover{border-color:var(--gold);color:var(--gold)}
-.contact-note{margin-top:40px;padding:20px;background:var(--white);border-radius:8px;border:1px solid #eeede9;font-size:13px;color:var(--mid);line-height:1.7}
-.contact-note a{color:var(--gold);text-decoration:none}
-footer{background:#0a0a0a;color:rgba(255,255,255,.4);padding:24px 5%;text-align:center;font-size:12px}
+.contact-note{font-size:13px;color:var(--mid);line-height:1.7;margin-top:32px;padding:20px;background:var(--white);border-radius:8px;border:1px solid #eeede9}
 </style>
 </head>
 <body>
@@ -40,70 +37,68 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.4);padding:24px 5%;text-align:
   <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
 </nav>
 
-<div class="confirm-wrap">
-  <div class="checkmark">✓</div>
-  <h1 class="confirm-title serif">You're all booked, <span id="guest-name">there</span>!</h1>
-  <p class="confirm-sub">Your reservation is confirmed and a receipt has been sent to <strong id="guest-email"></strong>. We can't wait to host you.</p>
+<div class="wrap">
+  <div class="check-circle">✓</div>
+  <h1 class="conf-title serif">You're Booked!</h1>
+  <p class="conf-sub">Your reservation is confirmed and your payment has been processed. A confirmation email is on its way to <strong id="conf-email"></strong>.</p>
 
-  <div class="confirm-card">
-    <div class="confirm-card-title">Booking Details</div>
-    <div class="confirm-row">
-      <span class="confirm-row-label">Confirmation ID</span>
-      <span class="confirm-row-val"><span class="confirm-id" id="conf-id">—</span></span>
+  <div class="conf-card">
+    <div class="conf-card-title">Booking Confirmation</div>
+    <div class="conf-row">
+      <span class="conf-row-label">Confirmation Code</span>
+      <span class="conf-row-val conf-code" id="conf-code">—</span>
     </div>
-    <div class="confirm-row">
-      <span class="confirm-row-label">Property</span>
-      <span class="confirm-row-val" id="conf-property">—</span>
+    <div class="conf-row">
+      <span class="conf-row-label">Guest Name</span>
+      <span class="conf-row-val" id="conf-name">—</span>
     </div>
-    <div class="confirm-row">
-      <span class="confirm-row-label">Check In</span>
-      <span class="confirm-row-val" id="conf-checkin">—</span>
+    <div class="conf-row">
+      <span class="conf-row-label">Check In</span>
+      <span class="conf-row-val" id="conf-checkin">—</span>
     </div>
-    <div class="confirm-row">
-      <span class="confirm-row-label">Check Out</span>
-      <span class="confirm-row-val" id="conf-checkout">—</span>
+    <div class="conf-row">
+      <span class="conf-row-label">Check Out</span>
+      <span class="conf-row-val" id="conf-checkout">—</span>
     </div>
-    <div class="confirm-row">
-      <span class="confirm-row-label">Total Charged</span>
-      <span class="confirm-row-val" id="conf-total">—</span>
+    <div class="conf-row">
+      <span class="conf-row-label">Guests</span>
+      <span class="conf-row-val" id="conf-guests">—</span>
+    </div>
+    <div class="conf-row">
+      <span class="conf-row-label">Total Charged</span>
+      <span class="conf-row-val" id="conf-total">—</span>
     </div>
   </div>
 
-  <div class="btn-group">
+  <div style="margin-top:8px">
     <a href="properties.html" class="btn-secondary">Browse More Properties</a>
     <a href="/" class="btn-primary">Back to Home</a>
   </div>
 
   <div class="contact-note">
-    Questions about your stay? We're here 24/7.<br>
-    📞 <a href="tel:2088073302">208-807-3302</a> &nbsp;·&nbsp;
-    ✉️ <a href="mailto:info@premiumrentals.com">info@premiumrentals.com</a><br><br>
-    You'll receive check-in instructions closer to your arrival date.
+    📞 Questions about your stay? Contact us anytime at <strong>208-807-3302</strong> or <strong>info@premiumrentals.com</strong>.<br>
+    We're available 24/7 to make your experience exceptional.
   </div>
 </div>
 
-<footer>© 2025 Premium Rentals. All rights reserved.</footer>
-
 <script>
 const params = new URLSearchParams(window.location.search);
+
 function fmtDate(str) {
   if (!str) return '—';
-  return new Date(str + 'T12:00:00').toLocaleDateString('en-US', { weekday:'long', month:'long', day:'numeric', year:'numeric' });
+  const d = new Date(str + 'T12:00:00');
+  return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
 }
 
-const name  = params.get('name')  || 'there';
-const email = params.get('email') || '';
-const id    = params.get('id')    || '—';
-
-document.getElementById('guest-name').textContent    = name.split(' ')[0];
-document.getElementById('guest-email').textContent   = email;
-document.getElementById('conf-id').textContent       = id;
-document.getElementById('conf-property').textContent = params.get('property') || '—';
+document.getElementById('conf-code').textContent     = params.get('code') || '—';
+document.getElementById('conf-email').textContent    = params.get('email') || '';
+document.getElementById('conf-name').textContent     = params.get('name') ? decodeURIComponent(params.get('name')) + ' (Guest)' : '—';
 document.getElementById('conf-checkin').textContent  = fmtDate(params.get('checkIn'));
 document.getElementById('conf-checkout').textContent = fmtDate(params.get('checkOut'));
+document.getElementById('conf-guests').textContent   = params.get('guests') ? params.get('guests') + ' guest(s)' : '—';
+document.getElementById('conf-total').textContent    = params.get('total') ? '$' + parseFloat(params.get('total')).toLocaleString() : '—';
 
-const total = parseFloat(params.get('total'));
-document.getElementById('conf-total').textContent = total ? `$${total.toLocaleString()}` : '—';
+document.title = `Booking Confirmed ${params.get('code') || ''} – Premium Rentals`;
 </script>
 </body>
 </html>

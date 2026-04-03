@@ -43,7 +43,7 @@ async function getGuestyToken() {
 app.get('/api/website/listings', async (req, res) => {
   try {
     const token = await getGuestyToken();
-    const { limit = 24 } = req.query;
+    const { limit = 100 } = req.query;
     const response = await fetch(
       `https://open-api.guesty.com/v1/listings?limit=${limit}`,
       { headers: { Authorization: `Bearer ${token}` } }
@@ -74,7 +74,30 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
   }
 });
 
-// ── Route 3: Contact form → Supabase ──
+// ── Route 3: Get reviews (5-star only) ──
+app.get('/api/website/reviews', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const { limit = 50 } = req.query;
+    const response = await fetch(
+      `https://open-api.guesty.com/v1/reviews?limit=${limit}&fields=rating,publicReview,reviewer,listingId,createdAt`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    const allReviews = data.results || data.data || [];
+    // Filter to 5-star only and only those with actual text
+    const fiveStars = allReviews.filter(r =>
+      r.rating >= 5 &&
+      r.publicReview &&
+      r.publicReview.trim().length > 20
+    );
+    res.json({ success: true, count: fiveStars.length, total: allReviews.length, reviews: fiveStars });
+  } catch (e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Route 4: Contact form → Supabase ──
 app.post('/api/website/contact', async (req, res) => {
   try {
     const { firstName, lastName, email, interest, message } = req.body;
@@ -88,7 +111,7 @@ app.post('/api/website/contact', async (req, res) => {
   }
 });
 
-// ── Route 4: Newsletter signup → Supabase ──
+// ── Route 5: Newsletter signup → Supabase ──
 app.post('/api/website/newsletter', async (req, res) => {
   try {
     const { email } = req.body;

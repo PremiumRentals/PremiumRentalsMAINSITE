@@ -468,6 +468,47 @@ app.get('/api/website/test-taxes', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// ── Temp: Full listing fee structure ──
+app.get('/api/website/test-fees/:listingId', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const listingRes = await fetch(
+      `https://open-api.guesty.com/v1/listings/${req.params.listingId}?fields=taxes,markups,prices,useAccountTaxes,useAccountMarkups,useAccountAdditionalFees`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await listingRes.json();
+    res.json({
+      taxes:                    data.taxes,
+      markups:                  data.markups,
+      prices:                   data.prices,
+      useAccountTaxes:          data.useAccountTaxes,
+      useAccountMarkups:        data.useAccountMarkups,
+      useAccountAdditionalFees: data.useAccountAdditionalFees
+    });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
+
+// ── Temp: Full account fee structure ──
+app.get('/api/website/test-account-fees', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const accountRes = await fetch(
+      'https://open-api.guesty.com/v1/accounts/me?fields=taxes,markups,additionalFees,money',
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await accountRes.json();
+    res.json({
+      taxes:          data.taxes,
+      markups:        data.markups,
+      additionalFees: data.additionalFees,
+      money:          data.money
+    });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

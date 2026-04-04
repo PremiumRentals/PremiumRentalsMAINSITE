@@ -27,78 +27,92 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .section p{font-size:14px;color:var(--mid);line-height:1.9;margin-bottom:14px}
 .section ul{font-size:14px;color:var(--mid);line-height:1.9;padding-left:20px;margin-bottom:14px}
 .section ul li{margin-bottom:8px}
-.policy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:24px 0}
-.policy-card{background:var(--light);border:1px solid #eeede9;border-radius:8px;padding:24px}
-.policy-card-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:var(--dark);margin-bottom:8px}
-.policy-card-tag{display:inline-block;background:var(--gold);color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:2px;margin-bottom:12px}
-.policy-card p{font-size:13px;color:var(--mid);line-height:1.7;margin-bottom:0}
 .highlight-box{background:var(--light);border-left:3px solid var(--gold);padding:16px 20px;border-radius:0 4px 4px 0;margin:20px 0}
 .highlight-box p{margin-bottom:0;font-size:13px}
+.direct-booking-box{background:var(--accent);border-radius:8px;padding:24px 28px;margin-bottom:32px}
+.direct-booking-box h3{font-family:'Playfair Display',serif;font-size:20px;color:#fff;margin-bottom:10px}
+.direct-booking-box p{font-size:14px;color:rgba(255,255,255,.8);line-height:1.7;margin-bottom:0}
+.direct-booking-box strong{color:var(--gold)}
+.policy-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(240px,1fr));gap:16px;margin:24px 0}
+.policy-card{background:var(--light);border:1px solid #eeede9;border-radius:8px;padding:24px}
+.policy-card.featured{border-color:var(--accent);background:rgba(44,74,62,.04)}
+.policy-card-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:var(--dark);margin-bottom:8px}
+.policy-card-tag{display:inline-block;color:#fff;font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;padding:3px 10px;border-radius:2px;margin-bottom:12px}
+.policy-card p{font-size:13px;color:var(--mid);line-height:1.7;margin-bottom:0}
 footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:40px 5%;display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:16px;font-size:12px}
 footer a{color:rgba(255,255,255,.3);text-decoration:none}
 footer a:hover{color:var(--gold)}
 .nav-logo-footer{font-family:'Playfair Display',serif;font-size:18px;color:#fff;font-weight:600;text-decoration:none}
 .nav-logo-footer span{color:var(--gold)}
+#podium-website-widget{z-index:149!important}
+@media(max-width:900px){#podium-website-widget{bottom:20px!important}}
 </style>
 </head>
 <body>
-
 <nav>
   <a href="/" class="nav-back">← Back to Home</a>
   <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
   <div style="width:100px"></div>
 </nav>
-
 <div class="hero">
   <p>Legal</p>
   <h1 class="serif">Cancellation Policy</h1>
-  <p class="hero-sub">Cancellation terms vary by property. Your specific policy is shown at booking.</p>
+  <p class="hero-sub">Cancellation terms for direct bookings through premiumrentals.com.</p>
 </div>
-
 <div class="content">
   <p class="last-updated">Last updated: April 2026 · Applies to all direct bookings through premiumrentals.com</p>
 
+  <div class="direct-booking-box">
+    <h3 class="serif">Direct Booking Policy: Firm</h3>
+    <p>All reservations made directly through <strong>premiumrentals.com</strong> are subject to our <strong>Firm cancellation policy</strong>: 50% refund if cancelled 30 or more days before check-in. No refund for cancellations within 30 days of check-in. Service fees and cleaning fees are non-refundable.</p>
+  </div>
+
   <div class="section">
     <h2>Overview</h2>
-    <p>At Premium Rentals, cancellation policies are set on a per-property basis to reflect each property's demand, seasonality, and owner requirements. Your specific cancellation policy is displayed on the property listing page and confirmed in your booking confirmation email.</p>
-    <p>By completing your reservation, you acknowledge and agree to the cancellation policy applicable to that specific property. Please review your policy carefully before booking.</p>
-    <div class="highlight-box"><p>📋 Your cancellation policy is always shown before you complete payment. Check your booking confirmation for the exact terms that apply to your reservation.</p></div>
+    <p>At Premium Rentals, we set our direct booking cancellation policy to be fair to both guests and property owners. Our Firm policy reflects the nature of our luxury short-term rental portfolio — properties that require significant preparation for each stay.</p>
+    <p>By completing your reservation, you acknowledge and agree to the cancellation policy shown on the booking confirmation. Please review carefully before booking.</p>
+    <div class="highlight-box"><p>📋 Your cancellation policy is always displayed before you complete payment. Check your booking confirmation for the exact terms applicable to your reservation.</p></div>
   </div>
 
   <div class="section">
     <h2>Policy Tiers</h2>
-    <p>Premium Rentals properties may operate under one of the following cancellation policy tiers:</p>
+    <p>The following policy tiers may apply depending on booking channel. All direct bookings use the <strong>Firm</strong> policy.</p>
     <div class="policy-grid">
       <div class="policy-card">
-        <div class="policy-card-tag">Flexible</div>
+        <div class="policy-card-tag" style="background:#27ae60">Flexible</div>
         <div class="policy-card-title serif">Flexible</div>
-        <p>Full refund if cancelled at least <strong>24 hours</strong> before check-in. Cancellations within 24 hours of check-in are non-refundable. No refund for no-shows.</p>
+        <p>Full refund if cancelled at least <strong>24 hours</strong> before check-in. No refund within 24 hours.</p>
       </div>
       <div class="policy-card">
-        <div class="policy-card-tag">Moderate</div>
+        <div class="policy-card-tag" style="background:#2980b9">Moderate</div>
         <div class="policy-card-title serif">Moderate</div>
-        <p>Full refund if cancelled at least <strong>5 days</strong> before check-in. Cancellations within 5 days receive a 50% refund of the nightly rate. Cleaning fees are non-refundable.</p>
+        <p>Full refund if cancelled at least <strong>5 days</strong> before check-in. 50% refund within 5 days.</p>
       </div>
       <div class="policy-card">
-        <div class="policy-card-tag">Strict</div>
+        <div class="policy-card-tag" style="background:#e67e22">Strict</div>
         <div class="policy-card-title serif">Strict</div>
-        <p>50% refund if cancelled at least <strong>7 days</strong> before check-in. No refund for cancellations within 7 days of check-in. Cleaning and service fees are non-refundable.</p>
+        <p>50% refund if cancelled at least <strong>7 days</strong> before check-in. No refund within 7 days.</p>
+      </div>
+      <div class="policy-card featured">
+        <div class="policy-card-tag" style="background:var(--accent)">Firm ★ Direct Bookings</div>
+        <div class="policy-card-title serif">Firm</div>
+        <p>50% refund if cancelled at least <strong>30 days</strong> before check-in. No refund within 30 days. Applies to all direct bookings through premiumrentals.com.</p>
       </div>
       <div class="policy-card">
         <div class="policy-card-tag" style="background:#1a1a1a">Non-Refundable</div>
         <div class="policy-card-title serif">Non-Refundable</div>
-        <p>No refund under any circumstances. These reservations are typically offered at a discounted rate in exchange for the non-refundable nature of the booking.</p>
+        <p>No refund under any circumstances. Typically offered at a discounted rate.</p>
       </div>
     </div>
   </div>
 
   <div class="section">
     <h2>What's Always Non-Refundable</h2>
-    <p>Regardless of the cancellation policy tier, the following are always non-refundable once a reservation is confirmed:</p>
+    <p>Regardless of the cancellation policy tier, the following are always non-refundable:</p>
     <ul>
       <li>Service fees</li>
-      <li>Cleaning fees (unless the full reservation qualifies for a full refund under a Flexible policy)</li>
-      <li>Any applicable taxes on non-refundable amounts</li>
+      <li>Cleaning fees</li>
+      <li>Applicable taxes on non-refundable amounts</li>
       <li>Pet fees collected post-booking</li>
     </ul>
   </div>
@@ -110,41 +124,32 @@ footer a:hover{color:var(--gold)}
       <li><strong>Email:</strong> info@premiumrentals.com</li>
       <li><strong>Phone:</strong> 208-807-3302 (available 24/7)</li>
     </ul>
-    <p>Please include your confirmation code and the reason for cancellation. Refunds, where applicable, will be returned to your original payment method within 5–10 business days depending on your bank or card issuer.</p>
+    <p>Please include your confirmation code and reason for cancellation. Refunds, where applicable, will be returned to your original payment method within 5–10 business days.</p>
   </div>
 
   <div class="section">
     <h2>Date Changes & Modifications</h2>
-    <p>Requests to change your reservation dates are subject to availability and may result in a price adjustment. Date changes are not guaranteed and must be approved by Premium Rentals. If the new dates are unavailable or the change cannot be accommodated, your original booking terms remain in effect.</p>
-    <p>Shortening a reservation (reducing nights) after check-in does not qualify for any refund of unused nights.</p>
+    <p>Requests to change reservation dates are subject to availability and may result in a price adjustment. Date changes must be approved by Premium Rentals. Shortening a reservation after check-in does not qualify for any refund of unused nights.</p>
   </div>
 
   <div class="section">
     <h2>Force Majeure & Extenuating Circumstances</h2>
-    <p>In the event of documented government travel restrictions, declared natural disasters, or other extraordinary circumstances beyond the Guest's or Company's reasonable control, Premium Rentals will review cancellation requests on a case-by-case basis. Documentation may be required.</p>
-    <p>We strongly recommend purchasing travel insurance to protect against unforeseen circumstances including illness, injury, family emergencies, weather events, and travel disruptions. Premium Rentals is not liable for losses caused by events outside our control.</p>
-    <div class="highlight-box"><p>💡 Travel insurance is available through many providers and typically covers cancellation for covered reasons, trip interruption, medical emergencies, and more. We encourage all guests to consider this protection before booking.</p></div>
+    <p>In the event of documented government travel restrictions, declared natural disasters, or other extraordinary circumstances beyond the Guest's or Company's reasonable control, Premium Rentals will review cancellation requests on a case-by-case basis.</p>
+    <div class="highlight-box"><p>💡 We strongly recommend purchasing travel insurance to protect against unforeseen circumstances including illness, injury, family emergencies, and travel disruptions.</p></div>
   </div>
 
   <div class="section">
     <h2>Company-Initiated Cancellations</h2>
-    <p>In the rare event that Premium Rentals must cancel a confirmed reservation — due to property damage, emergency maintenance, owner withdrawal, or other unforeseen circumstances — we will:</p>
-    <ul>
-      <li>Notify you as soon as possible</li>
-      <li>Issue a full refund of all amounts paid</li>
-      <li>Make reasonable efforts to assist in locating alternative comparable accommodation</li>
-    </ul>
-    <p>Premium Rentals' liability in such cases is limited to the full refund of amounts paid. We are not responsible for any consequential costs such as travel, flights, or other expenses.</p>
+    <p>In the rare event that Premium Rentals must cancel a confirmed reservation, we will notify you immediately, issue a full refund of all amounts paid, and make reasonable efforts to assist in finding alternative accommodation.</p>
   </div>
 
   <div class="section">
     <h2>No-Shows</h2>
-    <p>If you do not arrive on your check-in date and have not contacted Premium Rentals to cancel or modify your reservation, it will be treated as a no-show. No refund will be issued for no-shows regardless of the applicable cancellation policy tier.</p>
+    <p>If you do not arrive on your check-in date without cancelling, it will be treated as a no-show. No refund will be issued for no-shows regardless of the cancellation policy tier.</p>
   </div>
 
   <div class="section">
     <h2>Questions</h2>
-    <p>If you have questions about your specific cancellation policy or need to discuss your reservation, our team is available 24 hours a day, 7 days a week.</p>
     <ul>
       <li><strong>Email:</strong> info@premiumrentals.com</li>
       <li><strong>Phone:</strong> 208-807-3302</li>
@@ -162,6 +167,6 @@ footer a:hover{color:var(--gold)}
     <a href="privacy.html">Privacy</a>
   </span>
 </footer>
-
+<script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

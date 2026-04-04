@@ -608,7 +608,7 @@ app.post('/api/website/reserve', async (req, res) => {
             saveForFutureUse: true,
             id:               guestyPaymentMethodId
           },
-          amount: totalAmount,
+          amount: parseFloat(totalAmount),
           note:   'Direct booking payment — premiumrentals.homes'
         };
         console.log('Charge body:', JSON.stringify(chargeBody));

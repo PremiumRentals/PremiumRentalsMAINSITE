@@ -423,17 +423,45 @@ app.get('/api/website/fee-config', async (req, res) => {
   }
 });
 
-// ── Route 10: Reserve ──
-// Correct Guesty tokenization flow per API docs:
-// 1. Find/create Guesty guest
-// 2. Get paymentProviderId for listing
-// 3. Save pm_... to Stripe customer for reusability
-// 4. Attach to Guesty guest using stripeCardToken field (not token)
-//    + skipSetupIntent: true since we handle setup on frontend
-// 5. Create Guesty reservation
-// 6. Re-attach with reservationId for payment automation
-// 7. Trigger payment with correct paymentMethod object format
-// 8. Save to Supabase
+// ── Route 10: Create SetupIntent ──
+// Creates a $0 authorization to validate card before reservation
+// If this fails — card is invalid/declined — frontend stops immediately
+// No reservation is created if SetupIntent fails
+app.post('/api/website/create-setup-intent', async (req, res) => {
+  try {
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+
+    // Find or create Stripe customer
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    let customer = customers.data[0];
+    if (!customer) {
+      customer = await stripe.customers.create({ email, name: name || email });
+      console.log('Created Stripe customer for setup intent:', customer.id);
+    } else {
+      console.log('Found Stripe customer for setup intent:', customer.id);
+    }
+
+    // Create SetupIntent — validates card is real and chargeable
+    const setupIntent = await stripe.setupIntents.create({
+      customer:             customer.id,
+      payment_method_types: ['card'],
+      usage:                'off_session', // allows future charges when guest not present
+      metadata: { email, name: name || '' }
+    });
+
+    console.log('Created SetupIntent:', setupIntent.id);
+    res.json({ success: true, clientSecret: setupIntent.client_secret });
+
+  } catch(e) {
+    console.error('SetupIntent error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Route 11: Reserve ──
+// Card pre-auth happens on frontend via SetupIntent BEFORE this is called
+// If we reach this endpoint the card is already validated
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -488,19 +516,14 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 3: Save to Stripe customer for reusability ──
-    // Ensures card is stored for future charges (damages, extensions etc.)
+    // Card already validated via SetupIntent — just ensure customer linkage
     try {
       const customers = await stripe.customers.list({ email, limit: 1 });
       let customer = customers.data[0];
       if (!customer) {
         customer = await stripe.customers.create({
-          email,
-          name:  `${firstName} ${lastName}`,
-          phone: phone || undefined
+          email, name: `${firstName} ${lastName}`, phone: phone || undefined
         });
-        console.log('Created Stripe customer:', customer.id);
-      } else {
-        console.log('Found Stripe customer:', customer.id);
       }
       try {
         await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customer.id });
@@ -510,15 +533,14 @@ app.post('/api/website/reserve', async (req, res) => {
       await stripe.customers.update(customer.id, {
         invoice_settings: { default_payment_method: stripePaymentMethodId }
       });
-      console.log('Payment method saved to Stripe customer:', customer.id);
+      console.log('Payment method confirmed on Stripe customer:', customer.id);
     } catch(e) {
-      console.warn('Stripe customer setup warning:', e.message);
+      console.warn('Stripe customer update warning:', e.message);
     }
 
     // ── Step 4: Attach payment method to Guesty guest ──
-    // ⚠️ Field is stripeCardToken not token
-    // ⚠️ skipSetupIntent: true since we handle setup on frontend
-    // ⚠️ reuse: true allows card to be used for multiple reservations
+    // ⚠️ stripeCardToken field — NOT token
+    // ⚠️ skipSetupIntent: true — we handled setup on frontend
     console.log('Attaching payment method to Guesty guest:', guestId);
     let guestyPaymentMethodId = null;
     try {
@@ -562,7 +584,6 @@ app.post('/api/website/reserve', async (req, res) => {
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
     // ── Step 6: Re-attach with reservationId for payment automation ──
-    // Per Guesty docs: reservationId enables auto-payment scheduling (49%/51% split)
     console.log('Linking payment method to reservation for automation...');
     try {
       const linkBody = {
@@ -572,7 +593,6 @@ app.post('/api/website/reserve', async (req, res) => {
         skipSetupIntent:   true,
         reuse:             true
       };
-      console.log('Link payment body:', JSON.stringify(linkBody));
       const linkRes  = await fetch(
         `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
         {
@@ -593,10 +613,6 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 7: Trigger Guesty payment ──
-    // Per Guesty docs correct format:
-    // paymentMethod.method = "STRIPE"
-    // paymentMethod.id = Guesty payment method _id
-    // paymentMethod.saveForFutureUse = true
     console.log('Triggering Guesty payment processing...');
     try {
       if (!guestyPaymentMethodId) {
@@ -648,41 +664,6 @@ app.post('/api/website/reserve', async (req, res) => {
   } catch(e) {
     console.error('Reserve error:', e.message);
     res.status(500).json({ success: false, error: e.message });
-  }
-});
-
-// ── TEMP DEBUG: Guest payment methods ──
-app.get('/api/debug/guest-payment-methods/:guestId', async (req, res) => {
-  try {
-    const token = await getGuestyToken();
-    const response = await fetch(
-      `https://open-api.guesty.com/v1/guests/${req.params.guestId}/payment-methods`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await response.text();
-    res.send(data);
-  } catch(e) {
-    res.status(500).json({ error: e.message });
-  }
-});
-
-// ── TEMP DEBUG: Reservation payment details ──
-app.get('/api/debug/reservation/:reservationId', async (req, res) => {
-  try {
-    const token = await getGuestyToken();
-    const response = await fetch(
-      `https://open-api.guesty.com/v1/reservations/${req.params.reservationId}?fields=money,guestId`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await response.json();
-    res.json({
-      guestId:       data.guestId,
-      payments:      data.money?.payments,
-      paymentMethod: data.money?.paymentMethod,
-      invoiceItems:  data.money?.invoiceItems?.slice(0,2)
-    });
-  } catch(e) {
-    res.status(500).json({ error: e.message });
   }
 });
 

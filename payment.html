@@ -93,7 +93,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     <h1 class="section-title serif">Secure Payment</h1>
     <div class="form-error" id="form-error"></div>
 
-    <!-- EXPRESS CHECKOUT — Apple Pay / Google Pay / Link -->
+    <!-- EXPRESS CHECKOUT -->
     <div id="payment-request-wrap">
       <div class="form-card" style="padding:24px">
         <div class="form-card-title">Express Checkout</div>
@@ -163,7 +163,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 <script>
 const API_BASE  = 'https://premiumrentalsmainsite-production.up.railway.app';
 const STRIPE_PK = 'pk_live_AuGRIlxNGEHObUs4UzQJYAkU';
-const CONNECTED_ACCOUNT = 'acct_1DtNwfC1YIPk99Xj';
 
 const params        = new URLSearchParams(window.location.search);
 const listingId     = params.get('id');
@@ -186,9 +185,8 @@ if (!listingId || !checkIn || !checkOut || !firstName || !email) {
   window.location.href = 'properties.html';
 }
 
-// ── Init Stripe on connected account ──
-// PaymentMethod must be created on the same Stripe account connected to Guesty
-const stripe   = Stripe(STRIPE_PK, { stripeAccount: CONNECTED_ACCOUNT });
+// ── Init Stripe — direct account, no stripeAccount option needed ──
+const stripe   = Stripe(STRIPE_PK);
 const elements = stripe.elements();
 
 // ── Card element ──
@@ -273,18 +271,18 @@ async function loadSummary() {
     if (listing) {
       const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
       const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
-      document.getElementById('summary-img').src             = photo;
+      document.getElementById('summary-img').src              = photo;
       document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
       document.getElementById('summary-name').textContent     = listing.title || listing.nickname || 'Luxury Property';
       document.title = `Pay for ${listing.title||'Property'} – Premium Rentals`;
     }
   } catch(e) { console.warn('Could not load listing summary'); }
 
-  document.getElementById('summary-checkin').textContent  = fmtDate(checkIn);
-  document.getElementById('summary-checkout').textContent = fmtDate(checkOut);
-  document.getElementById('summary-guests').textContent   = `${guests} guest${parseInt(guests)!==1?'s':''}`;
+  document.getElementById('summary-checkin').textContent     = fmtDate(checkIn);
+  document.getElementById('summary-checkout').textContent    = fmtDate(checkOut);
+  document.getElementById('summary-guests').textContent      = `${guests} guest${parseInt(guests)!==1?'s':''}`;
   document.getElementById('guest-email-display').textContent = email || '';
-  document.getElementById('charge-amount').textContent    = total ? `$${total.toLocaleString()}` : 'the total amount';
+  document.getElementById('charge-amount').textContent       = total ? `$${total.toLocaleString()}` : 'the total amount';
 
   if (total) {
     document.getElementById('price-breakdown').innerHTML = `
@@ -297,8 +295,8 @@ async function loadSummary() {
 }
 
 // ── Submit payment ──
-// Creates PaymentMethod on the connected Stripe account (acct_1DtNwfC1YIPk99Xj)
-// This pm_... is what Guesty expects for payment method attachment
+// Creates PaymentMethod on your direct Stripe account
+// stripeCardToken (pm_...) sent to backend → Guesty attaches via stripeCardToken field
 async function submitPayment() {
   const cardName = document.getElementById('card-name').value.trim();
   const btn      = document.getElementById('submit-btn');
@@ -311,8 +309,6 @@ async function submitPayment() {
   btn.textContent = 'Processing payment…';
 
   try {
-    // Create PaymentMethod on connected Stripe account
-    // pm_... created on acct_1DtNwfC1YIPk99Xj — same account Guesty uses
     const { paymentMethod, error: stripeError } = await stripe.createPaymentMethod({
       type: 'card',
       card,

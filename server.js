@@ -426,15 +426,6 @@ app.get('/api/website/fee-config', async (req, res) => {
 });
 
 // ── Route 10: Reserve ──
-// Correct Guesty tokenization flow per API docs:
-// 1. Find/create Guesty guest
-// 2. Get paymentProviderId for listing
-// 3. Create Stripe tok_... via connected account
-// 4. Attach token to Guesty guest (token string, paymentProviderId, reuse: true)
-// 5. Create Guesty reservation
-// 6. Re-attach with reservationId for payment automation
-// 7. Trigger payment
-// 8. Save to Supabase
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -473,7 +464,8 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Created new guest:', guestId);
     }
 
-    // ── Step 2: Save to Stripe customer (makes Apple/Google Pay reusable) ──
+    // ── Step 2: Save to Stripe customer ──
+    // Makes Apple Pay / Google Pay tokens reusable for future charges
     let stripeCustomerId = null;
     try {
       const customers = await stripe.customers.list({ email, limit: 1 });
@@ -503,10 +495,9 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 3: Get payment provider ID for this listing ──
-    // Guesty requires token from the SAME connected Stripe account assigned to listing
     console.log('Getting payment provider for listing:', listingId);
-    let paymentProviderId  = null;
-    let providerAccountId  = null;
+    let paymentProviderId = null;
+    let providerAccountId = null;
     try {
       const ppRes  = await fetch(
         `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
@@ -520,35 +511,15 @@ app.post('/api/website/reserve', async (req, res) => {
       console.warn('Could not get payment provider:', e.message);
     }
 
-    // ── Step 4: Create Stripe token via connected account ──
-    // Guesty requires tok_... not pm_...
-    // Must be created via the connected Stripe account assigned to the listing
-    let stripeCardToken = stripePaymentMethodId; // fallback
-    try {
-      if (providerAccountId && stripeCustomerId) {
-        // Clone payment method to connected account
-        const clonedPm = await stripe.paymentMethods.create(
-          {
-            customer:       stripeCustomerId,
-            payment_method: stripePaymentMethodId
-          },
-          { stripeAccount: providerAccountId }
-        );
-        console.log('Cloned payment method to connected account:', clonedPm.id);
-        stripeCardToken = clonedPm.id;
-      }
-    } catch(e) {
-      console.warn('Could not clone payment method to connected account:', e.message);
-      // Keep fallback as original pm ID
-    }
-
-    // ── Step 5: Attach payment method to Guesty guest ──
-    // Send token string + paymentProviderId + reuse: true
+    // ── Step 4: Attach payment method to Guesty guest ──
+    // token must be object { id: pm_... }
+    // paymentProviderId required for correct Stripe account
+    // reuse: true for multiple reservations
     console.log('Attaching payment method to Guesty guest:', guestId);
     let guestyPaymentMethodId = null;
     try {
       const pmBody = {
-        token:             stripeCardToken,
+        token:             { id: stripePaymentMethodId },
         paymentProviderId: paymentProviderId,
         reuse:             true
       };
@@ -570,7 +541,7 @@ app.post('/api/website/reserve', async (req, res) => {
       console.warn('Could not attach payment method to Guesty guest:', e.message);
     }
 
-    // ── Step 6: Create reservation in Guesty ──
+    // ── Step 5: Create reservation in Guesty ──
     const reservationData  = await createGuestyReservation(gToken, {
       listingId,
       checkInDateLocalized:  checkIn,
@@ -585,12 +556,12 @@ app.post('/api/website/reserve', async (req, res) => {
     const confirmationCode = reservationData.confirmationCode || reservationId;
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
-    // ── Step 7: Re-attach payment with reservationId for automation ──
+    // ── Step 6: Re-attach payment with reservationId for automation ──
     // Per Guesty docs: include reservationId to enable payment automation
     console.log('Linking payment method to reservation for automation...');
     try {
       const linkBody = {
-        token:             stripeCardToken,
+        token:             { id: stripePaymentMethodId },
         paymentProviderId: paymentProviderId,
         reservationId:     reservationId,
         reuse:             true
@@ -608,17 +579,27 @@ app.post('/api/website/reserve', async (req, res) => {
       let linkData;
       try { linkData = JSON.parse(linkText); } catch(e) { linkData = { raw: linkText }; }
       console.log('Link payment to reservation:', JSON.stringify(linkData).slice(0, 300));
+      if (linkData._id || linkData.id) {
+        guestyPaymentMethodId = linkData._id || linkData.id;
+      }
     } catch(e) {
       console.warn('Could not link payment to reservation:', e.message);
     }
 
-    // ── Step 8: Trigger Guesty payment processing ──
+    // ── Step 7: Trigger Guesty payment processing ──
+    // Use paymentMethodId if we have it from previous steps
     console.log('Triggering Guesty payment processing...');
     try {
-      const chargeBody = {
-        method: 'CHARGE',
-        amount: totalAmount
-      };
+      const chargeBody = guestyPaymentMethodId
+        ? {
+            amount:          totalAmount,
+            currency:        'USD',
+            paymentMethodId: guestyPaymentMethodId
+          }
+        : {
+            amount:   totalAmount,
+            currency: 'USD'
+          };
       console.log('Charge body:', JSON.stringify(chargeBody));
       const chargeRes  = await fetch(
         `https://open-api.guesty.com/v1/reservations/${reservationId}/payments`,
@@ -636,7 +617,7 @@ app.post('/api/website/reserve', async (req, res) => {
       console.warn('Could not trigger Guesty payment:', e.message);
     }
 
-    // ── Step 9: Save to Supabase ──
+    // ── Step 8: Save to Supabase ──
     await supabase.from('website_contacts').insert([{
       first_name: firstName,
       last_name:  lastName,

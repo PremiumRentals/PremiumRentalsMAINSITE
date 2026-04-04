@@ -516,7 +516,21 @@ app.post('/api/website/reserve', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-
+// ── Temp: Check cancellation policy on a listing ──
+app.get('/api/website/test-cancellation/:listingId', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const r = await fetch(`https://open-api.guesty.com/v1/listings/${req.params.listingId}?fields=cancellationPolicy,terms,pms`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await r.json();
+    res.json({
+      cancellationPolicy: data.cancellationPolicy,
+      terms: data.terms,
+      pmsCancellation: data.pms?.cancellationPolicy
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

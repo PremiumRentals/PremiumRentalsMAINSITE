@@ -55,21 +55,16 @@ function setCache(key, data, ttl = CACHE_TTL) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Fee Config System ──
-// Priority: 1) Guesty API (property-specific) → 2) Guesty API (account-level) → 3) Railway env vars
+// ── Fee Config ──
 let feeConfigCache = null;
 let feeConfigExpiry = 0;
 
 async function getFeeConfig() {
   if (feeConfigCache && Date.now() < feeConfigExpiry) return feeConfigCache;
-
-  // Start with Railway env var fallbacks
   let serviceFeeRate = parseFloat(process.env.SERVICE_FEE_RATE) || 0.135;
   let tourismTaxRate = parseFloat(process.env.TOURISM_TAX_RATE) || 0.02;
   let salesTaxRate   = parseFloat(process.env.SALES_TAX_RATE)   || 0.06;
   let source = 'env_vars';
-
-  // Try to get account-level taxes from Guesty
   try {
     const token = await getGuestyToken();
     const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
@@ -77,10 +72,8 @@ async function getFeeConfig() {
     });
     const accountData = await accountRes.json();
     const accountTaxes = accountData.taxes || [];
-
     if (accountTaxes.length > 0) {
-      tourismTaxRate = 0;
-      salesTaxRate   = 0;
+      tourismTaxRate = 0; salesTaxRate = 0;
       accountTaxes.forEach(tax => {
         if (tax.units === 'PERCENTAGE') {
           const rate = tax.amount / 100;
@@ -90,39 +83,27 @@ async function getFeeConfig() {
         }
       });
       source = 'guesty_account';
-      console.log(`Fee config loaded from Guesty: tourism=${tourismTaxRate} sales=${salesTaxRate}`);
     }
   } catch(e) {
-    console.warn('Could not fetch account fees from Guesty, using env vars:', e.message);
+    console.warn('Could not fetch account fees from Guesty:', e.message);
   }
-
-  feeConfigCache = {
-    serviceFeeRate,
-    tourismTaxRate,
-    salesTaxRate,
-    totalTaxRate: tourismTaxRate + salesTaxRate,
-    source
-  };
+  feeConfigCache = { serviceFeeRate, tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate, source };
   feeConfigExpiry = Date.now() + (60 * 60 * 1000);
-  console.log('Fee config:', JSON.stringify(feeConfigCache));
   return feeConfigCache;
 }
 
-// ── Helper: get cleaning fee for a listing ──
-// Checks listings cache first, falls back to direct API call
+// ── Helper: cleaning fee ──
 async function getCleaningFee(listingId) {
   const cached = cache['listings_all'];
   if (cached) {
     const listing = cached.data?.find(l => l._id === listingId);
     if (listing) return listing?.prices?.cleaningFee || 0;
   }
-  // Cache miss — fetch listing directly
   try {
     const token = await getGuestyToken();
-    const res = await fetch(
-      `https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+    const res = await fetch(`https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`, {
+      headers: { Authorization: `Bearer ${token}` }
+    });
     const data = await res.json();
     return data?.prices?.cleaningFee || 0;
   } catch(e) {
@@ -131,19 +112,15 @@ async function getCleaningFee(listingId) {
   }
 }
 
-// ── Helper: get listing-specific tax overrides ──
-// If listing uses account taxes (useAccountTaxes: true), returns null
-// If listing has its own taxes, returns those rates
+// ── Helper: listing tax override ──
 function getListingTaxOverride(listingId) {
   const cached = cache['listings_all'];
   if (!cached) return null;
   const listing = cached.data?.find(l => l._id === listingId);
   if (!listing) return null;
   if (listing.useAccountTaxes !== false) return null;
-
   const taxes = listing.taxes || [];
   if (!taxes.length) return null;
-
   let tourismTaxRate = 0, salesTaxRate = 0;
   taxes.forEach(tax => {
     if (tax.units === 'PERCENTAGE') {
@@ -155,12 +132,9 @@ function getListingTaxOverride(listingId) {
   return { tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate };
 }
 
-// ── Calculate full accurate price breakdown ──
-// No estimates — uses real Guesty rates + account/property-specific fees
+// ── Calculate pricing ──
 async function calculatePricing(listingId, days, nights) {
   const fees = await getFeeConfig();
-
-  // Average real per-day prices across the stay (exclude checkout day)
   const stayDays = days.slice(0, nights).filter(d => d.price);
   const allDays  = days.filter(d => d.price);
   const priceDays = stayDays.length > 0 ? stayDays : allDays;
@@ -168,40 +142,51 @@ async function calculatePricing(listingId, days, nights) {
   if (priceDays.length > 0) {
     nightlyAvg = Math.round(priceDays.reduce((a, b) => a + b.price, 0) / priceDays.length);
   }
-
   const accommodation = nightlyAvg * nights;
-
-  // Real cleaning fee — property specific from Guesty
   const cleaningFee = await getCleaningFee(listingId);
-
-  // Service fee: 13.5% of (accommodation + cleaning)
-  // Applies to both — matches Guesty's "13.5% to accommodation fare and cleaning fee"
   const serviceFee = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
-
-  // Taxes: check property-specific first, fall back to account level
-  // Property-specific: listing.useAccountTaxes === false && listing.taxes.length > 0
-  // Account level: useAccountTaxes === true (fetched from Guesty or Railway env vars)
   const taxOverride = getListingTaxOverride(listingId);
-  const taxRate     = taxOverride ? taxOverride.totalTaxRate : fees.totalTaxRate;
-  const taxes       = Math.round((accommodation + cleaningFee + serviceFee) * taxRate * 100) / 100;
-
+  const taxRate = taxOverride ? taxOverride.totalTaxRate : fees.totalTaxRate;
+  const taxes = Math.round((accommodation + cleaningFee + serviceFee) * taxRate * 100) / 100;
   const total = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
-
-  return {
-    nightlyAvg,
-    nights,
-    accommodation,
-    cleaningFee,
-    serviceFeeRate: fees.serviceFeeRate,
-    serviceFee,
-    taxRate,
-    taxes,
-    total,
-    feeSource: taxOverride ? 'listing_specific' : fees.source
-  };
+  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFeeRate: fees.serviceFeeRate, serviceFee, taxRate, taxes, total, feeSource: taxOverride ? 'listing_specific' : fees.source };
 }
 
-// ── Pricing Sync ──
+// ── Guesty reservation with retry ──
+async function createGuestyReservation(token, payload, retries = 3) {
+  for (let attempt = 1; attempt <= retries; attempt++) {
+    try {
+      const res = await fetch('https://open-api.guesty.com/v1/reservations', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const text = await res.text();
+      let data;
+      try {
+        data = JSON.parse(text);
+      } catch(e) {
+        if (attempt === retries) throw new Error('Guesty reservation failed: ' + text.slice(0, 200));
+        console.warn(`Guesty reservation attempt ${attempt} failed (non-JSON), retrying in ${attempt}s...`);
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+        continue;
+      }
+      if (!data._id) {
+        if (attempt === retries) throw new Error('Failed to create reservation: ' + JSON.stringify(data));
+        console.warn(`Guesty reservation attempt ${attempt} failed:`, JSON.stringify(data));
+        await new Promise(r => setTimeout(r, 1000 * attempt));
+        continue;
+      }
+      return data;
+    } catch(e) {
+      if (attempt === retries) throw e;
+      console.warn(`Guesty reservation attempt ${attempt} error:`, e.message);
+      await new Promise(r => setTimeout(r, 1000 * attempt));
+    }
+  }
+}
+
+// ── Pricing sync ──
 async function syncPricing() {
   console.log('Starting pricing sync...');
   const token = await getGuestyToken();
@@ -210,7 +195,6 @@ async function syncPricing() {
   });
   const listData = await listRes.json();
   const listings = (listData.results || []).filter(l => l.active !== false);
-  console.log(`Syncing pricing for ${listings.length} listings...`);
   const today = new Date();
   const future = new Date(); future.setDate(future.getDate() + 30);
   const fmt = d => d.toISOString().split('T')[0];
@@ -230,10 +214,7 @@ async function syncPricing() {
         const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
         return isAvail && d.price;
       });
-      if (firstAvail) {
-        nightlyRate = firstAvail.price;
-        nextAvailableDate = firstAvail.date;
-      }
+      if (firstAvail) { nightlyRate = firstAvail.price; nextAvailableDate = firstAvail.date; }
       if (!nightlyRate) nightlyRate = listing.prices?.basePrice || null;
       const { error } = await supabase.from('listing_pricing').upsert({
         listing_id: listing._id, nightly_rate: nightlyRate, currency: 'USD',
@@ -241,13 +222,13 @@ async function syncPricing() {
       }, { onConflict: 'listing_id' });
       if (error) throw error;
       synced++;
-    } catch (e) { console.error(`Failed to sync ${listing._id}:`, e.message); failed++; }
+    } catch(e) { console.error(`Failed to sync ${listing._id}:`, e.message); failed++; }
   }
   console.log(`Pricing sync complete: ${synced} synced, ${failed} failed`);
   return { synced, failed, total: listings.length };
 }
 
-// ── Route 1: Get all active listings (cached 5 min) ──
+// ── Route 1: Listings ──
 app.get('/api/website/listings', async (req, res) => {
   try {
     const cached = getCache('listings_all');
@@ -260,55 +241,44 @@ app.get('/api/website/listings', async (req, res) => {
     const results = (data.results || []).filter(l => l.active !== false);
     setCache('listings_all', results);
     res.json({ success: true, count: results.length, listings: results, cached: false });
-  } catch (e) {
+  } catch(e) {
     const stale = cache['listings_all'];
     if (stale) return res.json({ success: true, count: stale.data.length, listings: stale.data, cached: true, stale: true });
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 2: Check availability + full accurate pricing ──
+// ── Route 2: Availability + pricing ──
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
-    const { checkIn, checkOut } = req.query;
+    const { checkIn, checkOut, guests } = req.query;
     if (!checkIn || !checkOut) return res.status(400).json({ error: 'checkIn and checkOut required' });
-    const cacheKey = `avail_${listingId}_${checkIn}_${checkOut}`;
+    const cacheKey = `avail_${listingId}_${checkIn}_${checkOut}_${guests||1}`;
     const cached = getCache(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
     const token = await getGuestyToken();
-
     const calRes = await fetch(
-      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true`,
+      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true&guests=${guests||1}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const calData = await calRes.json();
     const days = calData.data?.days || calData.days || [];
-
-    // Check if any days in the stay are blocked
     const hasBlocked = days.some(d => {
       const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
       return !isAvail;
     });
-
-    // Calculate full accurate pricing
     const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
     const pricing = await calculatePricing(listingId, days, nights);
-
-    const result = {
-      available: !hasBlocked,
-      days,
-      ...pricing
-    };
-
+    const result = { available: !hasBlocked, days, ...pricing };
     setCache(cacheKey, result, 2 * 60 * 1000);
     res.json({ success: true, ...result });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 3: Get listing calendar blocked dates (cached 4 hours) ──
+// ── Route 3: Calendar with full day data ──
 app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -316,50 +286,72 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
     const cacheKey = `cal_${listingId}_${startDate}_${endDate}`;
     const cached = getCache(cacheKey);
-    if (cached) return res.json({ success: true, blockedDates: cached, cached: true });
+    if (cached) return res.json({ success: true, ...cached, cached: true });
     const token = await getGuestyToken();
     const response = await fetch(
       `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${startDate}&endDate=${endDate}&includeAllotment=true`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await response.json();
-    const blockedDates = new Set();
     const days = data.data?.days || data.days || [];
+
+    const blockedDates = [];
+    const checkoutOnlyDates = [];
+    const dayData = {};
+
     days.forEach(day => {
-      const isAvailable = typeof day.allotment === 'number' ? day.allotment > 0 : day.status === 'available';
-      if (!isAvailable) blockedDates.add(day.date);
+      const isAvailable = typeof day.allotment === 'number'
+        ? day.allotment > 0
+        : day.status === 'available';
+      // Store minNights per date for calendar enforcement
+      if (day.minNights) dayData[day.date] = { minNights: day.minNights };
+      if (!isAvailable) {
+        // Reservation start day — blocked for checkin but ok for checkout
+        const isReservationStart = (day.blocks?.r || day.blocks?.b) && day.cta;
+        if (isReservationStart) {
+          checkoutOnlyDates.push(day.date);
+        } else {
+          blockedDates.push(day.date);
+        }
+      }
     });
-    const blockedArr = Array.from(blockedDates).sort();
-    setCache(cacheKey, blockedArr, 4 * 60 * 60 * 1000);
-    res.json({ success: true, blockedDates: blockedArr, totalDays: days.length, cached: false });
-  } catch (e) {
+
+    const result = {
+      blockedDates: blockedDates.sort(),
+      checkoutOnlyDates: checkoutOnlyDates.sort(),
+      dayData,
+      totalDays: days.length
+    };
+    setCache(cacheKey, result, 4 * 60 * 60 * 1000);
+    res.json({ success: true, ...result, cached: false });
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 4: Get pricing from Supabase ──
+// ── Route 4: Pricing from Supabase ──
 app.get('/api/website/pricing', async (req, res) => {
   try {
     const { data, error } = await supabase.from('listing_pricing').select('*');
     if (error) throw error;
     res.json({ success: true, count: data.length, pricing: data });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 5: Trigger pricing sync ──
+// ── Route 5: Sync pricing ──
 app.post('/api/website/sync-pricing', async (req, res) => {
   const secret = req.headers['x-sync-secret'];
   if (secret !== process.env.SYNC_SECRET) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    res.json({ success: true, message: 'Pricing sync started in background' });
+    res.json({ success: true, message: 'Pricing sync started' });
     const result = await syncPricing();
     console.log('Sync result:', result);
-  } catch (e) { console.error('Sync error:', e.message); }
+  } catch(e) { console.error('Sync error:', e.message); }
 });
 
-// ── Route 6: Reviews (cached 1 hour) ──
+// ── Route 6: Reviews ──
 app.get('/api/website/reviews', async (req, res) => {
   try {
     const cached = getCache('reviews');
@@ -374,12 +366,12 @@ app.get('/api/website/reviews', async (req, res) => {
     const fiveStars = allReviews.filter(r => r.rating >= 5 && r.publicReview?.trim().length > 20);
     setCache('reviews', fiveStars, 60 * 60 * 1000);
     res.json({ success: true, count: fiveStars.length, reviews: fiveStars });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 7: Contact form ──
+// ── Route 7: Contact ──
 app.post('/api/website/contact', async (req, res) => {
   try {
     const { firstName, lastName, email, interest, message } = req.body;
@@ -387,7 +379,7 @@ app.post('/api/website/contact', async (req, res) => {
       .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
     if (error) throw error;
     res.json({ success: true });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -400,27 +392,27 @@ app.post('/api/website/newsletter', async (req, res) => {
       .upsert([{ email, subscribed_at: new Date() }], { onConflict: 'email' });
     if (error) throw error;
     res.json({ success: true });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 9: Fee config (frontend reference — cached 1 hour) ──
+// ── Route 9: Fee config ──
 app.get('/api/website/fee-config', async (req, res) => {
   try {
     const fees = await getFeeConfig();
     res.json({ success: true, ...fees });
-  } catch (e) {
+  } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 10: Create reservation + charge via Stripe ──
+// ── Route 10: Reserve ──
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
       listingId, checkIn, checkOut, guests,
-      firstName, lastName, email, phone, notes,
+      firstName, lastName, email, phone,
       stripePaymentMethodId, totalAmount
     } = req.body;
 
@@ -454,23 +446,17 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Created new guest:', guestId);
     }
 
-    // Step 2: Create reservation
-    const reservationRes = await fetch('https://open-api.guesty.com/v1/reservations', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-  listingId,
-  checkInDateLocalized: checkIn,
-  checkOutDateLocalized: checkOut,
-  guestsCount: parseInt(guests) || 1,
-  guestId,
-  source: 'direct',
-  status: 'confirmed',
-  money: { invoiceItems: [] }
-})
+    // Step 2: Create reservation with retry
+    const reservationData = await createGuestyReservation(token, {
+      listingId,
+      checkInDateLocalized: checkIn,
+      checkOutDateLocalized: checkOut,
+      guestsCount: parseInt(guests) || 1,
+      guestId,
+      source: 'direct',
+      status: 'confirmed',
+      money: { invoiceItems: [] }
     });
-    const reservationData = await reservationRes.json();
-    if (!reservationData._id) throw new Error('Failed to create reservation: ' + JSON.stringify(reservationData));
     const reservationId = reservationData._id;
     const confirmationCode = reservationData.confirmationCode || reservationId;
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
@@ -510,26 +496,12 @@ app.post('/api/website/reserve', async (req, res) => {
       amount: totalAmount
     });
 
-  } catch (e) {
+  } catch(e) {
     console.error('Reserve error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
-// ── Temp: Check cancellation policy on a listing ──
-app.get('/api/website/test-cancellation/:listingId', async (req, res) => {
-  try {
-    const token = await getGuestyToken();
-    const r = await fetch(`https://open-api.guesty.com/v1/listings/${req.params.listingId}?fields=cancellationPolicy,terms,pms`, {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const data = await r.json();
-    res.json({
-      cancellationPolicy: data.cancellationPolicy,
-      terms: data.terms,
-      pmsCancellation: data.pms?.cancellationPolicy
-    });
-  } catch(e) { res.status(500).json({ error: e.message }); }
-});
+
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',
@@ -540,22 +512,19 @@ app.get('/', (req, res) => res.json({
   }
 }));
 
-// ── Daily pricing sync ──
+// ── Scheduled tasks ──
 setInterval(async () => {
   console.log('Running scheduled daily pricing sync...');
   try { await syncPricing(); } catch(e) { console.error('Scheduled sync failed:', e.message); }
 }, 24 * 60 * 60 * 1000);
 
-// ── Hourly fee config refresh ──
 setInterval(async () => {
-  console.log('Refreshing fee config from Guesty...');
-  feeConfigCache = null;
-  feeConfigExpiry = 0;
+  console.log('Refreshing fee config...');
+  feeConfigCache = null; feeConfigExpiry = 0;
   try { await getFeeConfig(); } catch(e) { console.error('Fee config refresh failed:', e.message); }
 }, 60 * 60 * 1000);
 
 app.listen(process.env.PORT || 3001, () => {
   console.log('Server running on port', process.env.PORT || 3001);
-  // Pre-load fee config on startup so first request is instant
   getFeeConfig().catch(e => console.error('Startup fee config failed:', e.message));
 });

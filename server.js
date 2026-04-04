@@ -259,9 +259,9 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     if (cached) return res.json({ success: true, ...cached, cached: true });
     const token = await getGuestyToken();
     const calRes = await fetch(
-      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true&guests=${guests||1}`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
+  `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true`,
+  { headers: { Authorization: `Bearer ${token}` } }
+);
     const calData = await calRes.json();
     const days = calData.data?.days || calData.days || [];
     const hasBlocked = days.some(d => {

@@ -506,7 +506,7 @@ app.post('/api/website/reserve', async (req, res) => {
       const ppData = await ppRes.json();
       paymentProviderId = ppData.paymentProviderId || ppData._id;
       providerAccountId = ppData.providerAccountId;
-      console.log('Payment provider:', paymentProviderId, 'Account:', providerAccountId);
+      console.log('Full payment provider response:', JSON.stringify(ppData).slice(0, 500));
     } catch(e) {
       console.warn('Could not get payment provider:', e.message);
     }

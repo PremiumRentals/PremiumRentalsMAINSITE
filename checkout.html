@@ -7,7 +7,7 @@
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#C9A96E;--gold-light:#E8D5B0;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
+:root{--gold:#C9A96E;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
@@ -16,7 +16,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .nav-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid);text-decoration:none;transition:color .2s;cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif}
 .nav-back:hover{color:var(--gold)}
 .progress-bar{margin-top:64px;background:var(--white);border-bottom:1px solid #eeede9;padding:16px 5%}
-.progress-steps{display:flex;align-items:center;gap:0;max-width:600px;margin:0 auto}
+.progress-steps{display:flex;align-items:center;max-width:600px;margin:0 auto}
 .progress-step{display:flex;align-items:center;gap:8px;font-size:12px;font-weight:500}
 .step-num{width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:700;flex-shrink:0}
 .step-num.active{background:var(--accent);color:#fff}
@@ -45,7 +45,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .terms-check a{color:var(--gold);text-decoration:none}
 .submit-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:18px;border-radius:4px;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;margin-top:20px;letter-spacing:.5px}
 .submit-btn:hover{background:#b8914e;transform:translateY(-1px)}
-.submit-btn:disabled{background:#ccc;cursor:default;transform:none}
 .submit-note{text-align:center;font-size:12px;color:var(--mid);margin-top:12px;line-height:1.6}
 .form-error{background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.2);color:#c0392b;padding:12px 16px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none}
 .form-error.show{display:block}
@@ -62,19 +61,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .price-breakdown{border-top:1px solid #f0ede8;padding-top:16px}
 .price-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mid);padding:5px 0}
 .price-row.total{font-weight:700;color:var(--dark);font-size:16px;border-top:1px solid #e0ddd8;padding-top:12px;margin-top:6px}
-.loading-price{text-align:center;padding:20px;color:var(--mid);font-size:13px}
-.price-error{font-size:13px;color:#c0392b;padding:12px;background:rgba(192,57,43,.05);border-radius:4px;text-align:center}
 .secure-badge{display:flex;align-items:center;gap:8px;justify-content:center;padding:14px;background:var(--light);border-top:1px solid #f0ede8;font-size:12px;color:var(--mid)}
-.skeleton{background:linear-gradient(90deg,#f0ede8 25%,#e8e3db 50%,#f0ede8 75%);background-size:200% 100%;animation:shimmer 1.4s infinite;border-radius:4px}
-@keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
-@media(max-width:860px){
-  .checkout-wrap{grid-template-columns:1fr;gap:24px}
-  .summary-card{position:relative;top:0}
-  .form-row{grid-template-columns:1fr}
-}
-@media(max-width:480px){
-  .progress-step .step-label{display:none}
-}
+@media(max-width:860px){.checkout-wrap{grid-template-columns:1fr;gap:24px}.summary-card{position:relative;top:0}.form-row{grid-template-columns:1fr}}
+@media(max-width:480px){.progress-step .step-label{display:none}}
 </style>
 </head>
 <body>
@@ -105,23 +94,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     <div class="form-card">
       <div class="form-card-title">Guest Information</div>
       <div class="form-row">
-        <div class="fg">
-          <label>First Name <span class="required">*</span></label>
-          <input type="text" id="g-first" placeholder="Alexandra" autocomplete="given-name">
-        </div>
-        <div class="fg">
-          <label>Last Name <span class="required">*</span></label>
-          <input type="text" id="g-last" placeholder="Hartwell" autocomplete="family-name">
-        </div>
+        <div class="fg"><label>First Name <span class="required">*</span></label><input type="text" id="g-first" placeholder="Alexandra" autocomplete="given-name"></div>
+        <div class="fg"><label>Last Name <span class="required">*</span></label><input type="text" id="g-last" placeholder="Hartwell" autocomplete="family-name"></div>
       </div>
-      <div class="fg">
-        <label>Email Address <span class="required">*</span></label>
-        <input type="email" id="g-email" placeholder="your@email.com" autocomplete="email">
-      </div>
-      <div class="fg">
-        <label>Phone Number <span class="required">*</span></label>
-        <input type="tel" id="g-phone" placeholder="+1 (208) 555-0100" autocomplete="tel">
-      </div>
+      <div class="fg"><label>Email Address <span class="required">*</span></label><input type="email" id="g-email" placeholder="your@email.com" autocomplete="email"></div>
+      <div class="fg"><label>Phone Number <span class="required">*</span></label><input type="tel" id="g-phone" placeholder="+1 (208) 555-0100" autocomplete="tel"></div>
       <div class="fg" style="margin-bottom:0">
         <label>Special Requests <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#bbb">(optional)</span></label>
         <textarea id="g-notes" placeholder="Early check-in, late check-out, allergies, accessibility needs…"></textarea>
@@ -131,26 +108,16 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     <div class="form-card">
       <div class="form-card-title">Stay Details</div>
       <div class="form-row">
-        <div class="fg">
-          <label>Check In</label>
-          <input type="date" id="co-checkin" onchange="updateSummary()">
-        </div>
-        <div class="fg">
-          <label>Check Out</label>
-          <input type="date" id="co-checkout" onchange="updateSummary()">
-        </div>
+        <div class="fg"><label>Check In</label><input type="date" id="co-checkin" readonly></div>
+        <div class="fg"><label>Check Out</label><input type="date" id="co-checkout" readonly></div>
       </div>
       <div class="fg" style="margin-bottom:0">
         <label>Number of Guests</label>
         <select id="co-guests">
-          <option value="1">1 guest</option>
-          <option value="2" selected>2 guests</option>
-          <option value="3">3 guests</option>
-          <option value="4">4 guests</option>
-          <option value="6">6 guests</option>
-          <option value="8">8 guests</option>
-          <option value="10">10 guests</option>
-          <option value="16">16+ guests</option>
+          <option value="1">1 guest</option><option value="2" selected>2 guests</option>
+          <option value="3">3 guests</option><option value="4">4 guests</option>
+          <option value="6">6 guests</option><option value="8">8 guests</option>
+          <option value="10">10 guests</option><option value="16">16+ guests</option>
         </select>
       </div>
     </div>
@@ -164,38 +131,23 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
           I understand that by proceeding my card will be charged the total amount shown.
         </label>
       </div>
-      <button class="submit-btn" id="submit-btn" onclick="proceedToPayment()">
-        Proceed to Secure Payment →
-      </button>
-      <div class="submit-note">
-        🔒 Your card details are entered on the next page via Stripe.<br>
-        Your reservation is not confirmed until payment is complete.
-      </div>
+      <button class="submit-btn" id="submit-btn" onclick="proceedToPayment()">Proceed to Secure Payment →</button>
+      <div class="submit-note">🔒 Your card details are entered on the next page via Stripe.<br>Your reservation is not confirmed until payment is complete.</div>
     </div>
   </div>
 
   <div>
     <div class="summary-card">
-      <div class="summary-img">
-        <img id="summary-img" src="" alt="Property" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'">
-      </div>
+      <div class="summary-img"><img id="summary-img" src="" alt="Property" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'"></div>
       <div class="summary-body">
         <div class="summary-location" id="summary-location">Loading…</div>
         <div class="summary-name serif" id="summary-name">Loading property…</div>
         <div class="summary-dates">
-          <div>
-            <div class="summary-date-label">Check In</div>
-            <div class="summary-date-val" id="summary-checkin">—</div>
-          </div>
-          <div>
-            <div class="summary-date-label">Check Out</div>
-            <div class="summary-date-val" id="summary-checkout">—</div>
-          </div>
+          <div><div class="summary-date-label">Check In</div><div class="summary-date-val" id="summary-checkin">—</div></div>
+          <div><div class="summary-date-label">Check Out</div><div class="summary-date-val" id="summary-checkout">—</div></div>
         </div>
         <div class="summary-guests" id="summary-guests">—</div>
-        <div class="price-breakdown" id="price-breakdown">
-          <div class="loading-price" id="price-loading">Loading price quote…</div>
-        </div>
+        <div class="price-breakdown" id="price-breakdown"></div>
       </div>
       <div class="secure-badge">🔒 Secure booking · Powered by Premium Rentals</div>
     </div>
@@ -205,15 +157,20 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
 
-const params    = new URLSearchParams(window.location.search);
-const listingId = params.get('id');
-const checkIn   = params.get('checkIn');
-const checkOut  = params.get('checkOut');
-const guests    = params.get('guests') || '2';
+const params       = new URLSearchParams(window.location.search);
+const listingId    = params.get('id');
+const checkIn      = params.get('checkIn');
+const checkOut     = params.get('checkOut');
+const guests       = params.get('guests') || '2';
+const nightlyAvg   = parseFloat(params.get('nightlyAvg')   || '0');
+const nights       = parseInt(params.get('nights')         || '0');
+const accommodation= parseFloat(params.get('accommodation')|| '0');
+const cleaningFee  = parseFloat(params.get('cleaningFee')  || '0');
+const serviceFee   = parseFloat(params.get('serviceFee')   || '0');
+const taxes        = parseFloat(params.get('taxes')        || '0');
+const total        = parseFloat(params.get('total')        || '0');
 
 if (!listingId) window.location.href = 'properties.html';
-
-let listing = null;
 
 if (checkIn)  document.getElementById('co-checkin').value  = checkIn;
 if (checkOut) document.getElementById('co-checkout').value = checkOut;
@@ -225,39 +182,18 @@ function fmtDate(str) {
   return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
 }
 
-function updateSummary() {
-  const ci = document.getElementById('co-checkin').value;
-  const co = document.getElementById('co-checkout').value;
-  document.getElementById('summary-checkin').textContent  = fmtDate(ci);
-  document.getElementById('summary-checkout').textContent = fmtDate(co);
-  const g = document.getElementById('co-guests').value;
-  document.getElementById('summary-guests').textContent   = `${g} guest${g>1?'s':''}`;
-  if (ci && co && ci < co) loadPriceQuote(ci, co, g);
-}
+function populateSummary() {
+  document.getElementById('summary-checkin').textContent  = fmtDate(checkIn);
+  document.getElementById('summary-checkout').textContent = fmtDate(checkOut);
+  document.getElementById('summary-guests').textContent   = `${guests} guest${guests > 1 ? 's' : ''}`;
 
-async function loadPriceQuote(ci, co, g) {
-  const breakdown = document.getElementById('price-breakdown');
-  breakdown.innerHTML = `<div class="loading-price">Calculating price…</div>`;
-  try {
-    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
-    const data = await res.json();
-    const nights   = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-    const nightly  = data.price?.nightlyRate || data.price?.basePrice || data.nightlyRate || data.basePrice || 0;
-    const cleaning = data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
-    const sub      = nightly * nights;
-    const svc      = Math.round(sub * 0.12);
-    const total    = sub + cleaning + svc;
-    if (nightly) {
-      breakdown.innerHTML = `
-        <div class="price-row"><span>$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${sub.toLocaleString()}</span></div>
-        <div class="price-row"><span>Cleaning fee</span><span>${cleaning ? '$'+cleaning.toLocaleString() : 'Included'}</span></div>
-        <div class="price-row"><span>Service fee</span><span>$${svc.toLocaleString()}</span></div>
-        <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
-    } else {
-      breakdown.innerHTML = `<div class="loading-price" style="color:var(--mid)">Exact pricing shown at checkout</div>`;
-    }
-  } catch(e) {
-    breakdown.innerHTML = `<div class="price-error">Unable to load pricing — exact total shown at payment</div>`;
+  if (total) {
+    document.getElementById('price-breakdown').innerHTML = `
+      <div class="price-row"><span>$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${accommodation.toLocaleString()}</span></div>
+      <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee ? '$'+cleaningFee.toLocaleString() : 'Included'}</span></div>
+      <div class="price-row"><span>Service fee</span><span>$${serviceFee.toLocaleString()}</span></div>
+      <div class="price-row"><span>Taxes</span><span>$${taxes.toLocaleString()}</span></div>
+      <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
   }
 }
 
@@ -265,19 +201,17 @@ async function loadListing() {
   try {
     const res  = await fetch(`${API_BASE}/api/website/listings`);
     const data = await res.json();
-    listing = data.listings?.find(l => l._id === listingId);
-    if (!listing) throw new Error('Not found');
-    const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
-    const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
-    document.getElementById('summary-img').src = photo;
-    document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
-    document.getElementById('summary-name').textContent     = listing.title || listing.nickname || 'Luxury Property';
-    document.title = `Book ${listing.title || 'Property'} – Premium Rentals`;
-    updateSummary();
-  } catch(e) {
-    document.getElementById('summary-name').textContent = 'Property';
-    updateSummary();
-  }
+    const listing = data.listings?.find(l => l._id === listingId);
+    if (listing) {
+      const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
+      const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
+      document.getElementById('summary-img').src = photo;
+      document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
+      document.getElementById('summary-name').textContent = listing.title || listing.nickname || 'Luxury Property';
+      document.title = `Book ${listing.title || 'Property'} – Premium Rentals`;
+    }
+  } catch(e) { console.warn('Could not load listing'); }
+  populateSummary();
 }
 
 function proceedToPayment() {
@@ -285,40 +219,22 @@ function proceedToPayment() {
   const last  = document.getElementById('g-last').value.trim();
   const email = document.getElementById('g-email').value.trim();
   const phone = document.getElementById('g-phone').value.trim();
-  const ci    = document.getElementById('co-checkin').value;
-  const co    = document.getElementById('co-checkout').value;
-  const g     = document.getElementById('co-guests').value;
-  const terms = document.getElementById('terms-check').checked;
   const notes = document.getElementById('g-notes').value.trim();
-  const errEl = document.getElementById('form-error');
+  const terms = document.getElementById('terms-check').checked;
 
   if (!first || !last) return showError('Please enter your first and last name.');
   if (!email || !email.includes('@')) return showError('Please enter a valid email address.');
   if (!phone) return showError('Please enter your phone number.');
-  if (!ci || !co) return showError('Please confirm your check-in and check-out dates.');
-  if (ci >= co) return showError('Check-out must be after check-in.');
+  if (!checkIn || !checkOut) return showError('Missing dates — please go back and select dates.');
   if (!terms) return showError('Please agree to the Terms & Conditions to continue.');
 
-  errEl.classList.remove('show');
-
-  // Extract price breakdown values
-  const nights = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-  const rows   = document.getElementById('price-breakdown')?.querySelectorAll('.price-row');
-  let nightly = 0, cleaning = 0, service = 0, total = 0;
-  if (rows && rows.length >= 4) {
-    const parseAmt = el => parseFloat(el?.querySelector('span:last-child')?.textContent?.replace(/[$,]/g,'') || '0');
-    nightly  = Math.round(parseAmt(rows[0]) / nights);
-    cleaning = parseAmt(rows[1]);
-    service  = parseAmt(rows[2]);
-    total    = parseAmt(rows[3]);
-  }
+  document.getElementById('form-error').classList.remove('show');
 
   const payParams = new URLSearchParams({
-    id: listingId, checkIn: ci, checkOut: co, guests: g,
+    id: listingId, checkIn, checkOut, guests,
     firstName: first, lastName: last, email, phone, notes,
-    total, nightly, nights, cleaning, service
+    nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total
   });
-
   window.location.href = `payment.html?${payParams.toString()}`;
 }
 

@@ -13,92 +13,103 @@ body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);mi
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:center;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
 .nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
 .nav-logo span{color:var(--gold)}
-.wrap{max-width:640px;margin:0 auto;padding:120px 5% 80px;text-align:center}
-.check-circle{width:80px;height:80px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 32px;font-size:36px}
-.conf-title{font-family:'Playfair Display',serif;font-size:36px;font-weight:500;color:var(--dark);margin-bottom:12px}
+.wrap{max-width:680px;margin:0 auto;padding:100px 5% 80px;text-align:center}
+.checkmark{width:72px;height:72px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;font-size:32px}
+.conf-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,44px);font-weight:500;color:var(--dark);margin-bottom:12px}
 .conf-sub{font-size:16px;color:var(--mid);line-height:1.7;margin-bottom:40px}
 .conf-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:32px;margin-bottom:24px;text-align:left}
 .conf-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:20px}
-.conf-row{display:flex;justify-content:space-between;align-items:center;padding:10px 0;border-bottom:1px solid #f0ede8;font-size:14px}
-.conf-row:last-child{border-bottom:none}
-.conf-row-label{color:var(--mid)}
-.conf-row-val{font-weight:600;color:var(--dark);text-align:right}
-.conf-code{font-family:'Playfair Display',serif;font-size:28px;color:var(--accent);font-weight:500;letter-spacing:2px}
-.btn-primary{display:inline-block;background:var(--gold);color:#fff;border:none;padding:16px 40px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin:8px;transition:background .2s}
-.btn-primary:hover{background:#b8914e}
-.btn-secondary{display:inline-block;background:transparent;color:var(--dark);border:1px solid #e0ddd8;padding:16px 40px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;text-decoration:none;margin:8px;transition:all .2s}
-.btn-secondary:hover{border-color:var(--gold);color:var(--gold)}
-.contact-note{font-size:13px;color:var(--mid);line-height:1.7;margin-top:32px;padding:20px;background:var(--white);border-radius:8px;border:1px solid #eeede9}
+.conf-code{font-family:'Playfair Display',serif;font-size:32px;font-weight:600;color:var(--accent);letter-spacing:4px;margin-bottom:8px}
+.conf-code-label{font-size:12px;color:var(--mid)}
+.conf-details{display:grid;grid-template-columns:1fr 1fr;gap:20px;margin-top:20px}
+.conf-detail-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:4px}
+.conf-detail-val{font-size:15px;font-weight:600;color:var(--dark)}
+.next-steps{background:var(--accent);border-radius:8px;padding:28px 32px;margin-bottom:24px;text-align:left}
+.next-steps h3{font-family:'Playfair Display',serif;font-size:20px;color:#fff;margin-bottom:16px}
+.next-step{display:flex;align-items:flex-start;gap:12px;margin-bottom:12px}
+.next-step:last-child{margin-bottom:0}
+.next-step-num{width:24px;height:24px;background:var(--gold);border-radius:50%;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;color:#fff;flex-shrink:0;margin-top:1px}
+.next-step-text{font-size:13px;color:rgba(255,255,255,.8);line-height:1.6}
+.next-step-text strong{color:#fff}
+.contact-info{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:24px;margin-bottom:32px;text-align:left}
+.contact-row{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.contact-row:last-child{margin-bottom:0}
+.contact-ico{font-size:18px;width:24px;text-align:center}
+.contact-val{font-size:14px;color:var(--dark);font-weight:500}
+.btn-primary{display:inline-block;background:var(--gold);color:#fff;padding:16px 36px;border:none;border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:all .25s;text-decoration:none;margin:0 8px 12px}
+.btn-primary:hover{background:#b8914e;transform:translateY(-1px)}
+.btn-outline{display:inline-block;background:transparent;color:var(--dark);padding:16px 36px;border:1px solid #e0ddd8;border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:500;cursor:pointer;transition:all .25s;text-decoration:none;margin:0 8px 12px}
+.btn-outline:hover{border-color:var(--gold);color:var(--gold)}
+#podium-website-widget{z-index:149!important}
+@media(max-width:900px){#podium-website-widget{bottom:20px!important}}
+@media(max-width:480px){.conf-details{grid-template-columns:1fr}}
 </style>
 </head>
 <body>
-
 <nav>
   <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
 </nav>
-
 <div class="wrap">
-  <div class="check-circle">✓</div>
-  <h1 class="conf-title serif">You're Booked!</h1>
-  <p class="conf-sub">Your reservation is confirmed and your payment has been processed. A confirmation email is on its way to <strong id="conf-email"></strong>.</p>
+  <div class="checkmark">✓</div>
+  <h1 class="conf-title serif" id="conf-title">Booking Confirmed!</h1>
+  <p class="conf-sub" id="conf-sub">Your reservation is confirmed and your property is ready for your arrival. A confirmation email will be sent shortly.</p>
 
   <div class="conf-card">
-    <div class="conf-card-title">Booking Confirmation</div>
-    <div class="conf-row">
-      <span class="conf-row-label">Confirmation Code</span>
-      <span class="conf-row-val conf-code" id="conf-code">—</span>
-    </div>
-    <div class="conf-row">
-      <span class="conf-row-label">Guest Name</span>
-      <span class="conf-row-val" id="conf-name">—</span>
-    </div>
-    <div class="conf-row">
-      <span class="conf-row-label">Check In</span>
-      <span class="conf-row-val" id="conf-checkin">—</span>
-    </div>
-    <div class="conf-row">
-      <span class="conf-row-label">Check Out</span>
-      <span class="conf-row-val" id="conf-checkout">—</span>
-    </div>
-    <div class="conf-row">
-      <span class="conf-row-label">Guests</span>
-      <span class="conf-row-val" id="conf-guests">—</span>
-    </div>
-    <div class="conf-row">
-      <span class="conf-row-label">Total Charged</span>
-      <span class="conf-row-val" id="conf-total">—</span>
+    <div class="conf-card-title">Confirmation Details</div>
+    <div class="conf-code" id="conf-code">—</div>
+    <div class="conf-code-label">Confirmation Code — save this for your records</div>
+    <div class="conf-details">
+      <div><div class="conf-detail-label">Check In</div><div class="conf-detail-val" id="conf-checkin">—</div></div>
+      <div><div class="conf-detail-label">Check Out</div><div class="conf-detail-val" id="conf-checkout">—</div></div>
+      <div><div class="conf-detail-label">Guests</div><div class="conf-detail-val" id="conf-guests">—</div></div>
+      <div><div class="conf-detail-label">Total Charged</div><div class="conf-detail-val" id="conf-total">—</div></div>
     </div>
   </div>
 
-  <div style="margin-top:8px">
-    <a href="properties.html" class="btn-secondary">Browse More Properties</a>
-    <a href="/" class="btn-primary">Back to Home</a>
+  <div class="next-steps">
+    <h3 class="serif">What Happens Next</h3>
+    <div class="next-step"><div class="next-step-num">1</div><div class="next-step-text"><strong>Confirmation Email</strong> — Check your inbox for your booking confirmation with full details.</div></div>
+    <div class="next-step"><div class="next-step-num">2</div><div class="next-step-text"><strong>Pre-Check-In Link</strong> — You'll receive a digital pre-check-in form to complete before arrival (ID verification & rental agreement).</div></div>
+    <div class="next-step"><div class="next-step-num">3</div><div class="next-step-text"><strong>Access Code</strong> — Your unique smart lock access code will be delivered before your check-in date.</div></div>
+    <div class="next-step"><div class="next-step-num">4</div><div class="next-step-text"><strong>Digital Guidebook</strong> — You'll receive a digital welcome guide with property info, local recommendations, and checkout instructions.</div></div>
   </div>
 
-  <div class="contact-note">
-    📞 Questions about your stay? Contact us anytime at <strong>208-807-3302</strong> or <strong>info@premiumrentals.com</strong>.<br>
-    We're available 24/7 to make your experience exceptional.
+  <div class="contact-info">
+    <div style="font-size:13px;font-weight:600;color:var(--dark);margin-bottom:16px">Need help? We're available 24/7.</div>
+    <div class="contact-row"><span class="contact-ico">📞</span><span class="contact-val">208-807-3302</span></div>
+    <div class="contact-row"><span class="contact-ico">✉️</span><span class="contact-val">info@premiumrentals.com</span></div>
+  </div>
+
+  <div>
+    <a href="properties.html" class="btn-primary">Browse More Properties</a>
+    <a href="/" class="btn-outline">Back to Home</a>
   </div>
 </div>
 
 <script>
 const params = new URLSearchParams(window.location.search);
+const code    = params.get('code');
+const checkIn = params.get('checkIn');
+const checkOut= params.get('checkOut');
+const guests  = params.get('guests');
+const total   = params.get('total');
+const name    = params.get('name');
+
+if (name) {
+  document.getElementById('conf-title').textContent = `You're all set, ${decodeURIComponent(name)}!`;
+  document.getElementById('conf-sub').textContent   = `Your reservation is confirmed. A confirmation email will be sent to your inbox shortly.`;
+}
+if (code)    document.getElementById('conf-code').textContent    = decodeURIComponent(code);
+if (checkIn) document.getElementById('conf-checkin').textContent = fmtDate(checkIn);
+if (checkOut)document.getElementById('conf-checkout').textContent= fmtDate(checkOut);
+if (guests)  document.getElementById('conf-guests').textContent  = `${guests} guest${parseInt(guests)!==1?'s':''}`;
+if (total)   document.getElementById('conf-total').textContent   = `$${parseFloat(total).toLocaleString()}`;
 
 function fmtDate(str) {
   if (!str) return '—';
-  const d = new Date(str + 'T12:00:00');
-  return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  return new Date(str+'T12:00:00').toLocaleDateString('en-US',{weekday:'short',month:'long',day:'numeric',year:'numeric'});
 }
-
-document.getElementById('conf-code').textContent     = params.get('code') || '—';
-document.getElementById('conf-email').textContent    = params.get('email') || '';
-document.getElementById('conf-name').textContent     = params.get('name') ? decodeURIComponent(params.get('name')) + ' (Guest)' : '—';
-document.getElementById('conf-checkin').textContent  = fmtDate(params.get('checkIn'));
-document.getElementById('conf-checkout').textContent = fmtDate(params.get('checkOut'));
-document.getElementById('conf-guests').textContent   = params.get('guests') ? params.get('guests') + ' guest(s)' : '—';
-document.getElementById('conf-total').textContent    = params.get('total') ? '$' + parseFloat(params.get('total')).toLocaleString() : '—';
-
-document.title = `Booking Confirmed ${params.get('code') || ''} – Premium Rentals`;
 </script>
+<script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

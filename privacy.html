@@ -34,29 +34,27 @@ footer a{color:rgba(255,255,255,.3);text-decoration:none}
 footer a:hover{color:var(--gold)}
 .nav-logo-footer{font-family:'Playfair Display',serif;font-size:18px;color:#fff;font-weight:600;text-decoration:none}
 .nav-logo-footer span{color:var(--gold)}
+#podium-website-widget{z-index:149!important}
+@media(max-width:900px){#podium-website-widget{bottom:20px!important}}
 </style>
 </head>
 <body>
-
 <nav>
   <a href="/" class="nav-back">← Back to Home</a>
   <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
   <div style="width:100px"></div>
 </nav>
-
 <div class="hero">
   <p>Legal</p>
   <h1 class="serif">Privacy Policy</h1>
   <p class="hero-sub">How we collect, use, and protect your personal information.</p>
 </div>
-
 <div class="content">
   <p class="last-updated">Last updated: April 2026 · Effective for all users of premiumrentals.com</p>
 
   <div class="section">
     <h2>1. Introduction</h2>
     <p>Premium Rentals ("we," "us," or "our") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your personal information when you visit premiumrentals.com or make a reservation through our platform.</p>
-    <p>By using our website or making a booking, you agree to the collection and use of information in accordance with this policy. If you do not agree, please do not use our services.</p>
     <div class="highlight-box"><p>🔒 We never sell your personal information to third parties. Your data is used solely to facilitate your booking and improve your experience with Premium Rentals.</p></div>
   </div>
 
@@ -66,137 +64,97 @@ footer a:hover{color:var(--gold)}
     <p>When you make a reservation, submit a contact form, or sign up for our newsletter, we may collect:</p>
     <ul>
       <li>First and last name</li>
-      <li>Email address</li>
-      <li>Phone number</li>
+      <li>Email address and phone number</li>
       <li>Billing address</li>
       <li>Payment information (processed securely by Stripe — we never store raw card data)</li>
       <li>Guest count and reservation details</li>
-      <li>Special requests or messages you send us</li>
+      <li>Messages or special requests you send us</li>
     </ul>
     <h3>2.2 Information Collected Automatically</h3>
-    <p>When you visit our website, we may automatically collect certain technical information, including:</p>
-    <ul>
-      <li>IP address and approximate geographic location</li>
-      <li>Browser type and version</li>
-      <li>Device type and operating system</li>
-      <li>Pages visited and time spent on our site</li>
-      <li>Referring website or search terms</li>
-      <li>Date and time of your visit</li>
-    </ul>
+    <p>When you visit our website, we may automatically collect certain technical information, including IP address, browser type, device type, pages visited, and referring website.</p>
     <h3>2.3 Property Surveillance Data</h3>
     <p>Our properties are equipped with exterior security cameras and interior noise/smoke detection devices. Exterior camera footage may be retained for security purposes. Interior monitoring is limited to noise and smoke level detection — no audio or video recording takes place inside the property.</p>
   </div>
 
   <div class="section">
     <h2>3. How We Use Your Information</h2>
-    <p>We use the information we collect for the following purposes:</p>
     <ul>
       <li><strong>Reservation processing:</strong> To confirm, manage, and fulfill your booking</li>
-      <li><strong>Payment processing:</strong> To charge your payment method for your reservation through our secure payment processor (Stripe)</li>
-      <li><strong>Guest communication:</strong> To send booking confirmations, check-in instructions, access codes, and pre/post-stay communications</li>
-      <li><strong>Customer support:</strong> To respond to inquiries, resolve disputes, and provide assistance</li>
-      <li><strong>Legal compliance:</strong> To comply with applicable laws, regulations, and legal processes</li>
+      <li><strong>Payment processing:</strong> To charge your payment method via Stripe</li>
+      <li><strong>Guest communication:</strong> To send booking confirmations, check-in instructions, and access codes</li>
+      <li><strong>Customer support:</strong> To respond to inquiries and resolve issues</li>
+      <li><strong>Legal compliance:</strong> To comply with applicable laws and regulations</li>
       <li><strong>Safety & security:</strong> To protect our properties, guests, and staff</li>
-      <li><strong>Marketing (with consent):</strong> To send newsletters, promotional offers, and updates if you have opted in</li>
-      <li><strong>Website improvement:</strong> To analyze usage patterns and improve our website and services</li>
+      <li><strong>Marketing (with consent):</strong> To send newsletters and promotional offers if you have opted in</li>
       <li><strong>Guesty PMS integration:</strong> To manage reservations within our property management system</li>
     </ul>
   </div>
 
   <div class="section">
     <h2>4. How We Share Your Information</h2>
-    <p>We do not sell, trade, or rent your personal information to third parties. We may share your information with the following categories of parties only as necessary:</p>
+    <p>We do not sell, trade, or rent your personal information to third parties. We may share your information only as necessary with:</p>
     <h3>4.1 Service Providers</h3>
     <ul>
-      <li><strong>Stripe:</strong> Payment processing (your card details go directly to Stripe and are never stored by us)</li>
-      <li><strong>Guesty:</strong> Property management system used to manage reservations</li>
-      <li><strong>Supabase:</strong> Secure database hosting for contact and newsletter data</li>
-      <li><strong>Vercel / Railway:</strong> Website and API hosting infrastructure</li>
-      <li><strong>Google:</strong> Maps integration for property location display</li>
+      <li><strong>Stripe:</strong> Payment processing</li>
+      <li><strong>Guesty:</strong> Property management system</li>
+      <li><strong>Supabase:</strong> Secure database hosting</li>
+      <li><strong>Vercel / Railway:</strong> Website and API hosting</li>
+      <li><strong>Google:</strong> Maps integration</li>
+      <li><strong>Podium:</strong> Customer communication platform</li>
     </ul>
     <h3>4.2 Property Owners</h3>
-    <p>Relevant reservation details (name, dates, guest count) may be shared with the property owner as necessary for the management of your stay. Payment details are never shared with property owners.</p>
+    <p>Relevant reservation details (name, dates, guest count) may be shared with the property owner as necessary for management of your stay. Payment details are never shared with property owners.</p>
     <h3>4.3 Legal Requirements</h3>
-    <p>We may disclose your information if required to do so by law, court order, or government regulation, or if we believe disclosure is necessary to protect the rights, property, or safety of Premium Rentals, our guests, or the public.</p>
+    <p>We may disclose your information if required to do so by law, court order, or government regulation.</p>
   </div>
 
   <div class="section">
     <h2>5. Payment Security</h2>
-    <p>All payment transactions are processed through Stripe, a PCI-DSS compliant payment processor. Premium Rentals never stores, processes, or has access to your raw credit card or banking information. Stripe's privacy policy applies to the processing of your payment data and can be reviewed at <a href="https://stripe.com/privacy" style="color:var(--gold)" target="_blank">stripe.com/privacy</a>.</p>
+    <p>All payment transactions are processed through Stripe, a PCI-DSS compliant payment processor. Premium Rentals never stores, processes, or has access to your raw credit card information. Stripe's privacy policy applies and can be reviewed at <a href="https://stripe.com/privacy" style="color:var(--gold)" target="_blank">stripe.com/privacy</a>.</p>
   </div>
 
   <div class="section">
     <h2>6. Data Retention</h2>
-    <p>We retain your personal information for as long as necessary to fulfill the purposes described in this policy, including:</p>
     <ul>
-      <li><strong>Reservation data:</strong> Retained for a minimum of 7 years for legal, tax, and accounting purposes</li>
+      <li><strong>Reservation data:</strong> Retained for a minimum of 7 years for legal and accounting purposes</li>
       <li><strong>Contact form submissions:</strong> Retained for up to 2 years</li>
       <li><strong>Newsletter subscriptions:</strong> Retained until you unsubscribe</li>
-      <li><strong>Website analytics:</strong> Retained in aggregate, anonymized form</li>
     </ul>
-    <p>When data is no longer needed, it is securely deleted or anonymized.</p>
   </div>
 
   <div class="section">
     <h2>7. Cookies & Tracking</h2>
-    <p>Our website may use cookies and similar tracking technologies to enhance your browsing experience and analyze site usage. Types of cookies we may use include:</p>
-    <ul>
-      <li><strong>Essential cookies:</strong> Required for the website to function properly</li>
-      <li><strong>Analytics cookies:</strong> Help us understand how visitors interact with our website (e.g., Google Analytics)</li>
-      <li><strong>Preference cookies:</strong> Remember your settings and preferences</li>
-    </ul>
-    <p>You can control cookie settings through your browser preferences. Note that disabling certain cookies may affect the functionality of our website.</p>
+    <p>Our website may use cookies and similar tracking technologies to enhance your browsing experience. Types of cookies we may use include essential cookies (required for the site to function), analytics cookies (to understand visitor behavior), and preference cookies (to remember your settings).</p>
+    <p>You can control cookie settings through your browser preferences.</p>
   </div>
 
   <div class="section">
     <h2>8. Your Rights</h2>
-    <p>Depending on your location, you may have certain rights regarding your personal information, including:</p>
-    <ul>
-      <li><strong>Access:</strong> The right to request a copy of the personal information we hold about you</li>
-      <li><strong>Correction:</strong> The right to request correction of inaccurate or incomplete data</li>
-      <li><strong>Deletion:</strong> The right to request deletion of your personal data (subject to legal retention requirements)</li>
-      <li><strong>Opt-out of marketing:</strong> The right to unsubscribe from marketing communications at any time</li>
-      <li><strong>Data portability:</strong> The right to receive your data in a structured, machine-readable format</li>
-    </ul>
-    <p>To exercise any of these rights, please contact us at info@premiumrentals.com. We will respond to all requests within 30 days.</p>
+    <p>Depending on your location, you may have the right to access, correct, delete, or port your personal data, and to opt out of marketing communications at any time. To exercise any of these rights, contact us at info@premiumrentals.com. We will respond within 30 days.</p>
   </div>
 
   <div class="section">
     <h2>9. Children's Privacy</h2>
-    <p>Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If you believe we have inadvertently collected information from a minor, please contact us immediately and we will take steps to delete such information.</p>
+    <p>Our services are not directed to individuals under the age of 18. We do not knowingly collect personal information from minors. If you believe we have inadvertently collected information from a minor, please contact us immediately.</p>
   </div>
 
   <div class="section">
-    <h2>10. Third-Party Links</h2>
-    <p>Our website may contain links to third-party websites (such as property listing platforms, local attractions, or partner services). We are not responsible for the privacy practices of these external sites. We encourage you to review the privacy policies of any third-party sites you visit.</p>
+    <h2>10. Security</h2>
+    <p>We implement industry-standard security measures including SSL/TLS encryption, secure database hosting, and PCI-DSS compliant payment processing. While we take reasonable steps to protect your information, no method of internet transmission is 100% secure.</p>
   </div>
 
   <div class="section">
-    <h2>11. Security</h2>
-    <p>We implement industry-standard security measures to protect your personal information, including:</p>
-    <ul>
-      <li>SSL/TLS encryption for all data transmitted through our website</li>
-      <li>Secure, access-controlled database hosting</li>
-      <li>PCI-DSS compliant payment processing via Stripe</li>
-      <li>Regular security reviews of our infrastructure</li>
-    </ul>
-    <p>While we take reasonable steps to protect your information, no method of transmission over the internet or electronic storage is 100% secure. We cannot guarantee absolute security.</p>
+    <h2>11. Changes to This Policy</h2>
+    <p>We reserve the right to update this Privacy Policy at any time. Changes will be posted on this page with an updated effective date. Continued use of our website following any changes constitutes your acceptance of the updated policy.</p>
   </div>
 
   <div class="section">
-    <h2>12. Changes to This Policy</h2>
-    <p>We reserve the right to update this Privacy Policy at any time. Changes will be posted on this page with an updated effective date. We encourage you to review this policy periodically. Continued use of our website following any changes constitutes your acceptance of the updated policy.</p>
-  </div>
-
-  <div class="section">
-    <h2>13. Contact Us</h2>
-    <p>If you have any questions, concerns, or requests regarding this Privacy Policy or our data practices, please contact us:</p>
+    <h2>12. Contact Us</h2>
     <ul>
       <li><strong>Email:</strong> info@premiumrentals.com</li>
       <li><strong>Phone:</strong> 208-807-3302</li>
       <li><strong>Mail:</strong> Premium Rentals, 3140 W Belltower Dr. Suite 100, Meridian, Idaho 83646</li>
     </ul>
-    <p>We aim to respond to all privacy-related inquiries within 5 business days.</p>
   </div>
 </div>
 
@@ -209,6 +167,6 @@ footer a:hover{color:var(--gold)}
     <a href="privacy.html">Privacy</a>
   </span>
 </footer>
-
+<script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

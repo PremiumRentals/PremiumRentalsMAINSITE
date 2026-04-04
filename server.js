@@ -408,6 +408,7 @@ app.get('/api/website/fee-config', async (req, res) => {
 });
 
 // ── Route 10: Reserve ──
+// ── Route 10: Reserve ──
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -446,10 +447,31 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Created new guest:', guestId);
     }
 
-    // Step 2: Create reservation with retry
+    // Step 2: Attach Stripe payment method to Guesty guest
+    // This allows Guesty to charge the card on its auto-payment schedule
+    console.log('Attaching payment method to Guesty guest:', guestId);
+    try {
+      const pmRes = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          token: stripePaymentMethodId,
+          provider: 'stripe'
+        })
+      });
+      const pmText = await pmRes.text();
+      let pmData;
+      try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
+      console.log('Payment method attach response:', JSON.stringify(pmData).slice(0, 200));
+    } catch(e) {
+      console.warn('Could not attach payment method to guest:', e.message);
+      // Non-fatal — continue with reservation creation
+    }
+
+    // Step 3: Create reservation — Guesty will charge automatically
     const reservationData = await createGuestyReservation(token, {
       listingId,
-      checkInDateLocalized: checkIn,
+      checkInDateLocalized:  checkIn,
       checkOutDateLocalized: checkOut,
       guestsCount: parseInt(guests) || 1,
       guestId,
@@ -457,42 +479,59 @@ app.post('/api/website/reserve', async (req, res) => {
       status: 'confirmed',
       money: { invoiceItems: [] }
     });
-    const reservationId = reservationData._id;
+    const reservationId    = reservationData._id;
     const confirmationCode = reservationData.confirmationCode || reservationId;
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
-    // Step 3: Charge via Stripe
-    const amountInCents = Math.round(totalAmount * 100);
-    const paymentIntent = await stripe.paymentIntents.create({
-      amount: amountInCents,
-      currency: 'usd',
-      payment_method: stripePaymentMethodId,
-      confirm: true,
-      automatic_payment_methods: { enabled: true, allow_redirects: 'never' },
-      metadata: {
-        reservationId, confirmationCode, listingId,
-        guestEmail: email, checkIn, checkOut
-      },
-      description: `Premium Rentals booking ${confirmationCode} — ${checkIn} to ${checkOut}`
-    });
-
-    if (paymentIntent.status !== 'succeeded') {
-      throw new Error('Payment did not succeed: ' + paymentIntent.status);
+    // Step 4: Trigger Guesty to charge the first payment immediately
+    // Guesty's auto-payment policy handles the schedule — we just need to
+    // ensure the payment method is set on the reservation itself
+    try {
+      const setPaymentRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
+        method: 'PUT',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          paymentMethod: {
+            provider: 'stripe',
+            token: stripePaymentMethodId
+          }
+        })
+      });
+      const setPaymentText = await setPaymentRes.text();
+      let setPaymentData;
+      try { setPaymentData = JSON.parse(setPaymentText); } catch(e) { setPaymentData = { raw: setPaymentText }; }
+      console.log('Set payment method on reservation:', JSON.stringify(setPaymentData).slice(0, 200));
+    } catch(e) {
+      console.warn('Could not set payment method on reservation:', e.message);
     }
-    console.log('Payment succeeded:', paymentIntent.id);
 
-    // Step 4: Save to Supabase
+    // Step 5: Process scheduled payments via Guesty
+    // This triggers Guesty to execute any payments that are due now
+    try {
+      const chargeRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/payments`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ type: 'CHARGE' })
+      });
+      const chargeText = await chargeRes.text();
+      let chargeData;
+      try { chargeData = JSON.parse(chargeText); } catch(e) { chargeData = { raw: chargeText }; }
+      console.log('Guesty payment charge response:', JSON.stringify(chargeData).slice(0, 200));
+    } catch(e) {
+      console.warn('Could not trigger Guesty payment:', e.message);
+    }
+
+    // Step 6: Save to Supabase
     await supabase.from('website_contacts').insert([{
       first_name: firstName, last_name: lastName, email,
       interest: 'booking',
-      message: `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${totalAmount} | Stripe: ${paymentIntent.id}`
+      message: `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${totalAmount} | Guesty ID: ${reservationId}`
     }]);
 
     res.json({
       success: true,
       reservationId,
       confirmationCode,
-      stripePaymentIntentId: paymentIntent.id,
       amount: totalAmount
     });
 

@@ -244,8 +244,9 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 <!-- SEARCH -->
 <div class="search-section">
   <div class="search-bar fade-up">
-    <div class="sf"><span class="sf-label">Location</span>
-      <select id="search-location" style="border:none;outline:none;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:transparent;width:100%;-webkit-appearance:none">
+    <div class="sf">
+      <span class="sf-label">Location</span>
+      <select id="search-location">
         <option value="">All Locations</option>
       </select>
     </div>
@@ -257,11 +258,15 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
       <span class="sf-label">Check Out</span>
       <input type="date" id="search-checkout" style="cursor:pointer">
     </div>
-    <div class="sf"><span class="sf-label">Guests</span>
+    <div class="sf">
+      <span class="sf-label">Guests</span>
       <select id="search-guests">
-        <option value="1">1 guest</option><option value="2" selected>2 guests</option>
-        <option value="4">4 guests</option><option value="6">6 guests</option>
-        <option value="8">8 guests</option><option value="10">10+ guests</option>
+        <option value="1">1 guest</option>
+        <option value="2" selected>2 guests</option>
+        <option value="4">4 guests</option>
+        <option value="6">6 guests</option>
+        <option value="8">8 guests</option>
+        <option value="10">10+ guests</option>
       </select>
     </div>
     <button class="search-btn" onclick="goSearch()">Search</button>
@@ -458,6 +463,9 @@ async function loadListings() {
     buildLocationDropdown();
     const shuffled = [...allListings].sort(() => Math.random() - 0.5);
     renderListings(shuffled.slice(0, 6));
+    if (allListings.length) {
+      document.getElementById('stat-props').textContent = allListings.length + '+';
+    }
   } catch(e) {
     console.warn('API not connected — showing placeholders');
     renderPlaceholders();
@@ -470,8 +478,8 @@ function buildLocationDropdown() {
     const city  = l.address?.city;
     const state = l.address?.state;
     if (city) {
-      const key = `${city}, ${state || ''}`.trim().replace(/,$/, '');
-      cities[key] = (cities[key] || 0) + 1;
+      const key = `${city}, ${state||''}`.trim().replace(/,$/, '');
+      cities[key] = (cities[key]||0) + 1;
     }
   });
   const select = document.getElementById('search-location');
@@ -484,17 +492,20 @@ function buildLocationDropdown() {
   });
 }
 
+// ── Search — passes all params with correct names matching properties.html ──
 function goSearch() {
-  const loc    = document.getElementById('search-location').value;
-  const ci     = document.getElementById('search-checkin').value;
-  const co     = document.getElementById('search-checkout').value;
-  const guests = document.getElementById('search-guests').value;
-  const params = new URLSearchParams();
-  if (loc)    params.set('location', loc);
-  if (ci)     params.set('checkin',  ci);
-  if (co)     params.set('checkout', co);
-  if (guests) params.set('guests',   guests);
-  window.location.href = `properties.html${params.toString() ? '?' + params.toString() : ''}`;
+  const loc     = document.getElementById('search-location').value;
+  const checkIn = document.getElementById('search-checkin').value;
+  const checkOut= document.getElementById('search-checkout').value;
+  const guests  = document.getElementById('search-guests').value;
+
+  const p = new URLSearchParams();
+  if (loc)     p.set('location', loc);
+  if (checkIn) p.set('checkIn',  checkIn);   // ← matches properties.html
+  if (checkOut)p.set('checkOut', checkOut);  // ← matches properties.html
+  if (guests)  p.set('guests',   guests);
+
+  window.location.href = `properties.html?${p.toString()}`;
 }
 
 function renderListings(listings) {
@@ -504,22 +515,21 @@ function renderListings(listings) {
     const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
-    const price = l._realPrice || l.prices?.basePrice || l.prices?.nightlyRate;
     const badge = i === 0 ? 'Featured' : '';
     return `
       <div class="prop-card fade-up" onclick="window.location.href='property.html?id=${l._id}'">
         <div class="prop-img-wrap">
           <img src="${photo}" alt="${name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'">
-          ${badge ? `<div class="prop-badge">${badge}</div>` : ''}
+          ${badge?`<div class="prop-badge">${badge}</div>`:''}
           <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
         </div>
         <div class="prop-body">
-          <p class="prop-location">📍 ${city || 'Idaho'}</p>
+          <p class="prop-location">📍 ${city||'Idaho'}</p>
           <h3 class="prop-name serif">${name}</h3>
           <div class="prop-meta">
-            <span>🛏 ${l.bedrooms || '—'} beds</span>
-            <span>🛁 ${l.bathrooms || '—'} baths</span>
-            <span>👥 Up to ${l.accommodates || '—'}</span>
+            <span>🛏 ${l.bedrooms||'—'} beds</span>
+            <span>🛁 ${l.bathrooms||'—'} baths</span>
+            <span>👥 Up to ${l.accommodates||'—'}</span>
           </div>
           <div class="prop-footer">
             <div class="prop-price serif"><small style="font-size:13px;font-weight:400;color:var(--mid)">Select dates for pricing</small></div>
@@ -533,15 +543,15 @@ function renderListings(listings) {
 
 function renderPlaceholders() {
   const ph = [
-    {img:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75',city:'Meridian, Idaho',name:'The Lyrical Estate',beds:5,baths:4,g:10,price:850,badge:'Featured'},
-    {img:'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',city:'Nampa, Idaho',name:'Rivendell Grand Estate',beds:7,baths:4,g:16,price:990,badge:''},
-    {img:'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75',city:'Meridian, Idaho',name:'The Morpheus Retreat',beds:4,baths:3,g:8,price:620,badge:''}
+    {img:'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75',city:'Meridian, Idaho',name:'The Lyrical Estate',beds:5,baths:4,g:10,badge:'Featured'},
+    {img:'https://images.unsplash.com/photo-1568605114967-8130f3a36994?w=600&q=75',city:'Nampa, Idaho',name:'Rivendell Grand Estate',beds:7,baths:4,g:16,badge:''},
+    {img:'https://images.unsplash.com/photo-1600596542815-ffad4c1539a9?w=600&q=75',city:'Meridian, Idaho',name:'The Morpheus Retreat',beds:4,baths:3,g:8,badge:''}
   ];
   document.getElementById('properties-grid').innerHTML = ph.map(p => `
     <div class="prop-card fade-up">
       <div class="prop-img-wrap">
         <img src="${p.img}" alt="${p.name}">
-        ${p.badge ? `<div class="prop-badge">${p.badge}</div>` : ''}
+        ${p.badge?`<div class="prop-badge">${p.badge}</div>`:''}
         <button class="prop-fav" onclick="event.stopPropagation();toggleFav(this)">♡</button>
       </div>
       <div class="prop-body">
@@ -549,7 +559,7 @@ function renderPlaceholders() {
         <h3 class="prop-name serif">${p.name}</h3>
         <div class="prop-meta"><span>🛏 ${p.beds} beds</span><span>🛁 ${p.baths} baths</span><span>👥 Up to ${p.g}</span></div>
         <div class="prop-footer">
-          <div class="prop-price serif"><small>From </small>$${p.price}<small>/night</small></div>
+          <div class="prop-price serif"><small>Select dates for pricing</small></div>
           <button class="book-btn">View</button>
         </div>
       </div>
@@ -570,7 +580,7 @@ async function submitContact() {
   btn.textContent = 'Sending…';
   try {
     await fetch(`${API_BASE}/api/website/contact`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body)
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
     });
   } catch {}
   btn.textContent = 'Message Sent ✓';
@@ -585,7 +595,7 @@ async function submitNewsletter() {
   btn.textContent = 'Subscribing…';
   try {
     await fetch(`${API_BASE}/api/website/newsletter`, {
-      method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify({email})
+      method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({email})
     });
   } catch {}
   btn.textContent = 'Subscribed ✓';

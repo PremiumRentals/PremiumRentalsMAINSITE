@@ -642,7 +642,20 @@ app.post('/api/website/reserve', async (req, res) => {
     res.status(500).json({ success: false, error: e.message });
   }
 });
-
+// ── TEMP DEBUG: Guest payment methods ──
+app.get('/api/debug/guest-payment-methods/:guestId', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const response = await fetch(
+      `https://open-api.guesty.com/v1/guests/${req.params.guestId}/payment-methods`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.text();
+    res.send(data);
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

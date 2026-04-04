@@ -454,14 +454,14 @@ app.post('/api/website/reserve', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const token = await getGuestyToken();
+    const guestyToken = await getGuestyToken();
 
     // ── Step 1: Find or create guest in Guesty ──
     console.log(`Creating reservation for ${firstName} ${lastName} (${email})`);
     let guestId = null;
     const guestSearchRes  = await fetch(
       `https://open-api.guesty.com/v1/guests?email=${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      { headers: { Authorization: `Bearer ${guestyToken}` } }
     );
     const guestSearchData = await guestSearchRes.json();
     const existingGuest   = guestSearchData.results?.[0];
@@ -471,7 +471,7 @@ app.post('/api/website/reserve', async (req, res) => {
     } else {
       const guestCreateRes  = await fetch('https://open-api.guesty.com/v1/guests', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${guestyToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phone })
       });
       const guestCreateData = await guestCreateRes.json();
@@ -480,47 +480,69 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Created new guest:', guestId);
     }
 
-    // ── Step 2: Save payment method to Stripe customer ──
-    // Makes Apple Pay / Google Pay one-time tokens reusable for future charges
-    let reusablePaymentMethodId = stripePaymentMethodId;
+    // ── Step 2: Get payment provider ID for this listing ──
+    // Guesty requires token from the SAME connected Stripe account assigned to listing
+    console.log('Getting payment provider for listing:', listingId);
+    let paymentProviderId = null;
+    let providerAccountId = null;
     try {
-      const customers = await stripe.customers.list({ email, limit: 1 });
-      let customer = customers.data[0];
-      if (!customer) {
-        customer = await stripe.customers.create({
-          email,
-          name:  `${firstName} ${lastName}`,
-          phone: phone || undefined
-        });
-        console.log('Created Stripe customer:', customer.id);
-      } else {
-        console.log('Found Stripe customer:', customer.id);
-      }
-      try {
-        await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customer.id });
-      } catch(attachErr) {
-        if (!attachErr.message?.includes('already been attached')) throw attachErr;
-      }
-      await stripe.customers.update(customer.id, {
-        invoice_settings: { default_payment_method: stripePaymentMethodId }
-      });
-      reusablePaymentMethodId = stripePaymentMethodId;
-      console.log('Payment method saved to Stripe customer:', customer.id);
+      const ppRes  = await fetch(
+        `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
+        { headers: { Authorization: `Bearer ${guestyToken}` } }
+      );
+      const ppData = await ppRes.json();
+      paymentProviderId = ppData.paymentProviderId || ppData._id;
+      providerAccountId = ppData.providerAccountId; // acct_...
+      console.log('Payment provider:', paymentProviderId, 'Account:', providerAccountId);
     } catch(e) {
-      console.warn('Stripe customer setup warning:', e.message);
+      console.warn('Could not get payment provider:', e.message);
     }
 
-    // ── Step 3: Attach payment method to Guesty guest ──
-    // ⚠️ token must be object with id only — no provider field inside token
+    // ── Step 3: Create Stripe token via connected account ──
+    // Must use the connected account that Guesty is integrated with
+    // Token (tok_...) required — not payment method ID (pm_...)
+    let stripeCardToken = null;
+    try {
+      // Create token from payment method using connected account
+      const tokenRes = await stripe.tokens.create(
+        { payment_method: stripePaymentMethodId },
+        providerAccountId ? { stripeAccount: providerAccountId } : undefined
+      );
+      stripeCardToken = tokenRes.id;
+      console.log('Created Stripe card token:', stripeCardToken);
+    } catch(e) {
+      console.warn('Could not create token via connected account, trying platform:', e.message);
+      // Fallback: try creating token on platform account
+      try {
+        // Clone payment method to connected account first
+        const cloned = await stripe.paymentMethods.create(
+          { payment_method: stripePaymentMethodId, customer: undefined },
+          providerAccountId ? { stripeAccount: providerAccountId } : undefined
+        );
+        console.log('Cloned payment method:', cloned.id);
+        stripeCardToken = cloned.id;
+      } catch(e2) {
+        console.warn('Could not clone payment method:', e2.message);
+        // Last resort — use payment method ID directly
+        stripeCardToken = stripePaymentMethodId;
+      }
+    }
+
+    // ── Step 4: Attach payment method to Guesty guest with token ──
+    // Include reservationId for payment automation (added after reservation creation)
+    // reuse: true allows card to be used for multiple reservations
     console.log('Attaching payment method to Guesty guest:', guestId);
+    let guestyPaymentMethodId = null;
     try {
       const pmRes  = await fetch(
         `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${guestyToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
-            token: { id: reusablePaymentMethodId }
+            token:             stripeCardToken,
+            paymentProviderId: paymentProviderId,
+            reuse:             true
           })
         }
       );
@@ -528,12 +550,13 @@ app.post('/api/website/reserve', async (req, res) => {
       let pmData;
       try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
       console.log('Payment method attach to guest:', JSON.stringify(pmData).slice(0, 300));
+      guestyPaymentMethodId = pmData._id || pmData.id;
     } catch(e) {
       console.warn('Could not attach payment method to Guesty guest:', e.message);
     }
 
-    // ── Step 4: Create reservation in Guesty with retry ──
-    const reservationData  = await createGuestyReservation(token, {
+    // ── Step 5: Create reservation in Guesty with retry ──
+    const reservationData  = await createGuestyReservation(guestyToken, {
       listingId,
       checkInDateLocalized:  checkIn,
       checkOutDateLocalized: checkOut,
@@ -547,43 +570,41 @@ app.post('/api/website/reserve', async (req, res) => {
     const confirmationCode = reservationData.confirmationCode || reservationId;
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
-    // ── Step 5: Link payment method to reservation ──
-    // ⚠️ Use money.paymentMethod — do NOT include guestId in body
-    console.log('Linking payment method to reservation:', reservationId);
-    try {
-      const setPayRes  = await fetch(
-        `https://open-api.guesty.com/v1/reservations/${reservationId}`,
-        {
-          method: 'PUT',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            money: {
-              paymentMethod: {
-                id:       reusablePaymentMethodId,
-                provider: 'stripe'
-              }
-            }
-          })
-        }
-      );
-      const setPayText = await setPayRes.text();
-      let setPayData;
-      try { setPayData = JSON.parse(setPayText); } catch(e) { setPayData = { raw: setPayText }; }
-      console.log('Link payment to reservation:', JSON.stringify(setPayData).slice(0, 300));
-    } catch(e) {
-      console.warn('Could not link payment method to reservation:', e.message);
+    // ── Step 6: Attach payment method to reservation for automation ──
+    // Now that we have reservationId we can link it for payment automation
+    if (guestyPaymentMethodId) {
+      console.log('Linking payment method to reservation for automation...');
+      try {
+        const linkRes  = await fetch(
+          `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${guestyToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              token:             stripeCardToken,
+              paymentProviderId: paymentProviderId,
+              reservationId:     reservationId,
+              reuse:             true
+            })
+          }
+        );
+        const linkText = await linkRes.text();
+        let linkData;
+        try { linkData = JSON.parse(linkText); } catch(e) { linkData = { raw: linkText }; }
+        console.log('Link payment to reservation:', JSON.stringify(linkData).slice(0, 300));
+      } catch(e) {
+        console.warn('Could not link payment to reservation:', e.message);
+      }
     }
 
-    // ── Step 6: Trigger Guesty to process scheduled payments ──
-    // ⚠️ Field is "method" not "type" — amount is required
-    // Guesty's auto-payment policy handles 49%/51% split automatically
+    // ── Step 7: Trigger Guesty payment processing ──
     console.log('Triggering Guesty payment processing...');
     try {
       const chargeRes  = await fetch(
         `https://open-api.guesty.com/v1/reservations/${reservationId}/payments`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          headers: { Authorization: `Bearer ${guestyToken}`, 'Content-Type': 'application/json' },
           body: JSON.stringify({
             method: 'CHARGE',
             amount: totalAmount
@@ -598,7 +619,7 @@ app.post('/api/website/reserve', async (req, res) => {
       console.warn('Could not trigger Guesty payment:', e.message);
     }
 
-    // ── Step 7: Save booking record to Supabase ──
+    // ── Step 8: Save to Supabase ──
     await supabase.from('website_contacts').insert([{
       first_name: firstName,
       last_name:  lastName,

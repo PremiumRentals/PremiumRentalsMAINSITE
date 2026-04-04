@@ -110,10 +110,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .sb-cal-day.today{font-weight:800;color:var(--accent)}
 .sb-cal-day.today.available:not(.selected){text-decoration:underline}
 .sb-cal-day.empty{cursor:default}
-.guests-row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-top:1px solid #f0ede8;margin-bottom:12px}
+/* GUESTS NUMBER INPUT */
+.guests-row{padding:10px 0;border-top:1px solid #f0ede8;margin-bottom:12px}
+.guests-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
 .guests-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dark)}
-.guests-select{border:1px solid #e0ddd8;padding:6px 10px;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);background:#fff;-webkit-appearance:none;cursor:pointer;outline:none}
-.guests-select:focus{border-color:var(--gold)}
+.guests-max-note{font-size:11px;color:var(--mid)}
+.guests-input-wrap{display:flex;align-items:center;gap:12px}
+.guests-btn{width:32px;height:32px;border:1px solid #e0ddd8;border-radius:50%;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--dark);line-height:1;font-family:'Inter',sans-serif}
+.guests-btn:hover{border-color:var(--accent);color:var(--accent)}
+.guests-btn:disabled{opacity:.3;cursor:not-allowed}
+.guests-count{font-size:16px;font-weight:600;color:var(--dark);min-width:24px;text-align:center}
+.guests-warn{font-size:11px;color:#c0392b;margin-top:4px;display:none}
 .avail-loading{text-align:center;padding:10px;font-size:12px;color:var(--mid);font-style:italic}
 .booking-avail{padding:10px 12px;border-radius:4px;font-size:13px;font-weight:500;margin-bottom:10px;display:none}
 .booking-avail.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
@@ -121,7 +128,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .price-breakdown{margin-bottom:12px;display:none}
 .price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:4px 0}
 .price-row.total{font-weight:700;color:var(--dark);font-size:15px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:4px}
-.price-row.taxes-row{color:var(--mid);font-size:12px}
 .reserve-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:15px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;transition:background .25s;margin-bottom:10px;display:none}
 .reserve-btn:hover{background:#b8914e}
 .booking-note{font-size:11px;color:var(--mid);text-align:center;line-height:1.6}
@@ -279,18 +285,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="sb-cal-grid" id="sb-cal-grid2"></div>
       </div>
 
+      <!-- GUESTS — number input with +/- controls, capped at listing.accommodates -->
       <div class="guests-row">
-        <span class="guests-label">Guests</span>
-        <select class="guests-select" id="sb-guests" onchange="onGuestsChange()">
-          <option value="1">1 guest</option>
-          <option value="2" selected>2 guests</option>
-          <option value="3">3 guests</option>
-          <option value="4">4 guests</option>
-          <option value="6">6 guests</option>
-          <option value="8">8 guests</option>
-          <option value="10">10 guests</option>
-          <option value="16">16+ guests</option>
-        </select>
+        <div class="guests-row-top">
+          <span class="guests-label">Guests</span>
+          <span class="guests-max-note" id="guests-max-note"></span>
+        </div>
+        <div class="guests-input-wrap">
+          <button class="guests-btn" id="guests-minus" onclick="changeGuests(-1)">−</button>
+          <span class="guests-count" id="guests-count">2</span>
+          <button class="guests-btn" id="guests-plus" onclick="changeGuests(1)">+</button>
+        </div>
+        <div class="guests-warn" id="guests-warn"></div>
       </div>
 
       <button class="clear-dates-btn" id="clear-dates-btn" onclick="clearDates()" style="display:none">Clear dates</button>
@@ -302,7 +308,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
         <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
-        <div class="price-row taxes-row"><span>Taxes</span><span id="sb-taxes"></span></div>
+        <div class="price-row"><span>Taxes</span><span id="sb-taxes"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
       </div>
 
@@ -352,6 +358,8 @@ let selectedCheckIn = null, selectedCheckOut = null;
 let calMode = 'checkin';
 let blockedDates = new Set();
 let calYear, calMonth, sbYear, sbMonth;
+let guestCount = 2;
+let maxGuests = 99; // will be set from listing.accommodates
 let bookingData = { nightlyAvg:0, nights:0, accommodation:0, cleaningFee:0, serviceFee:0, taxes:0, total:0 };
 
 // ── Load listing ──
@@ -370,13 +378,13 @@ async function loadListing() {
   }
 }
 
-// ── Load real "from" price — lowest available rate in next 30 days ──
+// ── Load real "from" price ──
 async function loadFromPrice() {
   try {
     const today  = new Date();
     const future = new Date(); future.setDate(future.getDate() + 30);
     const fmt = d => d.toISOString().split('T')[0];
-    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${fmt(today)}&checkOut=${fmt(future)}`);
+    const res = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${fmt(today)}&checkOut=${fmt(future)}&guests=1`);
     const data = await res.json();
     let fromPrice = null;
     if (data.days?.length) {
@@ -400,6 +408,7 @@ function renderListing() {
   document.title = `${listing.title||'Property'} – Premium Rentals`;
   allPhotos = listing.pictures || [];
   renderGallery();
+
   const city = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
   document.getElementById('prop-location').textContent = '📍 ' + (city || 'Idaho');
   document.getElementById('prop-title').textContent = listing.title || listing.nickname || 'Luxury Property';
@@ -409,15 +418,48 @@ function renderListing() {
     listing.accommodates? `<div class="prop-stat">👥 Up to <strong>${listing.accommodates}</strong> guests</div>` : '',
     listing.beds        ? `<div class="prop-stat">🛌 <strong>${listing.beds}</strong> beds</div>` : ''
   ].join('');
+
   const desc = [listing.publicDescription?.summary, listing.publicDescription?.access].filter(Boolean).join('\n\n');
   const descEl = document.getElementById('prop-desc');
   descEl.textContent = desc || 'Contact us for more information about this property.';
   if (desc && desc.length > 300) document.getElementById('read-more-btn').style.display = 'block';
   else descEl.classList.remove('description-collapsed');
+
   renderAmenities();
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
+
+  // ── Set max guests from listing ──
+  maxGuests = listing.accommodates || 99;
+  document.getElementById('guests-max-note').textContent = `Max ${maxGuests}`;
+  updateGuestButtons();
 }
 
+// ── Guest count controls ──
+function changeGuests(delta) {
+  const newCount = guestCount + delta;
+  if (newCount < 1) return;
+  if (newCount > maxGuests) {
+    document.getElementById('guests-warn').textContent = `This property accommodates up to ${maxGuests} guests`;
+    document.getElementById('guests-warn').style.display = 'block';
+    return;
+  }
+  document.getElementById('guests-warn').style.display = 'none';
+  guestCount = newCount;
+  document.getElementById('guests-count').textContent = guestCount;
+  updateGuestButtons();
+  // Re-check availability with new guest count if dates selected
+  if (selectedCheckIn && selectedCheckOut) {
+    resetPricing();
+    autoCheckAvail(selectedCheckIn, selectedCheckOut);
+  }
+}
+
+function updateGuestButtons() {
+  document.getElementById('guests-minus').disabled = guestCount <= 1;
+  document.getElementById('guests-plus').disabled  = guestCount >= maxGuests;
+}
+
+// ── Gallery ──
 function renderGallery() {
   const grid = document.getElementById('gallery-grid');
   const photos = allPhotos.slice(0,5);
@@ -458,6 +500,7 @@ function openAmenitiesModal(){document.getElementById('amenities-modal').classLi
 function closeAmenitiesModal(){document.getElementById('amenities-modal').classList.remove('open');}
 document.getElementById('amenities-modal').addEventListener('click',e=>{if(e.target===document.getElementById('amenities-modal'))closeAmenitiesModal();});
 
+// ── Calendar ──
 async function loadCalendar() {
   const now = new Date();
   calYear=now.getFullYear(); calMonth=now.getMonth();
@@ -581,7 +624,6 @@ function renderSbMonthGrid(year,month,today){
 
 let availDebounce=null;
 function autoCheckAvail(ci,co){clearTimeout(availDebounce);availDebounce=setTimeout(()=>checkAvailAndPrice(ci,co),400);}
-function onGuestsChange(){if(selectedCheckIn&&selectedCheckOut)autoCheckAvail(selectedCheckIn,selectedCheckOut);}
 
 function resetPricing(){
   document.getElementById('sb-avail').style.display='none';
@@ -600,7 +642,8 @@ async function checkAvailAndPrice(ci,co){
   loadEl.style.display='block';
 
   try {
-    const res=await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
+    // ── Pass guest count to API so Guesty returns per-guest-adjusted pricing ──
+    const res=await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${guestCount}`);
     const data=await res.json();
     loadEl.style.display='none';
 
@@ -612,7 +655,6 @@ async function checkAvailAndPrice(ci,co){
       return;
     }
 
-    // ── All math done on backend — just display the values ──
     const { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total } = data;
 
     availEl.className='booking-avail ok';
@@ -621,12 +663,10 @@ async function checkAvailAndPrice(ci,co){
     setSbHint('✓ Ready to reserve');
 
     if(nightlyAvg){
-      // Update from-price to show selected rate
       document.getElementById('from-price-display').innerHTML=`
         <span class="from-price-num serif">$${Number(nightlyAvg).toLocaleString()}</span>
         <span class="from-price-label">/ night</span>
-        <div class="from-price-note">Avg rate for selected dates</div>`;
-
+        <div class="from-price-note">Avg rate for selected dates · ${guestCount} guest${guestCount!==1?'s':''}</div>`;
       document.getElementById('sb-nights-lbl').textContent=`$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent=`$${accommodation.toLocaleString()}`;
       document.getElementById('sb-clean').textContent=cleaningFee?`$${cleaningFee.toLocaleString()}`:'Included';
@@ -634,10 +674,8 @@ async function checkAvailAndPrice(ci,co){
       document.getElementById('sb-taxes').textContent=`$${taxes.toLocaleString()}`;
       document.getElementById('sb-total').textContent=`$${total.toLocaleString()}`;
       breakEl.style.display='block';
-
       document.getElementById('mobile-price').textContent=`$${total.toLocaleString()} total`;
       document.getElementById('mobile-price-sub').textContent=`$${nightlyAvg.toLocaleString()}/night · ${nights} nights`;
-
       bookingData={nightlyAvg,nights,accommodation,cleaningFee,serviceFee,taxes,total};
     }
     resBtn.style.display='block';
@@ -653,10 +691,9 @@ async function checkAvailAndPrice(ci,co){
 
 function proceedBooking(){
   const ci=selectedCheckIn,co=selectedCheckOut;
-  const guests=document.getElementById('sb-guests').value;
   if(!ci||!co){alert('Please select check-in and check-out dates first.');return;}
   const p=new URLSearchParams({
-    id:listingId,checkIn:ci,checkOut:co,guests,
+    id:listingId,checkIn:ci,checkOut:co,guests:guestCount,
     nightlyAvg:bookingData.nightlyAvg,
     nights:bookingData.nights,
     accommodation:bookingData.accommodation,

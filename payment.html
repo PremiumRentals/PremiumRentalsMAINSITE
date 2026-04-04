@@ -99,33 +99,22 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 
     <div class="form-card">
       <div class="form-card-title">Billing Address</div>
-      <div class="fg">
-        <label>Address</label>
-        <input type="text" id="billing-address" placeholder="123 Main St" autocomplete="street-address">
-      </div>
+      <div class="fg"><label>Address</label><input type="text" id="billing-address" placeholder="123 Main St" autocomplete="street-address"></div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
-        <div class="fg">
-          <label>City</label>
-          <input type="text" id="billing-city" placeholder="Boise" autocomplete="address-level2">
-        </div>
-        <div class="fg">
-          <label>ZIP Code</label>
-          <input type="text" id="billing-zip" placeholder="83702" autocomplete="postal-code">
-        </div>
+        <div class="fg"><label>City</label><input type="text" id="billing-city" placeholder="Boise" autocomplete="address-level2"></div>
+        <div class="fg"><label>ZIP Code</label><input type="text" id="billing-zip" placeholder="83702" autocomplete="postal-code"></div>
       </div>
     </div>
 
     <div class="form-card" style="background:var(--light);border-color:#e8e3db">
       <div style="font-size:13px;color:var(--mid);line-height:1.7">
         🔒 Your payment is processed securely via Stripe. Premium Rentals never stores your card details.<br><br>
-        By completing this booking you agree to our <a href="/#contact" style="color:var(--gold)">cancellation policy</a>. 
+        By completing this booking you agree to our <a href="/#contact" style="color:var(--gold)">cancellation policy</a>.
         Your card will be charged <strong id="charge-amount" style="color:var(--dark)">the total amount</strong> immediately upon confirmation.
       </div>
     </div>
 
-    <button class="submit-btn" id="submit-btn" onclick="submitPayment()">
-      🔒 Confirm &amp; Pay Now
-    </button>
+    <button class="submit-btn" id="submit-btn" onclick="submitPayment()">🔒 Confirm &amp; Pay Now</button>
     <div class="submit-note">You will receive a confirmation email at <span id="guest-email-display"></span></div>
   </div>
 
@@ -148,37 +137,38 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 </div>
 
 <script>
-const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
+const API_BASE  = 'https://premiumrentalsmainsite-production.up.railway.app';
 const STRIPE_PK = 'pk_live_AuGRIlxNGEHObUs4UzQJYAkU';
 
-// Get params passed from checkout.html
-const params     = new URLSearchParams(window.location.search);
-const listingId  = params.get('id');
-const checkIn    = params.get('checkIn');
-const checkOut   = params.get('checkOut');
-const guests     = params.get('guests') || '2';
-const firstName  = params.get('firstName');
-const lastName   = params.get('lastName');
-const email      = params.get('email');
-const phone      = params.get('phone');
-const notes      = params.get('notes') || '';
-const totalAmount= parseFloat(params.get('total') || '0');
-const nightlyRate= parseFloat(params.get('nightly') || '0');
-const nights     = parseInt(params.get('nights') || '0');
-const cleaningFee= parseFloat(params.get('cleaning') || '0');
-const serviceFee = parseFloat(params.get('service') || '0');
+const params       = new URLSearchParams(window.location.search);
+const listingId    = params.get('id');
+const checkIn      = params.get('checkIn');
+const checkOut     = params.get('checkOut');
+const guests       = params.get('guests') || '2';
+const firstName    = params.get('firstName');
+const lastName     = params.get('lastName');
+const email        = params.get('email');
+const phone        = params.get('phone');
+const notes        = params.get('notes') || '';
+const nightlyAvg   = parseFloat(params.get('nightlyAvg')    || '0');
+const nights       = parseInt(params.get('nights')          || '0');
+const accommodation= parseFloat(params.get('accommodation') || '0');
+const cleaningFee  = parseFloat(params.get('cleaningFee')   || '0');
+const serviceFee   = parseFloat(params.get('serviceFee')    || '0');
+const taxes        = parseFloat(params.get('taxes')         || '0');
+const total        = parseFloat(params.get('total')         || '0');
 
 if (!listingId || !checkIn || !checkOut || !firstName || !email) {
   window.location.href = 'properties.html';
 }
 
 // Init Stripe
-const stripe  = Stripe(STRIPE_PK);
-const elements= stripe.elements();
-const card    = elements.create('card', {
+const stripe   = Stripe(STRIPE_PK);
+const elements = stripe.elements();
+const card     = elements.create('card', {
   style: {
-    base: { fontFamily: 'Inter, sans-serif', fontSize: '14px', color: '#1a1a1a', '::placeholder': { color: '#bbb' } },
-    invalid: { color: '#c0392b' }
+    base: { fontFamily:'Inter, sans-serif', fontSize:'14px', color:'#1a1a1a', '::placeholder':{ color:'#bbb' } },
+    invalid: { color:'#c0392b' }
   }
 });
 card.mount('#stripe-card-element');
@@ -186,14 +176,12 @@ card.on('focus',  () => document.getElementById('stripe-card-element').classList
 card.on('blur',   () => document.getElementById('stripe-card-element').classList.remove('focused'));
 card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
 
-// Format date
 function fmtDate(str) {
   if (!str) return '—';
   const d = new Date(str + 'T12:00:00');
   return d.toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
 }
 
-// Load listing + populate summary
 async function loadSummary() {
   try {
     const res  = await fetch(`${API_BASE}/api/website/listings`);
@@ -213,14 +201,16 @@ async function loadSummary() {
   document.getElementById('summary-checkout').textContent = fmtDate(checkOut);
   document.getElementById('summary-guests').textContent   = `${guests} guest${guests > 1 ? 's' : ''}`;
   document.getElementById('guest-email-display').textContent = email || '';
-  document.getElementById('charge-amount').textContent = totalAmount ? `$${totalAmount.toLocaleString()}` : 'the total amount';
+  document.getElementById('charge-amount').textContent = total ? `$${total.toLocaleString()}` : 'the total amount';
 
-  if (totalAmount) {
+  // Display exact breakdown — no math, all from backend
+  if (total) {
     document.getElementById('price-breakdown').innerHTML = `
-      <div class="price-row"><span>$${nightlyRate.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${(nightlyRate*nights).toLocaleString()}</span></div>
+      <div class="price-row"><span>$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${accommodation.toLocaleString()}</span></div>
       <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee ? '$'+cleaningFee.toLocaleString() : 'Included'}</span></div>
       <div class="price-row"><span>Service fee</span><span>$${serviceFee.toLocaleString()}</span></div>
-      <div class="price-row total"><span>Total charged today</span><span>$${totalAmount.toLocaleString()}</span></div>`;
+      <div class="price-row"><span>Taxes</span><span>$${taxes.toLocaleString()}</span></div>
+      <div class="price-row total"><span>Total charged today</span><span>$${total.toLocaleString()}</span></div>`;
   }
 }
 
@@ -230,21 +220,18 @@ async function submitPayment() {
   const btn      = document.getElementById('submit-btn');
 
   if (!cardName) { showError('Please enter the name on your card.'); return; }
-  if (!totalAmount) { showError('Unable to calculate total. Please go back and try again.'); return; }
+  if (!total)    { showError('Unable to calculate total. Please go back and try again.'); return; }
 
   errEl.classList.remove('show');
   btn.disabled = true;
   btn.textContent = 'Processing payment…';
 
   try {
-    // Create Stripe payment method
     const { paymentMethod, error: stripeError } = await stripe.createPaymentMethod({
       type: 'card',
       card,
       billing_details: {
-        name: cardName,
-        email,
-        phone,
+        name: cardName, email, phone,
         address: {
           line1:       document.getElementById('billing-address').value.trim(),
           city:        document.getElementById('billing-city').value.trim(),
@@ -256,7 +243,6 @@ async function submitPayment() {
 
     if (stripeError) { showError(stripeError.message); btn.disabled=false; btn.textContent='🔒 Confirm & Pay Now'; return; }
 
-    // Send to backend to create reservation + charge
     const res  = await fetch(`${API_BASE}/api/website/reserve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -264,15 +250,13 @@ async function submitPayment() {
         listingId, checkIn, checkOut, guests,
         firstName, lastName, email, phone, notes,
         stripePaymentMethodId: paymentMethod.id,
-        totalAmount
+        totalAmount: total
       })
     });
     const data = await res.json();
-
     if (!data.success) throw new Error(data.error || 'Booking failed');
 
-    // Success — go to confirmation
-    window.location.href = `confirmation.html?reservation=${data.reservationId}&code=${data.confirmationCode}&email=${encodeURIComponent(email)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${totalAmount}&name=${encodeURIComponent(firstName)}`;
+    window.location.href = `confirmation.html?reservation=${data.reservationId}&code=${data.confirmationCode}&email=${encodeURIComponent(email)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(firstName)}`;
 
   } catch(e) {
     showError(e.message || 'Something went wrong. Please try again or contact us.');

@@ -93,7 +93,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     <h1 class="section-title serif">Secure Payment</h1>
     <div class="form-error" id="form-error"></div>
 
-    <!-- APPLE PAY / GOOGLE PAY / LINK -->
+    <!-- EXPRESS CHECKOUT — Apple Pay / Google Pay / Link -->
     <div id="payment-request-wrap">
       <div class="form-card" style="padding:24px">
         <div class="form-card-title">Express Checkout</div>
@@ -163,6 +163,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 <script>
 const API_BASE  = 'https://premiumrentalsmainsite-production.up.railway.app';
 const STRIPE_PK = 'pk_live_AuGRIlxNGEHObUs4UzQJYAkU';
+const CONNECTED_ACCOUNT = 'acct_1DtNwfC1YIPk99Xj';
 
 const params        = new URLSearchParams(window.location.search);
 const listingId     = params.get('id');
@@ -185,8 +186,9 @@ if (!listingId || !checkIn || !checkOut || !firstName || !email) {
   window.location.href = 'properties.html';
 }
 
-// ── Init Stripe ──
-const stripe   = Stripe(STRIPE_PK);
+// ── Init Stripe on connected account ──
+// PaymentMethod must be created on the same Stripe account connected to Guesty
+const stripe   = Stripe(STRIPE_PK, { stripeAccount: CONNECTED_ACCOUNT });
 const elements = stripe.elements();
 
 // ── Card element ──
@@ -207,67 +209,49 @@ card.on('blur',   () => document.getElementById('stripe-card-element').classList
 card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
 
 // ── Payment Request Button (Apple Pay / Google Pay / Link) ──
-// Note: Express payments create tokens differently — we handle in the paymentmethod event
-let paymentRequest = null;
-
 async function initPaymentRequest() {
   if (!total) return;
-  paymentRequest = stripe.paymentRequest({
-    country: 'US',
+  const pr = stripe.paymentRequest({
+    country:  'US',
     currency: 'usd',
-    total: { label: 'Premium Rentals Booking', amount: Math.round(total * 100) },
+    total:    { label: 'Premium Rentals Booking', amount: Math.round(total * 100) },
     requestPayerName:  true,
     requestPayerEmail: true,
     requestPayerPhone: true
   });
-  const canMakePayment = await paymentRequest.canMakePayment();
+  const canMakePayment = await pr.canMakePayment();
   if (canMakePayment) {
     document.getElementById('payment-request-wrap').style.display = 'block';
-    const prButton = elements.create('paymentRequestButton', {
-      paymentRequest,
-      style: {
-        paymentRequestButton: { type: 'book', theme: 'dark', height: '48px' }
-      }
+    const prBtn = elements.create('paymentRequestButton', {
+      paymentRequest: pr,
+      style: { paymentRequestButton: { type: 'book', theme: 'dark', height: '48px' } }
     });
-    prButton.mount('#payment-request-btn');
-
-    paymentRequest.on('paymentmethod', async (ev) => {
+    prBtn.mount('#payment-request-btn');
+    pr.on('paymentmethod', async (ev) => {
       try {
-        const expFirstName = ev.payerName?.split(' ')[0] || firstName;
-        const expLastName  = ev.payerName?.split(' ').slice(1).join(' ') || lastName;
-        const expEmail     = ev.payerEmail || email;
-        const expPhone     = ev.payerPhone || phone;
-
         const res  = await fetch(`${API_BASE}/api/website/reserve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({
             listingId, checkIn, checkOut, guests,
-            firstName: expFirstName,
-            lastName:  expLastName,
-            email:     expEmail,
-            phone:     expPhone,
+            firstName: ev.payerName?.split(' ')[0] || firstName,
+            lastName:  ev.payerName?.split(' ').slice(1).join(' ') || lastName,
+            email:     ev.payerEmail || email,
+            phone:     ev.payerPhone || phone,
             stripePaymentMethodId: ev.paymentMethod.id,
             totalAmount: total
           })
         });
         const data = await res.json();
-        if (!data.success) {
-          ev.complete('fail');
-          showError(data.error || 'Booking failed. Please try again.');
-          return;
-        }
+        if (!data.success) { ev.complete('fail'); showError(data.error || 'Booking failed.'); return; }
         ev.complete('success');
-        window.location.href = `confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(expFirstName)}`;
-      } catch(e) {
-        ev.complete('fail');
-        showError(e.message || 'Something went wrong. Please try again.');
-      }
+        window.location.href = `confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(ev.payerName?.split(' ')[0]||firstName)}`;
+      } catch(e) { ev.complete('fail'); showError(e.message || 'Something went wrong.'); }
     });
   }
 }
 
-// ── Auto-uppercase state ──
+// ── Auto uppercase state ──
 document.getElementById('billing-state').addEventListener('input', function() {
   this.value = this.value.toUpperCase();
 });
@@ -283,13 +267,13 @@ function fmtDate(str) {
 // ── Load summary ──
 async function loadSummary() {
   try {
-    const res  = await fetch(`${API_BASE}/api/website/listings`);
-    const data = await res.json();
+    const res     = await fetch(`${API_BASE}/api/website/listings`);
+    const data    = await res.json();
     const listing = data.listings?.find(l => l._id === listingId);
     if (listing) {
       const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
       const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
-      document.getElementById('summary-img').src      = photo;
+      document.getElementById('summary-img').src             = photo;
       document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
       document.getElementById('summary-name').textContent     = listing.title || listing.nickname || 'Luxury Property';
       document.title = `Pay for ${listing.title||'Property'} – Premium Rentals`;
@@ -300,7 +284,7 @@ async function loadSummary() {
   document.getElementById('summary-checkout').textContent = fmtDate(checkOut);
   document.getElementById('summary-guests').textContent   = `${guests} guest${parseInt(guests)!==1?'s':''}`;
   document.getElementById('guest-email-display').textContent = email || '';
-  document.getElementById('charge-amount').textContent = total ? `$${total.toLocaleString()}` : 'the total amount';
+  document.getElementById('charge-amount').textContent    = total ? `$${total.toLocaleString()}` : 'the total amount';
 
   if (total) {
     document.getElementById('price-breakdown').innerHTML = `
@@ -312,9 +296,9 @@ async function loadSummary() {
   }
 }
 
-// ── Submit card payment ──
-// Uses stripe.createToken() to get tok_... instead of pm_...
-// Guesty requires tok_... for payment method attachment
+// ── Submit payment ──
+// Creates PaymentMethod on the connected Stripe account (acct_1DtNwfC1YIPk99Xj)
+// This pm_... is what Guesty expects for payment method attachment
 async function submitPayment() {
   const cardName = document.getElementById('card-name').value.trim();
   const btn      = document.getElementById('submit-btn');
@@ -327,14 +311,23 @@ async function submitPayment() {
   btn.textContent = 'Processing payment…';
 
   try {
-    // Create Stripe token (tok_...) — required by Guesty for payment method attachment
-    const { token: cardToken, error: stripeError } = await stripe.createToken(card, {
-      name:            cardName,
-      address_line1:   document.getElementById('billing-address').value.trim(),
-      address_city:    document.getElementById('billing-city').value.trim(),
-      address_state:   document.getElementById('billing-state').value.trim(),
-      address_zip:     document.getElementById('billing-zip').value.trim(),
-      address_country: 'US'
+    // Create PaymentMethod on connected Stripe account
+    // pm_... created on acct_1DtNwfC1YIPk99Xj — same account Guesty uses
+    const { paymentMethod, error: stripeError } = await stripe.createPaymentMethod({
+      type: 'card',
+      card,
+      billing_details: {
+        name:  cardName,
+        email,
+        phone: phone || undefined,
+        address: {
+          line1:       document.getElementById('billing-address').value.trim(),
+          city:        document.getElementById('billing-city').value.trim(),
+          state:       document.getElementById('billing-state').value.trim(),
+          postal_code: document.getElementById('billing-zip').value.trim(),
+          country:     'US'
+        }
+      }
     });
 
     if (stripeError) {
@@ -350,7 +343,7 @@ async function submitPayment() {
       body: JSON.stringify({
         listingId, checkIn, checkOut, guests,
         firstName, lastName, email, phone,
-        stripePaymentMethodId: cardToken.id,  // tok_... for Guesty compatibility
+        stripePaymentMethodId: paymentMethod.id,
         totalAmount: total
       })
     });

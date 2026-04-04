@@ -656,6 +656,25 @@ app.get('/api/debug/guest-payment-methods/:guestId', async (req, res) => {
     res.status(500).json({ error: e.message });
   }
 });
+// ── TEMP DEBUG: Reservation payment details ──
+app.get('/api/debug/reservation/:reservationId', async (req, res) => {
+  try {
+    const token = await getGuestyToken();
+    const response = await fetch(
+      `https://open-api.guesty.com/v1/reservations/${req.params.reservationId}?fields=money,guestId`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await response.json();
+    res.json({
+      guestId: data.guestId,
+      payments: data.money?.payments,
+      paymentMethod: data.money?.paymentMethod,
+      invoiceItems: data.money?.invoiceItems?.slice(0,2)
+    });
+  } catch(e) {
+    res.status(500).json({ error: e.message });
+  }
+});
 // ── Health check ──
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running',

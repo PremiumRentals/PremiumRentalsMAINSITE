@@ -342,7 +342,7 @@ days.forEach((day, index) => {
       dayData,
       totalDays: days.length
     };
-    setCache(cacheKey, result, 4 * 60 * 60 * 1000);
+    setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result, cached: false });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });

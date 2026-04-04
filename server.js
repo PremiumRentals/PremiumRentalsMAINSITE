@@ -313,17 +313,29 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const blockedDates      = [];
     const checkoutOnlyDates = [];
     const dayData           = {};
-    days.forEach(day => {
-      const isAvailable = typeof day.allotment === 'number'
-        ? day.allotment > 0
-        : day.status === 'available';
-      if (day.minNights) dayData[day.date] = { minNights: day.minNights };
-      if (!isAvailable) {
-        const isReservationStart = (day.blocks?.r || day.blocks?.b) && day.cta;
-        if (isReservationStart) checkoutOnlyDates.push(day.date);
-        else blockedDates.push(day.date);
-      }
-    });
+days.forEach((day, index) => {
+  const isAvailable = typeof day.allotment === 'number'
+    ? day.allotment > 0
+    : day.status === 'available';
+  if (day.minNights) dayData[day.date] = { minNights: day.minNights };
+  if (!isAvailable) {
+    // Checkout is allowed on this day if:
+    // 1. A guest reservation starts here (blocks.r && cta) — someone else checking in
+    // 2. An owner/manual block STARTS here (blocks.m && previous day was available)
+    //    — guest can still check out before the block takes effect
+    const prevDay = index > 0 ? days[index - 1] : null;
+    const prevAvailable = prevDay
+      ? (typeof prevDay.allotment === 'number' ? prevDay.allotment > 0 : prevDay.status === 'available')
+      : true;
+    const isGuestCheckin  = (day.blocks?.r || day.blocks?.b) && day.cta;
+    const isBlockStart    = (day.blocks?.m || day.blocks?.o) && prevAvailable;
+    if (isGuestCheckin || isBlockStart) {
+      checkoutOnlyDates.push(day.date);
+    } else {
+      blockedDates.push(day.date);
+    }
+  }
+});
     const result = {
       blockedDates:      blockedDates.sort(),
       checkoutOnlyDates: checkoutOnlyDates.sort(),

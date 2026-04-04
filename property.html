@@ -35,8 +35,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .lb-img-wrap img{max-width:100%;max-height:100%;object-fit:contain;border-radius:4px}
 .lb-nav{position:absolute;top:50%;transform:translateY(-50%);background:rgba(255,255,255,.15);border:none;color:#fff;width:48px;height:48px;border-radius:50%;font-size:22px;cursor:pointer;transition:background .2s;display:flex;align-items:center;justify-content:center}
 .lb-nav:hover{background:rgba(255,255,255,.3)}
-.lb-prev{left:16px}
-.lb-next{right:16px}
+.lb-prev{left:16px}.lb-next{right:16px}
 .lb-counter{position:absolute;bottom:80px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px}
 .lb-thumbs{position:absolute;bottom:16px;left:50%;transform:translateX(-50%);display:flex;gap:6px;max-width:90vw;overflow-x:auto;padding:4px}
 .lb-thumb{width:52px;height:40px;object-fit:cover;border-radius:2px;cursor:pointer;opacity:.5;transition:opacity .2s;flex-shrink:0;border:2px solid transparent}
@@ -71,10 +70,13 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-day{text-align:center;padding:9px 4px;font-size:13px;border-radius:2px;transition:all .15s;min-width:0;line-height:1}
 .cal-day.available{cursor:pointer}
 .cal-day.available:hover{background:var(--light)}
+.cal-day.checkout-only{cursor:pointer;color:var(--mid)}
+.cal-day.checkout-only:hover{background:var(--light)}
 .cal-day.selected{background:var(--accent);color:#fff;font-weight:600}
 .cal-day.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
 .cal-day.blocked{color:#ccc;text-decoration:line-through;cursor:not-allowed;background:#fafafa}
 .cal-day.past{color:#ddd;cursor:not-allowed}
+.cal-day.min-nights-blocked{color:#ddd;cursor:not-allowed;background:#fafafa}
 .cal-day.today{font-weight:700}
 .cal-day.empty{cursor:default}
 .cal-legend{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap}
@@ -82,6 +84,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-legend-dot{width:12px;height:12px;border-radius:2px}
 .cal-hint{font-size:13px;color:var(--accent);font-weight:500;margin-bottom:16px;min-height:20px}
 .property-map{height:280px;border-radius:4px;overflow:hidden;background:#f0ede8}
+/* BOOKING CARD */
 .booking-card{background:#fff;border:1px solid #e0ddd8;border-radius:8px;padding:24px;box-shadow:0 4px 24px rgba(0,0,0,.08)}
 .from-price{margin-bottom:16px;padding-bottom:16px;border-bottom:1px solid #f0ede8}
 .from-price-num{font-family:'Playfair Display',serif;font-size:28px;font-weight:500;color:var(--dark)}
@@ -103,24 +106,42 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .sb-cal-day{text-align:center;padding:6px 2px;font-size:12px;border-radius:2px;transition:all .12s;line-height:1;min-width:0}
 .sb-cal-day.available{cursor:pointer}
 .sb-cal-day.available:hover{background:var(--light)}
+.sb-cal-day.checkout-only{cursor:pointer;color:var(--mid)}
+.sb-cal-day.checkout-only:hover{background:var(--light)}
 .sb-cal-day.selected{background:var(--accent);color:#fff;font-weight:700}
 .sb-cal-day.in-range{background:rgba(44,74,62,.12);color:var(--accent)}
 .sb-cal-day.blocked{color:#ddd;cursor:not-allowed;text-decoration:line-through}
 .sb-cal-day.past{color:#e0e0e0;cursor:not-allowed}
+.sb-cal-day.min-nights-blocked{color:#e0e0e0;cursor:not-allowed}
 .sb-cal-day.today{font-weight:800;color:var(--accent)}
 .sb-cal-day.today.available:not(.selected){text-decoration:underline}
 .sb-cal-day.empty{cursor:default}
-/* GUESTS NUMBER INPUT */
+/* GUEST COUNTER */
 .guests-row{padding:10px 0;border-top:1px solid #f0ede8;margin-bottom:12px}
-.guests-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:6px}
+.guests-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
 .guests-label{font-size:11px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--dark)}
 .guests-max-note{font-size:11px;color:var(--mid)}
-.guests-input-wrap{display:flex;align-items:center;gap:12px}
-.guests-btn{width:32px;height:32px;border:1px solid #e0ddd8;border-radius:50%;background:#fff;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--dark);line-height:1;font-family:'Inter',sans-serif}
-.guests-btn:hover{border-color:var(--accent);color:var(--accent)}
-.guests-btn:disabled{opacity:.3;cursor:not-allowed}
-.guests-count{font-size:16px;font-weight:600;color:var(--dark);min-width:24px;text-align:center}
-.guests-warn{font-size:11px;color:#c0392b;margin-top:4px;display:none}
+.guests-control{display:flex;align-items:center;border:1px solid #e0ddd8;border-radius:4px;overflow:hidden;width:100%}
+.guests-btn{width:40px;height:40px;border:none;background:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--dark);flex-shrink:0;font-family:'Inter',sans-serif;line-height:1}
+.guests-btn:hover:not(:disabled){background:var(--light);color:var(--accent)}
+.guests-btn:disabled{opacity:.25;cursor:not-allowed}
+.guests-btn.minus{border-right:1px solid #e0ddd8}
+.guests-btn.plus{border-left:1px solid #e0ddd8}
+.guests-input{flex:1;border:none;outline:none;font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:var(--dark);text-align:center;background:#fff;cursor:text;min-width:0;padding:0 4px;height:40px}
+.guests-input::-webkit-outer-spin-button,.guests-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.guests-warn{font-size:11px;color:#c0392b;margin-top:5px;display:none}
+/* CANCELLATION BADGE */
+.cancel-badge-wrap{display:flex;align-items:center;gap:6px;margin-top:10px}
+.cancel-badge{display:inline-flex;align-items:center;gap:5px;background:var(--light);border:1px solid #e0ddd8;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;color:var(--dark);letter-spacing:.5px;text-transform:uppercase}
+.cancel-badge-icon{font-size:10px}
+.cancel-tooltip-wrap{position:relative;display:inline-flex;align-items:center}
+.cancel-tooltip-btn{width:16px;height:16px;border-radius:50%;background:#e0ddd8;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--mid);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;flex-shrink:0}
+.cancel-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;font-size:11px;line-height:1.6;padding:10px 14px;border-radius:4px;width:220px;text-align:left;z-index:50;display:none;font-weight:400}
+.cancel-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--dark)}
+.cancel-tooltip-wrap:hover .cancel-tooltip{display:block}
+.cancel-tooltip.tap-open{display:block}
+.cancel-tooltip a{color:var(--gold);text-decoration:none}
+/* AVAIL / PRICE */
 .avail-loading{text-align:center;padding:10px;font-size:12px;color:var(--mid);font-style:italic}
 .booking-avail{padding:10px 12px;border-radius:4px;font-size:13px;font-weight:500;margin-bottom:10px;display:none}
 .booking-avail.ok{background:rgba(44,74,62,.08);color:var(--accent);border:1px solid rgba(44,74,62,.2)}
@@ -133,6 +154,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .booking-note{font-size:11px;color:var(--mid);text-align:center;line-height:1.6}
 .clear-dates-btn{background:none;border:none;font-size:11px;color:var(--mid);cursor:pointer;text-decoration:underline;display:block;margin:0 auto 8px;font-family:'Inter',sans-serif}
 .clear-dates-btn:hover{color:var(--gold)}
+.min-nights-hint{font-size:11px;color:var(--accent);font-weight:500;margin-bottom:8px;display:none;padding:6px 10px;background:rgba(44,74,62,.06);border-radius:4px}
+/* MOBILE BAR */
 .mobile-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:#fff;border-top:1px solid #e0ddd8;padding:12px 5%;align-items:center;justify-content:space-between;gap:12px}
 .mobile-bar-price{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
 .mobile-bar-btn{background:var(--gold);color:#fff;border:none;padding:13px 28px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer}
@@ -148,6 +171,10 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .footer-bot{display:flex;justify-content:space-between;align-items:center;flex-wrap:wrap;gap:12px;font-size:12px}
 .footer-bot a{color:rgba(255,255,255,.3);text-decoration:none}
 .footer-bot a:hover{color:var(--gold)}
+/* Podium mobile fix */
+#podium-website-widget{z-index:149!important}
+@media(max-width:900px){#podium-website-widget{bottom:80px!important}}
+@media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.content-wrap{grid-template-columns:1fr 340px;gap:40px}}
 @media(max-width:900px){
   .content-wrap{grid-template-columns:1fr;padding-bottom:100px}
@@ -165,7 +192,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 }
 </style>
 </head>
-<body>
+<body class="has-mobile-bar">
 
 <nav>
   <a href="properties.html" class="nav-back">← All Properties</a>
@@ -203,19 +230,16 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
       <h1 class="prop-title serif" id="prop-title">Loading…</h1>
       <div class="prop-stats" id="prop-stats"></div>
     </div>
-
     <div class="section-block">
       <h2 class="block-title serif">About This Property</h2>
       <div class="description-text description-collapsed" id="prop-desc"></div>
       <button class="read-more-btn" id="read-more-btn" onclick="toggleDesc()" style="display:none">Show more ↓</button>
     </div>
-
     <div class="section-block">
       <h2 class="block-title serif">What This Place Offers</h2>
       <div class="amenities-grid" id="amenities-grid"></div>
       <button class="show-all-btn" id="show-all-amenities" onclick="openAmenitiesModal()" style="display:none">Show all amenities</button>
     </div>
-
     <div class="section-block">
       <h2 class="block-title serif">Availability</h2>
       <div class="cal-hint" id="cal-hint">Select your check-in date below or in the booking panel →</div>
@@ -231,13 +255,11 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fafafa;border:1px solid #eee"></div>Unavailable</div>
       </div>
     </div>
-
     <div class="section-block">
       <h2 class="block-title serif">Location</h2>
       <p style="font-size:14px;color:var(--mid);margin-bottom:16px" id="prop-address">Exact address provided after booking.</p>
       <div class="property-map" id="property-map"></div>
     </div>
-
     <div class="section-block">
       <h2 class="block-title serif" style="display:flex;align-items:center;gap:10px">
         <span style="color:var(--gold)">★</span> 4.97 · <span style="font-size:16px;font-weight:400;color:var(--mid)">300+ reviews</span>
@@ -257,7 +279,6 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
           <span style="font-size:13px;color:var(--mid);font-style:italic">Loading pricing…</span>
         </div>
       </div>
-
       <div class="selected-dates">
         <div class="sel-date-box" id="sel-checkin-box" onclick="resetToCheckin()">
           <div class="sel-date-label">Check In</div>
@@ -268,8 +289,8 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
           <div class="sel-date-val placeholder" id="sel-checkout-val">Add date</div>
         </div>
       </div>
-
       <div class="sb-cal">
+        <div class="min-nights-hint" id="min-nights-hint"></div>
         <div class="sb-cal-hint" id="sb-cal-hint">Select check-in date</div>
         <div class="sb-cal-header">
           <button class="sb-cal-nav" onclick="sbCalNav(-1)">‹</button>
@@ -284,26 +305,22 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         </div>
         <div class="sb-cal-grid" id="sb-cal-grid2"></div>
       </div>
-
-      <!-- GUESTS — number input with +/- controls, capped at listing.accommodates -->
+      <!-- GUEST COUNTER -->
       <div class="guests-row">
         <div class="guests-row-top">
           <span class="guests-label">Guests</span>
           <span class="guests-max-note" id="guests-max-note"></span>
         </div>
-        <div class="guests-input-wrap">
-          <button class="guests-btn" id="guests-minus" onclick="changeGuests(-1)">−</button>
-          <span class="guests-count" id="guests-count">2</span>
-          <button class="guests-btn" id="guests-plus" onclick="changeGuests(1)">+</button>
+        <div class="guests-control">
+          <button class="guests-btn minus" id="guests-minus" onclick="changeGuests(-1)">−</button>
+          <input class="guests-input" id="guests-input" type="number" min="1" value="2" inputmode="numeric" onchange="onGuestsInputChange()" onblur="onGuestsInputChange()" onfocus="this.select()">
+          <button class="guests-btn plus" id="guests-plus" onclick="changeGuests(1)">+</button>
         </div>
         <div class="guests-warn" id="guests-warn"></div>
       </div>
-
       <button class="clear-dates-btn" id="clear-dates-btn" onclick="clearDates()" style="display:none">Clear dates</button>
-
       <div class="booking-avail" id="sb-avail"></div>
       <div id="sb-avail-loading" style="display:none" class="avail-loading">Checking availability…</div>
-
       <div class="price-breakdown" id="sb-breakdown">
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
@@ -311,9 +328,21 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="price-row"><span>Taxes</span><span id="sb-taxes"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
       </div>
-
       <button class="reserve-btn" id="sb-reserve-btn" onclick="proceedBooking()">Reserve Now →</button>
       <div class="booking-note">You won't be charged yet · Secure booking</div>
+      <!-- CANCELLATION BADGE -->
+      <div class="cancel-badge-wrap">
+        <div class="cancel-badge">
+          <span class="cancel-badge-icon">📋</span> Firm Cancellation
+        </div>
+        <div class="cancel-tooltip-wrap">
+          <button class="cancel-tooltip-btn" id="cancel-tooltip-btn" onclick="toggleTooltip()">?</button>
+          <div class="cancel-tooltip" id="cancel-tooltip">
+            50% refund if cancelled 30+ days before check-in. No refund within 30 days.
+            <a href="cancellation.html" target="_blank" style="display:block;margin-top:6px;color:var(--gold)">View full policy →</a>
+          </div>
+        </div>
+      </div>
     </div>
   </div>
 </div>
@@ -323,7 +352,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
     <div style="font-size:11px;color:var(--mid)" id="mobile-price-sub">Select dates to see pricing</div>
   </div>
-  <button class="mobile-bar-btn" onclick="document.querySelector('.section-block:nth-child(3)').scrollIntoView({behavior:'smooth'})">Reserve</button>
+  <button class="mobile-bar-btn" onclick="document.querySelector('.section-block').scrollIntoView({behavior:'smooth'})">Reserve</button>
 </div>
 
 <div id="amenities-modal">
@@ -336,16 +365,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
 <footer>
   <div class="footer-bot">
-    <span>© 2025 Premium Rentals. All rights reserved.</span>
-    <span><a href="/">Home</a> · <a href="properties.html">Properties</a> · <a href="/#contact">Contact</a> · <a href="https://login.premiumrentals.com">Owner Login</a></span>
+    <span>© 2026 Premium Rentals. All rights reserved.</span>
+    <span>
+      <a href="/">Home</a> · <a href="properties.html">Properties</a> ·
+      <a href="terms.html">Terms</a> · <a href="cancellation.html">Cancellation</a> ·
+      <a href="privacy.html">Privacy</a> · <a href="/#contact">Contact</a>
+    </span>
   </div>
 </footer>
 
 <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyBu6vSVVZbMOuYda9EFwXovXTBpL8SEIfE&callback=initPropertyMap" async defer></script>
-
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
-
 const params = new URLSearchParams(window.location.search);
 const listingId = params.get('id');
 if (!listingId) window.location.href = 'properties.html';
@@ -357,12 +388,14 @@ let propertyMap = null;
 let selectedCheckIn = null, selectedCheckOut = null;
 let calMode = 'checkin';
 let blockedDates = new Set();
+let checkoutOnlyDates = new Set();
+let dayData = {};
 let calYear, calMonth, sbYear, sbMonth;
 let guestCount = 2;
-let maxGuests = 99; // will be set from listing.accommodates
-let bookingData = { nightlyAvg:0, nights:0, accommodation:0, cleaningFee:0, serviceFee:0, taxes:0, total:0 };
+let maxGuests = 99;
+let currentMinNights = 1;
+let bookingData = { nightlyAvg:0,nights:0,accommodation:0,cleaningFee:0,serviceFee:0,taxes:0,total:0 };
 
-// ── Load listing ──
 async function loadListing() {
   try {
     const res = await fetch(`${API_BASE}/api/website/listings`);
@@ -378,10 +411,9 @@ async function loadListing() {
   }
 }
 
-// ── Load real "from" price ──
 async function loadFromPrice() {
   try {
-    const today  = new Date();
+    const today = new Date();
     const future = new Date(); future.setDate(future.getDate() + 30);
     const fmt = d => d.toISOString().split('T')[0];
     const res = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${fmt(today)}&checkOut=${fmt(future)}&guests=1`);
@@ -408,7 +440,6 @@ function renderListing() {
   document.title = `${listing.title||'Property'} – Premium Rentals`;
   allPhotos = listing.pictures || [];
   renderGallery();
-
   const city = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
   document.getElementById('prop-location').textContent = '📍 ' + (city || 'Idaho');
   document.getElementById('prop-title').textContent = listing.title || listing.nickname || 'Luxury Property';
@@ -418,46 +449,50 @@ function renderListing() {
     listing.accommodates? `<div class="prop-stat">👥 Up to <strong>${listing.accommodates}</strong> guests</div>` : '',
     listing.beds        ? `<div class="prop-stat">🛌 <strong>${listing.beds}</strong> beds</div>` : ''
   ].join('');
-
   const desc = [listing.publicDescription?.summary, listing.publicDescription?.access].filter(Boolean).join('\n\n');
   const descEl = document.getElementById('prop-desc');
   descEl.textContent = desc || 'Contact us for more information about this property.';
   if (desc && desc.length > 300) document.getElementById('read-more-btn').style.display = 'block';
   else descEl.classList.remove('description-collapsed');
-
   renderAmenities();
   document.getElementById('prop-address').textContent = city ? `${city} · Exact address provided after booking` : 'Exact address provided after booking';
-
-  // ── Set max guests from listing ──
   maxGuests = listing.accommodates || 99;
   document.getElementById('guests-max-note').textContent = `Max ${maxGuests}`;
+  document.getElementById('guests-input').max = maxGuests;
   updateGuestButtons();
 }
 
-// ── Guest count controls ──
-function changeGuests(delta) {
-  const newCount = guestCount + delta;
-  if (newCount < 1) return;
-  if (newCount > maxGuests) {
-    document.getElementById('guests-warn').textContent = `This property accommodates up to ${maxGuests} guests`;
-    document.getElementById('guests-warn').style.display = 'block';
-    return;
-  }
-  document.getElementById('guests-warn').style.display = 'none';
-  guestCount = newCount;
-  document.getElementById('guests-count').textContent = guestCount;
+// ── Guest counter ──
+function changeGuests(delta) { setGuestCount(guestCount + delta); }
+function onGuestsInputChange() { setGuestCount(parseInt(document.getElementById('guests-input').value) || 1); }
+function setGuestCount(val) {
+  const warnEl = document.getElementById('guests-warn');
+  if (val < 1) val = 1;
+  if (val > maxGuests) {
+    warnEl.textContent = `Max ${maxGuests} guests for this property`;
+    warnEl.style.display = 'block';
+    val = maxGuests;
+  } else { warnEl.style.display = 'none'; }
+  guestCount = val;
+  document.getElementById('guests-input').value = val;
   updateGuestButtons();
-  // Re-check availability with new guest count if dates selected
-  if (selectedCheckIn && selectedCheckOut) {
-    resetPricing();
-    autoCheckAvail(selectedCheckIn, selectedCheckOut);
-  }
+  if (selectedCheckIn && selectedCheckOut) { resetPricing(); autoCheckAvail(selectedCheckIn, selectedCheckOut); }
 }
-
 function updateGuestButtons() {
   document.getElementById('guests-minus').disabled = guestCount <= 1;
   document.getElementById('guests-plus').disabled  = guestCount >= maxGuests;
 }
+
+// ── Cancellation tooltip ──
+function toggleTooltip() {
+  const tt = document.getElementById('cancel-tooltip');
+  tt.classList.toggle('tap-open');
+}
+document.addEventListener('click', e => {
+  const btn = document.getElementById('cancel-tooltip-btn');
+  const tt  = document.getElementById('cancel-tooltip');
+  if (btn && !btn.contains(e.target)) tt?.classList.remove('tap-open');
+});
 
 // ── Gallery ──
 function renderGallery() {
@@ -470,7 +505,6 @@ function renderGallery() {
     </div>`).join('') +
     `<button class="gallery-show-all" onclick="event.stopPropagation();openLightbox(0)">☰ Show all ${allPhotos.length} photos</button>`;
 }
-
 function openLightbox(idx){lbIndex=idx;document.getElementById('lightbox').classList.add('open');document.body.style.overflow='hidden';updateLightbox();}
 function closeLightbox(){document.getElementById('lightbox').classList.remove('open');document.body.style.overflow='';}
 function lbNav(dir){lbIndex=(lbIndex+dir+allPhotos.length)%allPhotos.length;updateLightbox();}
@@ -483,9 +517,7 @@ function updateLightbox(){
 }
 document.addEventListener('keydown',e=>{
   if(!document.getElementById('lightbox').classList.contains('open'))return;
-  if(e.key==='ArrowLeft')lbNav(-1);
-  if(e.key==='ArrowRight')lbNav(1);
-  if(e.key==='Escape')closeLightbox();
+  if(e.key==='ArrowLeft')lbNav(-1);if(e.key==='ArrowRight')lbNav(1);if(e.key==='Escape')closeLightbox();
 });
 
 const amenityIcons={'Air conditioning':'❄️','Wifi':'📶','Wireless Internet':'📶','Internet':'📶','Kitchen':'🍳','Washer':'👕','Dryer':'👕','Free parking on premises':'🅿️','Parking':'🅿️','TV':'📺','Heating':'🔥','Smoke detector':'🔔','Carbon monoxide detector':'🔔','First aid kit':'🩺','Fire extinguisher':'🧯','Pool':'🏊','Hot tub':'🛁','Gym':'🏋️','Sauna':'🧖','Game room':'🎮','Dvd player':'📀','Dishwasher':'🍽️','Refrigerator':'🧊','Microwave':'📡','Coffee maker':'☕','Hair dryer':'💨','Iron':'👔','Essentials':'🧴','Shampoo':'🧴','Bed linens':'🛌','Extra pillows and blankets':'🛌','Crib':'👶','High chair':'👶','Pets allowed':'🐾','Pet allowed':'🐾','Suitable for events':'🎉','Patio or balcony':'🌿','Garden or backyard':'🌿','Indoor fireplace':'🔥','Laptop friendly workspace':'💼','Sound system':'🔊','Garage':'🚗','Ping pong table':'🏓','Board games':'🎲','Game console':'🎮','Wine glasses':'🍷','Oven':'🍳','Stove':'🍳','Toaster':'🍞','Blender':'🥤','Cookware':'🍳','Dining table':'🪑','Desk':'💻'};
@@ -504,41 +536,106 @@ document.getElementById('amenities-modal').addEventListener('click',e=>{if(e.tar
 async function loadCalendar() {
   const now = new Date();
   calYear=now.getFullYear(); calMonth=now.getMonth();
-  sbYear=now.getFullYear();  sbMonth=now.getMonth();
+  sbYear=now.getFullYear(); sbMonth=now.getMonth();
   renderMainCal(); renderSbCal();
   try {
     const future=new Date(); future.setMonth(future.getMonth()+14);
-    const res=await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${now.toISOString().split('T')[0]}&endDate=${future.toISOString().split('T')[0]}`);
+    const fmt = d => d.toISOString().split('T')[0];
+    const res=await fetch(`${API_BASE}/api/website/calendar/${listingId}?startDate=${fmt(now)}&endDate=${fmt(future)}`);
     const data=await res.json();
-    if(data.blockedDates?.length){blockedDates=new Set(data.blockedDates);renderMainCal();renderSbCal();}
+    if(data.blockedDates?.length) blockedDates=new Set(data.blockedDates);
+    if(data.checkoutOnlyDates?.length) checkoutOnlyDates=new Set(data.checkoutOnlyDates);
+    if(data.dayData) dayData=data.dayData;
+    renderMainCal(); renderSbCal();
   } catch(e){console.warn('Calendar load failed:',e.message);}
 }
 
-function selectDate(dateStr) {
-  if(blockedDates.has(dateStr))return;
-  const today=new Date();today.setHours(0,0,0,0);
-  if(new Date(dateStr)<today)return;
-  if(calMode==='checkin'||!selectedCheckIn||(selectedCheckIn&&selectedCheckOut)){
-    selectedCheckIn=dateStr;selectedCheckOut=null;calMode='checkout';
-    updateDateDisplay();resetPricing();
-  } else if(dateStr>selectedCheckIn){
-    let blocked=false;
-    const s=new Date(selectedCheckIn),e=new Date(dateStr);
-    for(let d=new Date(s);d<e;d.setDate(d.getDate()+1)){
-      if(blockedDates.has(d.toISOString().split('T')[0])){blocked=true;break;}
+// ── Get min nights for a date ──
+function getMinNights(dateStr) {
+  return dayData[dateStr]?.minNights || 1;
+}
+
+// ── Earliest valid checkout from a checkin date ──
+function getEarliestCheckout(checkInStr) {
+  const mn = getMinNights(checkInStr);
+  const d = new Date(checkInStr + 'T12:00:00');
+  d.setDate(d.getDate() + mn);
+  return d.toISOString().split('T')[0];
+}
+
+// ── Date selection logic ──
+function selectDate(dateStr, isCheckoutOnly) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (new Date(dateStr+'T12:00:00') < today) return;
+
+  if (calMode === 'checkin' || !selectedCheckIn || (selectedCheckIn && selectedCheckOut)) {
+    // Starting new selection — only allow if not checkout-only
+    if (isCheckoutOnly) return;
+    selectedCheckIn = dateStr;
+    selectedCheckOut = null;
+    calMode = 'checkout';
+    currentMinNights = getMinNights(dateStr);
+    showMinNightsHint(dateStr);
+    updateDateDisplay();
+    resetPricing();
+  } else if (calMode === 'checkout') {
+    const earliestCheckout = getEarliestCheckout(selectedCheckIn);
+    if (dateStr < earliestCheckout) {
+      // Too close — show hint
+      showMinNightsHint(selectedCheckIn);
+      return;
     }
-    if(blocked){
-      selectedCheckIn=dateStr;selectedCheckOut=null;calMode='checkout';
-      updateDateDisplay();resetPricing();setSbHint('Range has unavailable nights. Pick a new check-out.');
-    } else {
-      selectedCheckOut=dateStr;calMode='checkin';
-      updateDateDisplay();autoCheckAvail(selectedCheckIn,selectedCheckOut);
+    if (dateStr <= selectedCheckIn) {
+      // Before checkin — start over
+      if (isCheckoutOnly) return;
+      selectedCheckIn = dateStr;
+      selectedCheckOut = null;
+      currentMinNights = getMinNights(dateStr);
+      showMinNightsHint(dateStr);
+      updateDateDisplay();
+      resetPricing();
+      renderMainCal(); renderSbCal();
+      return;
     }
-  } else {
-    selectedCheckIn=dateStr;selectedCheckOut=null;calMode='checkout';
-    updateDateDisplay();resetPricing();
+    // Check no fully-blocked dates in range
+    let blocked = false;
+    const s = new Date(selectedCheckIn+'T12:00:00');
+    const e = new Date(dateStr+'T12:00:00');
+    for (let d = new Date(s); d < e; d.setDate(d.getDate()+1)) {
+      const ds = d.toISOString().split('T')[0];
+      if (blockedDates.has(ds)) { blocked = true; break; }
+    }
+    if (blocked) {
+      if (isCheckoutOnly) return;
+      selectedCheckIn = dateStr;
+      selectedCheckOut = null;
+      currentMinNights = getMinNights(dateStr);
+      showMinNightsHint(dateStr);
+      updateDateDisplay(); resetPricing();
+      renderMainCal(); renderSbCal();
+      return;
+    }
+    selectedCheckOut = dateStr;
+    calMode = 'checkin';
+    hideMinNightsHint();
+    updateDateDisplay();
+    autoCheckAvail(selectedCheckIn, selectedCheckOut);
   }
-  renderMainCal();renderSbCal();
+  renderMainCal(); renderSbCal();
+}
+
+function showMinNightsHint(checkInStr) {
+  const mn = getMinNights(checkInStr);
+  if (mn <= 1) { hideMinNightsHint(); return; }
+  const earliest = getEarliestCheckout(checkInStr);
+  const d = new Date(earliest+'T12:00:00');
+  const fmt = d.toLocaleDateString('en-US',{month:'short',day:'numeric'});
+  const el = document.getElementById('min-nights-hint');
+  el.textContent = `Minimum ${mn} nights — earliest checkout ${fmt}`;
+  el.style.display = 'block';
+}
+function hideMinNightsHint() {
+  document.getElementById('min-nights-hint').style.display = 'none';
 }
 
 function updateDateDisplay(){
@@ -559,9 +656,10 @@ function updateDateDisplay(){
 }
 
 function setSbHint(msg){document.getElementById('sb-cal-hint').textContent=msg;}
-function resetToCheckin(){if(selectedCheckIn){selectedCheckIn=null;selectedCheckOut=null;calMode='checkin';updateDateDisplay();resetPricing();renderMainCal();renderSbCal();}}
-function clearDates(){selectedCheckIn=null;selectedCheckOut=null;calMode='checkin';updateDateDisplay();resetPricing();renderMainCal();renderSbCal();}
+function resetToCheckin(){selectedCheckIn=null;selectedCheckOut=null;calMode='checkin';hideMinNightsHint();updateDateDisplay();resetPricing();renderMainCal();renderSbCal();}
+function clearDates(){resetToCheckin();}
 
+// ── Render calendars ──
 function renderMainCal(){
   const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const today=new Date();today.setHours(0,0,0,0);
@@ -582,42 +680,67 @@ function renderSbCal(){
 }
 function sbCalNav(dir){sbMonth+=dir;if(sbMonth>11){sbMonth=0;sbYear++;}if(sbMonth<0){sbMonth=11;sbYear--;}renderSbCal();}
 
-function renderMonthGrid(year,month,today){
+function getDayClass(dateStr, today, prefix='') {
+  const date = new Date(dateStr+'T12:00:00');
+  const isPast = date < today;
+  const isBlocked = blockedDates.has(dateStr);
+  const isCheckoutOnly = checkoutOnlyDates.has(dateStr);
+  const isSel = dateStr===selectedCheckIn||dateStr===selectedCheckOut;
+  const inRange = selectedCheckIn&&selectedCheckOut&&dateStr>selectedCheckIn&&dateStr<selectedCheckOut;
+  const isToday = date.toDateString()===today.toDateString();
+
+  // Min nights enforcement
+  const earliestCheckout = selectedCheckIn && calMode==='checkout' ? getEarliestCheckout(selectedCheckIn) : null;
+  const isMinNightsBlocked = earliestCheckout && dateStr > selectedCheckIn && dateStr < earliestCheckout;
+
+  let cls = prefix+'cal-day';
+  if (isPast) cls += ' past';
+  else if (isBlocked) cls += ' blocked';
+  else if (isCheckoutOnly) {
+    if (calMode==='checkout' && selectedCheckIn) cls += ' checkout-only';
+    else cls += ' blocked';
+  }
+  else if (isMinNightsBlocked) cls += ' min-nights-blocked';
+  else cls += ' available';
+
+  if (isSel) cls += ' selected';
+  if (inRange) cls += ' in-range';
+  if (isToday) cls += ' today';
+  return cls;
+}
+
+function renderMonthGrid(year, month, today) {
   const MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
   const DAYS=['Su','Mo','Tu','We','Th','Fr','Sa'];
-  const first=new Date(year,month,1).getDay(),total=new Date(year,month+1,0).getDate();
+  const first=new Date(year,month,1).getDay(), total=new Date(year,month+1,0).getDate();
   let html=`<div class="cal-month-title">${MONTHS[month]} ${year}</div><div class="cal-days-grid">`;
   html+=DAYS.map(d=>`<div class="cal-day-name">${d}</div>`).join('');
-  for(let i=0;i<first;i++)html+=`<div class="cal-day empty"></div>`;
+  for(let i=0;i<first;i++) html+=`<div class="cal-day empty"></div>`;
   for(let d=1;d<=total;d++){
-    const date=new Date(year,month,d);
     const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isPast=date<today,isBlocked=blockedDates.has(dateStr),isToday=date.toDateString()===today.toDateString();
-    const isSel=dateStr===selectedCheckIn||dateStr===selectedCheckOut;
-    const inRange=selectedCheckIn&&selectedCheckOut&&dateStr>selectedCheckIn&&dateStr<selectedCheckOut;
-    let cls='cal-day';
-    if(isPast)cls+=' past';else if(isBlocked)cls+=' blocked';else cls+=' available';
-    if(isSel)cls+=' selected';if(inRange)cls+=' in-range';if(isToday)cls+=' today';
-    html+=`<div class="${cls}"${!isPast&&!isBlocked?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
+    const isCheckoutOnly = checkoutOnlyDates.has(dateStr);
+    const isBlocked = blockedDates.has(dateStr);
+    const isPast = new Date(dateStr+'T12:00:00') < today;
+    const cls = getDayClass(dateStr, today);
+    const canClick = !isPast && !isBlocked || (!isPast && isCheckoutOnly && calMode==='checkout');
+    html+=`<div class="${cls}"${canClick?` onclick="selectDate('${dateStr}',${isCheckoutOnly})"`:''}">${d}</div>`;
   }
   return html+'</div>';
 }
 
-function renderSbMonthGrid(year,month,today){
+function renderSbMonthGrid(year, month, today) {
   const DAYS=['S','M','T','W','T','F','S'];
-  const first=new Date(year,month,1).getDay(),total=new Date(year,month+1,0).getDate();
+  const first=new Date(year,month,1).getDay(), total=new Date(year,month+1,0).getDate();
   let html=DAYS.map(d=>`<div class="sb-cal-day-name">${d}</div>`).join('');
-  for(let i=0;i<first;i++)html+=`<div class="sb-cal-day empty"></div>`;
+  for(let i=0;i<first;i++) html+=`<div class="sb-cal-day empty"></div>`;
   for(let d=1;d<=total;d++){
-    const date=new Date(year,month,d);
     const dateStr=`${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isPast=date<today,isBlocked=blockedDates.has(dateStr),isToday=date.toDateString()===today.toDateString();
-    const isSel=dateStr===selectedCheckIn||dateStr===selectedCheckOut;
-    const inRange=selectedCheckIn&&selectedCheckOut&&dateStr>selectedCheckIn&&dateStr<selectedCheckOut;
-    let cls='sb-cal-day';
-    if(isPast)cls+=' past';else if(isBlocked)cls+=' blocked';else cls+=' available';
-    if(isSel)cls+=' selected';if(inRange)cls+=' in-range';if(isToday)cls+=' today';
-    html+=`<div class="${cls}"${!isPast&&!isBlocked?` onclick="selectDate('${dateStr}')"`:''}>${d}</div>`;
+    const isCheckoutOnly = checkoutOnlyDates.has(dateStr);
+    const isBlocked = blockedDates.has(dateStr);
+    const isPast = new Date(dateStr+'T12:00:00') < today;
+    const cls = getDayClass(dateStr, today, 'sb-');
+    const canClick = !isPast && !isBlocked || (!isPast && isCheckoutOnly && calMode==='checkout');
+    html+=`<div class="${cls}"${canClick?` onclick="selectDate('${dateStr}',${isCheckoutOnly})"`:''}">${d}</div>`;
   }
   return html;
 }
@@ -638,15 +761,11 @@ async function checkAvailAndPrice(ci,co){
   const breakEl=document.getElementById('sb-breakdown');
   const resBtn=document.getElementById('sb-reserve-btn');
   const loadEl=document.getElementById('sb-avail-loading');
-  availEl.style.display='none';breakEl.style.display='none';resBtn.style.display='none';
-  loadEl.style.display='block';
-
+  availEl.style.display='none';breakEl.style.display='none';resBtn.style.display='none';loadEl.style.display='block';
   try {
-    // ── Pass guest count to API so Guesty returns per-guest-adjusted pricing ──
     const res=await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${guestCount}`);
     const data=await res.json();
     loadEl.style.display='none';
-
     if(data.available===false){
       availEl.className='booking-avail no';
       availEl.textContent='✗ These dates are unavailable — please try different dates';
@@ -654,19 +773,13 @@ async function checkAvailAndPrice(ci,co){
       setSbHint('Unavailable. Pick different dates.');
       return;
     }
-
-    const { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total } = data;
-
+    const{nightlyAvg,nights,accommodation,cleaningFee,serviceFee,taxes,total}=data;
     availEl.className='booking-avail ok';
     availEl.textContent='✓ Available!';
     availEl.style.display='block';
     setSbHint('✓ Ready to reserve');
-
     if(nightlyAvg){
-      document.getElementById('from-price-display').innerHTML=`
-        <span class="from-price-num serif">$${Number(nightlyAvg).toLocaleString()}</span>
-        <span class="from-price-label">/ night</span>
-        <div class="from-price-note">Avg rate for selected dates · ${guestCount} guest${guestCount!==1?'s':''}</div>`;
+      document.getElementById('from-price-display').innerHTML=`<span class="from-price-num serif">$${Number(nightlyAvg).toLocaleString()}</span><span class="from-price-label">/ night</span><div class="from-price-note">Avg rate · ${guestCount} guest${guestCount!==1?'s':''}</div>`;
       document.getElementById('sb-nights-lbl').textContent=`$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent=`$${accommodation.toLocaleString()}`;
       document.getElementById('sb-clean').textContent=cleaningFee?`$${cleaningFee.toLocaleString()}`:'Included';
@@ -679,7 +792,6 @@ async function checkAvailAndPrice(ci,co){
       bookingData={nightlyAvg,nights,accommodation,cleaningFee,serviceFee,taxes,total};
     }
     resBtn.style.display='block';
-
   } catch(e){
     loadEl.style.display='none';
     availEl.className='booking-avail ok';
@@ -694,13 +806,9 @@ function proceedBooking(){
   if(!ci||!co){alert('Please select check-in and check-out dates first.');return;}
   const p=new URLSearchParams({
     id:listingId,checkIn:ci,checkOut:co,guests:guestCount,
-    nightlyAvg:bookingData.nightlyAvg,
-    nights:bookingData.nights,
-    accommodation:bookingData.accommodation,
-    cleaningFee:bookingData.cleaningFee,
-    serviceFee:bookingData.serviceFee,
-    taxes:bookingData.taxes,
-    total:bookingData.total
+    nightlyAvg:bookingData.nightlyAvg,nights:bookingData.nights,
+    accommodation:bookingData.accommodation,cleaningFee:bookingData.cleaningFee,
+    serviceFee:bookingData.serviceFee,taxes:bookingData.taxes,total:bookingData.total
   });
   window.location.href=`checkout.html?${p.toString()}`;
 }
@@ -736,5 +844,6 @@ function toggleFav(){
 
 loadListing();
 </script>
+<script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

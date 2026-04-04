@@ -459,16 +459,15 @@ app.post('/api/website/reserve', async (req, res) => {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        listingId,
-        checkInDateLocalized: checkIn,
-        checkOutDateLocalized: checkOut,
-        guestsCount: parseInt(guests) || 1,
-        guestId,
-        source: 'direct',
-        status: 'confirmed',
-        money: { invoiceItems: [] },
-        guestNotes: notes || ''
-      })
+  listingId,
+  checkInDateLocalized: checkIn,
+  checkOutDateLocalized: checkOut,
+  guestsCount: parseInt(guests) || 1,
+  guestId,
+  source: 'direct',
+  status: 'confirmed',
+  money: { invoiceItems: [] }
+})
     });
     const reservationData = await reservationRes.json();
     if (!reservationData._id) throw new Error('Failed to create reservation: ' + JSON.stringify(reservationData));

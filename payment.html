@@ -36,11 +36,6 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .fg input{border:1px solid #e0ddd8;padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--dark);outline:none;border-radius:4px;transition:border-color .2s;background:#fff;width:100%}
 .fg input:focus{border-color:var(--gold)}
 .billing-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-#payment-request-wrap{margin-bottom:24px;display:none}
-#payment-request-btn{width:100%;min-height:48px}
-.pay-divider{display:flex;align-items:center;gap:12px;margin:20px 0}
-.pay-divider::before,.pay-divider::after{content:'';flex:1;height:1px;background:#e0ddd8}
-.pay-divider span{font-size:12px;color:var(--mid);font-weight:500;white-space:nowrap}
 #stripe-card-element{border:1px solid #e0ddd8;padding:14px;border-radius:4px;background:#fff;transition:border-color .2s}
 #stripe-card-element.focused{border-color:var(--gold)}
 .card-errors{color:#c0392b;font-size:13px;margin-top:8px;min-height:20px}
@@ -62,6 +57,16 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .price-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mid);padding:5px 0}
 .price-row.total{font-weight:700;color:var(--dark);font-size:16px;border-top:1px solid #e0ddd8;padding-top:12px;margin-top:6px}
 .secure-badge{display:flex;align-items:center;gap:8px;justify-content:center;padding:14px;background:var(--light);border-top:1px solid #f0ede8;font-size:12px;color:var(--mid)}
+.status-steps{background:var(--light);border:1px solid #eeede9;border-radius:8px;padding:20px 24px;margin-bottom:24px;display:none}
+.status-step{display:flex;align-items:center;gap:12px;font-size:13px;color:var(--mid);padding:6px 0}
+.status-step.active{color:var(--accent);font-weight:600}
+.status-step.done{color:var(--accent)}
+.status-step.error{color:#c0392b}
+.status-dot{width:20px;height:20px;border-radius:50%;background:#e0ddd8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:10px}
+.status-step.active .status-dot{background:var(--accent);animation:pulse 1s infinite}
+.status-step.done .status-dot{background:var(--gold);color:#fff}
+.status-step.error .status-dot{background:#c0392b;color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
 #podium-website-widget{z-index:149!important}
 @media(max-width:900px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:860px){.wrap{grid-template-columns:1fr}.summary-card{position:relative;top:0}.billing-row{grid-template-columns:1fr}}
@@ -93,20 +98,24 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     <h1 class="section-title serif">Secure Payment</h1>
     <div class="form-error" id="form-error"></div>
 
-    <!-- EXPRESS CHECKOUT -->
-    <div id="payment-request-wrap">
-      <div class="form-card" style="padding:24px">
-        <div class="form-card-title">Express Checkout</div>
-        <div id="payment-request-btn"></div>
-        <p style="font-size:11px;color:var(--mid);margin-top:10px;text-align:center">
-          Note: For damage protection and future charges, paying by card is recommended.
-        </p>
+    <!-- PROCESSING STATUS -->
+    <div class="status-steps" id="status-steps">
+      <div class="status-step" id="status-1">
+        <div class="status-dot" id="dot-1">1</div>
+        <span>Validating card details…</span>
       </div>
-      <div class="pay-divider"><span>or pay with card</span></div>
+      <div class="status-step" id="status-2">
+        <div class="status-dot" id="dot-2">2</div>
+        <span>Securing your reservation…</span>
+      </div>
+      <div class="status-step" id="status-3">
+        <div class="status-dot" id="dot-3">3</div>
+        <span>Confirming booking…</span>
+      </div>
     </div>
 
     <!-- CARD FORM -->
-    <div class="form-card">
+    <div class="form-card" id="card-form-wrap">
       <div class="form-card-title">Card Details</div>
       <div class="fg">
         <label>Name on Card</label>
@@ -119,7 +128,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
       </div>
     </div>
 
-    <div class="form-card">
+    <div class="form-card" id="billing-form-wrap">
       <div class="form-card-title">Billing Address</div>
       <div class="fg"><label>Address</label><input type="text" id="billing-address" placeholder="123 Main St" autocomplete="street-address"></div>
       <div class="billing-row">
@@ -134,7 +143,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
         🔒 Your payment is processed securely via Stripe. Premium Rentals never stores your card details.<br><br>
         By completing this booking you agree to our <a href="cancellation.html" style="color:var(--gold)" target="_blank">cancellation policy</a>
         (<strong style="color:var(--dark)">50% refund if cancelled 30+ days before check-in. No refund within 30 days.</strong>)
-        Your card will be charged <strong id="charge-amount" style="color:var(--dark)">the total amount</strong> immediately upon confirmation.
+        Your card will be charged <strong id="charge-amount" style="color:var(--dark)">the total amount</strong> per our payment schedule upon confirmation.
       </div>
     </div>
 
@@ -185,7 +194,7 @@ if (!listingId || !checkIn || !checkOut || !firstName || !email) {
   window.location.href = 'properties.html';
 }
 
-// ── Init Stripe — direct account, no stripeAccount option needed ──
+// ── Init Stripe ──
 const stripe   = Stripe(STRIPE_PK);
 const elements = stripe.elements();
 
@@ -206,49 +215,6 @@ card.on('focus',  () => document.getElementById('stripe-card-element').classList
 card.on('blur',   () => document.getElementById('stripe-card-element').classList.remove('focused'));
 card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
 
-// ── Payment Request Button (Apple Pay / Google Pay / Link) ──
-async function initPaymentRequest() {
-  if (!total) return;
-  const pr = stripe.paymentRequest({
-    country:  'US',
-    currency: 'usd',
-    total:    { label: 'Premium Rentals Booking', amount: Math.round(total * 100) },
-    requestPayerName:  true,
-    requestPayerEmail: true,
-    requestPayerPhone: true
-  });
-  const canMakePayment = await pr.canMakePayment();
-  if (canMakePayment) {
-    document.getElementById('payment-request-wrap').style.display = 'block';
-    const prBtn = elements.create('paymentRequestButton', {
-      paymentRequest: pr,
-      style: { paymentRequestButton: { type: 'book', theme: 'dark', height: '48px' } }
-    });
-    prBtn.mount('#payment-request-btn');
-    pr.on('paymentmethod', async (ev) => {
-      try {
-        const res  = await fetch(`${API_BASE}/api/website/reserve`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            listingId, checkIn, checkOut, guests,
-            firstName: ev.payerName?.split(' ')[0] || firstName,
-            lastName:  ev.payerName?.split(' ').slice(1).join(' ') || lastName,
-            email:     ev.payerEmail || email,
-            phone:     ev.payerPhone || phone,
-            stripePaymentMethodId: ev.paymentMethod.id,
-            totalAmount: total
-          })
-        });
-        const data = await res.json();
-        if (!data.success) { ev.complete('fail'); showError(data.error || 'Booking failed.'); return; }
-        ev.complete('success');
-        window.location.href = `confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(ev.payerName?.split(' ')[0]||firstName)}`;
-      } catch(e) { ev.complete('fail'); showError(e.message || 'Something went wrong.'); }
-    });
-  }
-}
-
 // ── Auto uppercase state ──
 document.getElementById('billing-state').addEventListener('input', function() {
   this.value = this.value.toUpperCase();
@@ -260,6 +226,25 @@ function fmtDate(str) {
   return new Date(str+'T12:00:00').toLocaleDateString('en-US', {
     weekday:'short', month:'short', day:'numeric', year:'numeric'
   });
+}
+
+// ── Status steps UI ──
+function showStatus() {
+  document.getElementById('status-steps').style.display = 'block';
+  document.getElementById('card-form-wrap').style.opacity = '.4';
+  document.getElementById('billing-form-wrap').style.opacity = '.4';
+}
+function setStep(step, state) {
+  const el  = document.getElementById(`status-${step}`);
+  const dot = document.getElementById(`dot-${step}`);
+  el.className  = `status-step ${state}`;
+  dot.textContent = state === 'done' ? '✓' : state === 'error' ? '✗' : step;
+}
+function resetStatus() {
+  document.getElementById('status-steps').style.display = 'none';
+  document.getElementById('card-form-wrap').style.opacity = '1';
+  document.getElementById('billing-form-wrap').style.opacity = '1';
+  [1,2,3].forEach(i => setStep(i, ''));
 }
 
 // ── Load summary ──
@@ -290,13 +275,16 @@ async function loadSummary() {
       <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee?'$'+cleaningFee.toLocaleString():'Included'}</span></div>
       <div class="price-row"><span>Service fee</span><span>$${serviceFee.toLocaleString()}</span></div>
       <div class="price-row"><span>Taxes</span><span>$${taxes.toLocaleString()}</span></div>
-      <div class="price-row total"><span>Total charged today</span><span>$${total.toLocaleString()}</span></div>`;
+      <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
   }
 }
 
 // ── Submit payment ──
-// Creates PaymentMethod on your direct Stripe account
-// stripeCardToken (pm_...) sent to backend → Guesty attaches via stripeCardToken field
+// Flow:
+// 1. Create SetupIntent on backend → validate card is real ($0 auth)
+// 2. If SetupIntent fails → show error, STOP — no reservation created
+// 3. If SetupIntent passes → proceed with reservation
+// 4. Everything in Guesty stays identical
 async function submitPayment() {
   const cardName = document.getElementById('card-name').value.trim();
   const btn      = document.getElementById('submit-btn');
@@ -306,49 +294,85 @@ async function submitPayment() {
 
   document.getElementById('form-error').classList.remove('show');
   btn.disabled    = true;
-  btn.textContent = 'Processing payment…';
+  btn.textContent = 'Processing…';
+  showStatus();
 
   try {
-    const { paymentMethod, error: stripeError } = await stripe.createPaymentMethod({
-      type: 'card',
-      card,
-      billing_details: {
-        name:  cardName,
-        email,
-        phone: phone || undefined,
-        address: {
-          line1:       document.getElementById('billing-address').value.trim(),
-          city:        document.getElementById('billing-city').value.trim(),
-          state:       document.getElementById('billing-state').value.trim(),
-          postal_code: document.getElementById('billing-zip').value.trim(),
-          country:     'US'
+    // ── Step 1: Pre-auth via SetupIntent ──
+    // Creates $0 authorization to validate card is real and chargeable
+    // If this fails — card is invalid/declined — we STOP here
+    setStep(1, 'active');
+
+    // Get SetupIntent client secret from backend
+    const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email, name: `${firstName} ${lastName}` })
+    });
+    const siData = await siRes.json();
+    if (!siData.success) throw new Error(siData.error || 'Could not initialize payment.');
+
+    // Confirm SetupIntent with card — this validates the card
+    const { setupIntent, error: setupError } = await stripe.confirmCardSetup(
+      siData.clientSecret,
+      {
+        payment_method: {
+          card,
+          billing_details: {
+            name:  cardName,
+            email,
+            phone: phone || undefined,
+            address: {
+              line1:       document.getElementById('billing-address').value.trim(),
+              city:        document.getElementById('billing-city').value.trim(),
+              state:       document.getElementById('billing-state').value.trim(),
+              postal_code: document.getElementById('billing-zip').value.trim(),
+              country:     'US'
+            }
+          }
         }
       }
-    });
+    );
 
-    if (stripeError) {
-      showError(stripeError.message);
-      btn.disabled    = false;
-      btn.textContent = '🔒 Confirm & Pay Now';
-      return;
+    if (setupError) {
+      // Card is invalid or declined — STOP, no reservation created
+      setStep(1, 'error');
+      throw new Error(setupError.message);
     }
 
+    // Card validated ✅ — get the confirmed payment method ID
+    const confirmedPaymentMethodId = setupIntent.payment_method;
+    setStep(1, 'done');
+
+    // ── Step 2: Create reservation in Guesty ──
+    setStep(2, 'active');
     const res  = await fetch(`${API_BASE}/api/website/reserve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         listingId, checkIn, checkOut, guests,
         firstName, lastName, email, phone,
-        stripePaymentMethodId: paymentMethod.id,
+        stripePaymentMethodId: confirmedPaymentMethodId,
         totalAmount: total
       })
     });
     const data = await res.json();
-    if (!data.success) throw new Error(data.error || 'Booking failed');
+    if (!data.success) {
+      setStep(2, 'error');
+      throw new Error(data.error || 'Booking failed. Please try again.');
+    }
+    setStep(2, 'done');
 
+    // ── Step 3: Confirming ──
+    setStep(3, 'active');
+    await new Promise(r => setTimeout(r, 800)); // brief pause for UX
+    setStep(3, 'done');
+
+    // Redirect to confirmation
     window.location.href = `confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(firstName)}`;
 
   } catch(e) {
+    resetStatus();
     showError(e.message || 'Something went wrong. Please try again or contact us.');
     btn.disabled    = false;
     btn.textContent = '🔒 Confirm & Pay Now';
@@ -363,7 +387,6 @@ function showError(msg) {
 }
 
 loadSummary();
-initPaymentRequest();
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

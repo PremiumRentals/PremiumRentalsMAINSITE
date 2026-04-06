@@ -236,8 +236,8 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       });
     }
 
-    console.log('Invoice items:', JSON.stringify(quoteData.rates?.ratePlans?.[0]?.money?.money?.invoiceItems));
-console.log('Money object:', JSON.stringify(quoteData.rates?.ratePlans?.[0]?.money?.money).slice(0,500));
+    console.log('Full ratePlan keys:', JSON.stringify(Object.keys(quoteData.rates?.ratePlans?.[0] || {})));
+console.log('Full quote money:', JSON.stringify(quoteData.rates?.ratePlans?.[0]?.money).slice(0, 800));
     
     // Extract exact pricing — handles both invoice items and day prices
     const pricing = extractPricingFromQuote(quoteData, nights);

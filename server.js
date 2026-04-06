@@ -18,12 +18,12 @@ app.use(cors({
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ── Guesty Auth ──
-let guestyToken = null;
-let guestyTokenExpiry = 0;
+// ── Open API Auth (listings cache, reviews, guests, fee config) ──
+let openApiToken = null;
+let openApiTokenExpiry = 0;
 
-async function getGuestyToken() {
-  if (guestyToken && Date.now() < guestyTokenExpiry) return guestyToken;
+async function getOpenApiToken() {
+  if (openApiToken && Date.now() < openApiTokenExpiry) return openApiToken;
   const res = await fetch('https://open-api.guesty.com/oauth2/token', {
     method: 'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -35,27 +35,50 @@ async function getGuestyToken() {
     })
   });
   const d = await res.json();
-  if (!d.access_token) throw new Error('Guesty auth failed: ' + JSON.stringify(d));
-  guestyToken = d.access_token;
-  guestyTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
-  return guestyToken;
+  if (!d.access_token) throw new Error('Open API auth failed: ' + JSON.stringify(d));
+  openApiToken = d.access_token;
+  openApiTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
+  console.log('Open API token refreshed');
+  return openApiToken;
+}
+
+// ── BE-API Auth (availability, pricing, reservations) ──
+let beApiToken = null;
+let beApiTokenExpiry = 0;
+
+async function getBeApiToken() {
+  if (beApiToken && Date.now() < beApiTokenExpiry) return beApiToken;
+  const res = await fetch('https://booking.guesty.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'booking_engine:api',
+      client_id: process.env.GUESTY_BE_CLIENT_ID,
+      client_secret: process.env.GUESTY_BE_CLIENT_SECRET
+    })
+  });
+  const d = await res.json();
+  if (!d.access_token) throw new Error('BE-API auth failed: ' + JSON.stringify(d));
+  beApiToken = d.access_token;
+  beApiTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
+  console.log('BE-API token refreshed');
+  return beApiToken;
 }
 
 // ── Cache Layer ──
 const cache = {};
-const CACHE_TTL = 5 * 60 * 1000;
-
 function getCache(key) {
   const entry = cache[key];
   if (!entry) return null;
   if (Date.now() > entry.expiry) { delete cache[key]; return null; }
   return entry.data;
 }
-function setCache(key, data, ttl = CACHE_TTL) {
+function setCache(key, data, ttl) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Fee Config ──
+// ── Fee Config (Open API) ──
 let feeConfigCache = null;
 let feeConfigExpiry = 0;
 
@@ -66,7 +89,7 @@ async function getFeeConfig() {
   let salesTaxRate   = parseFloat(process.env.SALES_TAX_RATE)   || 0.06;
   let source = 'env_vars';
   try {
-    const token = await getGuestyToken();
+    const token = await getOpenApiToken();
     const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
       headers: { Authorization: `Bearer ${token}` }
     });
@@ -85,124 +108,17 @@ async function getFeeConfig() {
       source = 'guesty_account';
     }
   } catch(e) {
-    console.warn('Could not fetch account fees from Guesty:', e.message);
+    console.warn('Could not fetch account fees:', e.message);
   }
-  feeConfigCache = {
-    serviceFeeRate, tourismTaxRate, salesTaxRate,
-    totalTaxRate: tourismTaxRate + salesTaxRate, source
-  };
+  feeConfigCache = { serviceFeeRate, tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate, source };
   feeConfigExpiry = Date.now() + (60 * 60 * 1000);
   return feeConfigCache;
-}
-
-// ── Helper: cleaning fee ──
-async function getCleaningFee(listingId) {
-  const cached = cache['listings_all'];
-  if (cached) {
-    const listing = cached.data?.find(l => l._id === listingId);
-    if (listing) return listing?.prices?.cleaningFee || 0;
-  }
-  try {
-    const token = await getGuestyToken();
-    const res = await fetch(
-      `https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data = await res.json();
-    return data?.prices?.cleaningFee || 0;
-  } catch(e) {
-    console.warn('Could not fetch cleaning fee for', listingId, e.message);
-    return 0;
-  }
-}
-
-// ── Helper: listing tax override ──
-function getListingTaxOverride(listingId) {
-  const cached = cache['listings_all'];
-  if (!cached) return null;
-  const listing = cached.data?.find(l => l._id === listingId);
-  if (!listing) return null;
-  if (listing.useAccountTaxes !== false) return null;
-  const taxes = listing.taxes || [];
-  if (!taxes.length) return null;
-  let tourismTaxRate = 0, salesTaxRate = 0;
-  taxes.forEach(tax => {
-    if (tax.units === 'PERCENTAGE') {
-      const rate = tax.amount / 100;
-      if (tax.type === 'TOURISM_TAX') tourismTaxRate += rate;
-      else salesTaxRate += rate;
-    }
-  });
-  return { tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate };
-}
-
-// ── Calculate pricing ──
-async function calculatePricing(listingId, days, nights) {
-  const fees = await getFeeConfig();
-  const stayDays  = days.slice(0, nights).filter(d => d.price);
-  const allDays   = days.filter(d => d.price);
-  const priceDays = stayDays.length > 0 ? stayDays : allDays;
-  let nightlyAvg  = 0;
-  if (priceDays.length > 0) {
-    nightlyAvg = Math.round(priceDays.reduce((a,b) => a + b.price, 0) / priceDays.length);
-  }
-  const accommodation = nightlyAvg * nights;
-  const cleaningFee   = await getCleaningFee(listingId);
-  const serviceFee    = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
-  const taxOverride   = getListingTaxOverride(listingId);
-  const taxRate       = taxOverride ? taxOverride.totalTaxRate : fees.totalTaxRate;
-  const taxes         = Math.round((accommodation + cleaningFee + serviceFee) * taxRate * 100) / 100;
-  const total         = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
-  return {
-    nightlyAvg, nights, accommodation, cleaningFee,
-    serviceFeeRate: fees.serviceFeeRate, serviceFee,
-    taxRate, taxes, total,
-    feeSource: taxOverride ? 'listing_specific' : fees.source
-  };
-}
-
-// ── Guesty reservation with retry ──
-async function createGuestyReservation(token, payload, retries = 3) {
-  for (let attempt = 1; attempt <= retries; attempt++) {
-    try {
-      const res = await fetch('https://open-api.guesty.com/v1/reservations', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      const text = await res.text();
-      let data;
-      try {
-        data = JSON.parse(text);
-      } catch(e) {
-        if (attempt === retries) throw new Error('Guesty reservation failed: ' + text.slice(0, 200));
-        await new Promise(r => setTimeout(r, 1000 * attempt));
-        continue;
-      }
-      if (!data._id) {
-        if (attempt === retries) {
-          const errMsg = JSON.stringify(data);
-          if (errMsg.includes('minNights')) {
-            throw new Error('This property requires a longer minimum stay for your selected dates. Please go back and select different dates.');
-          }
-          throw new Error('Failed to create reservation: ' + errMsg);
-        }
-        console.warn(`Guesty reservation attempt ${attempt} failed:`, JSON.stringify(data));
-        await new Promise(r => setTimeout(r, 1000 * attempt));
-        continue;
-      }
-      return data;
-    } catch(e) {
-      if (attempt === retries) throw e;
-      await new Promise(r => setTimeout(r, 1000 * attempt));
-    }
-  }
 }
 
 // ── Pricing sync ──
 async function syncPricing() {
   console.log('Starting pricing sync...');
-  const token = await getGuestyToken();
+  const token = await getOpenApiToken();
   const listRes = await fetch('https://open-api.guesty.com/v1/listings?limit=100', {
     headers: { Authorization: `Bearer ${token}` }
   });
@@ -211,27 +127,13 @@ async function syncPricing() {
   const today  = new Date();
   const future = new Date(); future.setDate(future.getDate() + 30);
   const fmt    = d => d.toISOString().split('T')[0];
-  const checkIn = fmt(today), checkOut = fmt(future);
   let synced = 0, failed = 0;
   for (const listing of listings) {
     try {
       await new Promise(r => setTimeout(r, 300));
-      const avRes = await fetch(
-        `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listing._id}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const avData = await avRes.json();
-      const days   = avData.data?.days || avData.days || [];
-      let nightlyRate = null, nextAvailableDate = null;
-      const firstAvail = days.find(d => {
-        const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
-        return isAvail && d.price;
-      });
-      if (firstAvail) { nightlyRate = firstAvail.price; nextAvailableDate = firstAvail.date; }
-      if (!nightlyRate) nightlyRate = listing.prices?.basePrice || null;
       const { error } = await supabase.from('listing_pricing').upsert({
-        listing_id: listing._id, nightly_rate: nightlyRate, currency: 'USD',
-        next_available_date: nextAvailableDate, updated_at: new Date().toISOString()
+        listing_id: listing._id, nightly_rate: listing.prices?.basePrice || null,
+        currency: 'USD', updated_at: new Date().toISOString()
       }, { onConflict: 'listing_id' });
       if (error) throw error;
       synced++;
@@ -241,18 +143,19 @@ async function syncPricing() {
   return { synced, failed, total: listings.length };
 }
 
-// ── Route 1: Listings ──
+// ── Route 1: Listings (BE-API) ──
+// Uses BE-API for richer listing data including availability
 app.get('/api/website/listings', async (req, res) => {
   try {
     const cached = getCache('listings_all');
     if (cached) return res.json({ success: true, count: cached.length, listings: cached, cached: true });
-    const token    = await getGuestyToken();
-    const response = await fetch('https://open-api.guesty.com/v1/listings?limit=100', {
-      headers: { Authorization: `Bearer ${token}` }
+    const token    = await getBeApiToken();
+    const response = await fetch('https://booking.guesty.com/api/listings?limit=100', {
+      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
     });
     const data    = await response.json();
-    const results = (data.results || []).filter(l => l.active !== false);
-    setCache('listings_all', results);
+    const results = data.results || [];
+    setCache('listings_all', results, 5 * 60 * 1000);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch(e) {
     const stale = cache['listings_all'];
@@ -261,86 +164,157 @@ app.get('/api/website/listings', async (req, res) => {
   }
 });
 
-// ── Route 2: Availability + pricing ──
-// ⚠️ Do NOT pass guests param — causes Guesty to return empty days array
+// ── Route 2: Availability + exact pricing (BE-API quote) ──
+// Uses BE-API quote endpoint for EXACT pricing — no more ~$1 rounding gap
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
     const { checkIn, checkOut, guests } = req.query;
     if (!checkIn || !checkOut) return res.status(400).json({ error: 'checkIn and checkOut required' });
+
     const cacheKey = `avail_${listingId}_${checkIn}_${checkOut}_${guests||1}`;
     const cached   = getCache(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
-    const token  = await getGuestyToken();
-    const calRes = await fetch(
-      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${checkIn}&endDate=${checkOut}&includeAllotment=true`,
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const calData = await calRes.json();
-    const days    = calData.data?.days || calData.days || [];
-    const hasBlocked = days.some(d => {
-      const isAvail = typeof d.allotment === 'number' ? d.allotment > 0 : d.status === 'available';
-      return !isAvail;
+
+    const token = await getBeApiToken();
+
+    // Create quote to get exact pricing
+    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify({
+        listingId,
+        checkInDateLocalized:  checkIn,
+        checkOutDateLocalized: checkOut,
+        guestsCount: parseInt(guests) || 1
+      })
     });
-    const nights  = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-    const pricing = await calculatePricing(listingId, days, nights);
-    const result  = { available: !hasBlocked, days, ...pricing };
+
+    const quoteText = await quoteRes.text();
+    let quoteData;
+    try { quoteData = JSON.parse(quoteText); } catch(e) { throw new Error('Quote parse error: ' + quoteText.slice(0, 200)); }
+
+    // Check if property is available
+    if (quoteRes.status === 400 || !quoteData._id) {
+      return res.json({ success: true, available: false, error: quoteData.message || 'Not available' });
+    }
+
+    // Extract pricing from quote
+    const ratePlan = quoteData.rates?.ratePlans?.[0];
+    const money    = ratePlan?.money?.money || ratePlan?.money || {};
+    const days     = ratePlan?.days || [];
+    const nights   = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+
+    // Get exact amounts from quote invoice items
+    const invoiceItems   = money.invoiceItems || [];
+    const accommodation  = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount || money.fareAccommodation || 0;
+    const cleaningFee    = invoiceItems.find(i => i.type === 'CLEANING_FEE')?.amount || money.fareCleaning || 0;
+    const nightlyAvg     = nights > 0 ? Math.round(accommodation / nights) : 0;
+
+    // Use Guesty's exact tax and fee calculations
+    const totalTaxes     = money.totalTaxes || 0;
+    const hostServiceFee = money.hostServiceFee || 0;
+    const subTotal       = money.subTotalPrice || (accommodation + cleaningFee);
+    const total          = money.subTotalPrice
+      ? Math.round((money.subTotalPrice + totalTaxes) * 100) / 100
+      : Math.round((accommodation + cleaningFee + hostServiceFee + totalTaxes) * 100) / 100;
+
+    // Service fee — use our rate if Guesty doesn't provide it
+    const fees       = await getFeeConfig();
+    const serviceFee = hostServiceFee || Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
+    const taxes      = totalTaxes || Math.round((accommodation + cleaningFee + serviceFee) * fees.totalTaxRate * 100) / 100;
+    const finalTotal = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
+
+    const result = {
+      available:    true,
+      quoteId:      quoteData._id,
+      ratePlanId:   ratePlan?.ratePlan?._id || 'default-rateplan-id',
+      days,
+      nights,
+      nightlyAvg,
+      accommodation,
+      cleaningFee,
+      serviceFee,
+      taxes,
+      total:        finalTotal,
+      feeSource:    'be_api_quote'
+    };
+
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result });
+
   } catch(e) {
+    console.error('Availability error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 3: Calendar with full day data ──
+// ── Route 3: Calendar (BE-API) ──
+// Clean status-based calendar — no more allotment/blocks guessing
 app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
     const { startDate, endDate } = req.query;
     if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
+
     const cacheKey = `cal_${listingId}_${startDate}_${endDate}`;
     const cached   = getCache(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
-    const token    = await getGuestyToken();
+
+    const token    = await getBeApiToken();
     const response = await fetch(
-      `https://open-api.guesty.com/v1/availability-pricing/api/calendar/listings/${listingId}?startDate=${startDate}&endDate=${endDate}&includeAllotment=true`,
-      { headers: { Authorization: `Bearer ${token}` } }
+      `https://booking.guesty.com/api/listings/${listingId}/calendar?from=${startDate}&to=${endDate}`,
+      { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } }
     );
-    const data = await response.json();
-    const days = data.data?.days || data.days || [];
+    const days = await response.json();
+
+    if (!Array.isArray(days)) throw new Error('Invalid calendar response');
+
     const blockedDates      = [];
     const checkoutOnlyDates = [];
     const dayData           = {};
+
     days.forEach((day, index) => {
-      const isAvailable = typeof day.allotment === 'number'
-        ? day.allotment > 0
-        : day.status === 'available';
+      // BE-API gives us clean status field — no more allotment guessing
+      const isAvailable = day.status === 'available';
+      const isReserved  = day.status === 'reserved' || day.status === 'booked';
+
       if (day.minNights) dayData[day.date] = { minNights: day.minNights };
+
       if (!isAvailable) {
-        const prevDay = index > 0 ? days[index - 1] : null;
-        const prevAvailable = prevDay
-          ? (typeof prevDay.allotment === 'number'
-              ? prevDay.allotment > 0
-              : prevDay.status === 'available')
-          : true;
-        const isGuestCheckin = (day.blocks?.r || day.blocks?.b) && day.cta;
-        const isBlockStart   = (day.blocks?.m || day.blocks?.o) && prevAvailable;
-        if (isGuestCheckin || isBlockStart) {
+        const prevDay       = index > 0 ? days[index - 1] : null;
+        const prevAvailable = prevDay ? prevDay.status === 'available' : true;
+
+        // ctd = closed to departure (checkout not allowed)
+        // cta = closed to arrival (checkin not allowed)
+        // If previous day was available and today is blocked — checkout allowed
+        const isCheckoutOnly = (!day.ctd && prevAvailable && isReserved) ||
+                               (day.cta && !day.ctd && prevAvailable);
+
+        if (isCheckoutOnly) {
           checkoutOnlyDates.push(day.date);
         } else {
           blockedDates.push(day.date);
         }
       }
     });
+
     const result = {
       blockedDates:      blockedDates.sort(),
       checkoutOnlyDates: checkoutOnlyDates.sort(),
       dayData,
       totalDays: days.length
     };
+
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result, cached: false });
+
   } catch(e) {
+    console.error('Calendar error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
@@ -367,12 +341,12 @@ app.post('/api/website/sync-pricing', async (req, res) => {
   } catch(e) { console.error('Sync error:', e.message); }
 });
 
-// ── Route 6: Reviews ──
+// ── Route 6: Reviews (Open API) ──
 app.get('/api/website/reviews', async (req, res) => {
   try {
     const cached = getCache('reviews');
     if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
-    const token    = await getGuestyToken();
+    const token    = await getOpenApiToken();
     const response = await fetch(
       'https://open-api.guesty.com/v1/reviews?limit=50&fields=rating,publicReview,reviewer,listingId,createdAt',
       { headers: { Authorization: `Bearer ${token}` } }
@@ -424,44 +398,43 @@ app.get('/api/website/fee-config', async (req, res) => {
 });
 
 // ── Route 10: Create SetupIntent ──
-// Creates a $0 authorization to validate card before reservation
-// If this fails — card is invalid/declined — frontend stops immediately
-// No reservation is created if SetupIntent fails
+// Pre-auth validates card before reservation is created
+// If this fails — invalid/declined card — frontend stops immediately
 app.post('/api/website/create-setup-intent', async (req, res) => {
   try {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email required' });
-
-    // Find or create Stripe customer
     const customers = await stripe.customers.list({ email, limit: 1 });
     let customer = customers.data[0];
     if (!customer) {
       customer = await stripe.customers.create({ email, name: name || email });
-      console.log('Created Stripe customer for setup intent:', customer.id);
+      console.log('Created Stripe customer:', customer.id);
     } else {
-      console.log('Found Stripe customer for setup intent:', customer.id);
+      console.log('Found Stripe customer:', customer.id);
     }
-
-    // Create SetupIntent — validates card is real and chargeable
     const setupIntent = await stripe.setupIntents.create({
       customer:             customer.id,
       payment_method_types: ['card'],
-      usage:                'off_session', // allows future charges when guest not present
-      metadata: { email, name: name || '' }
+      usage:                'off_session',
+      metadata:             { email, name: name || '' }
     });
-
     console.log('Created SetupIntent:', setupIntent.id);
     res.json({ success: true, clientSecret: setupIntent.client_secret });
-
   } catch(e) {
     console.error('SetupIntent error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 11: Reserve ──
-// Card pre-auth happens on frontend via SetupIntent BEFORE this is called
-// If we reach this endpoint the card is already validated
+// ── Route 11: Reserve (BE-API) ──
+// Full flow:
+// 1. Find/create Guesty guest (Open API)
+// 2. Save to Stripe customer
+// 3. Get paymentProviderId (Open API)
+// 4. Create fresh quote (BE-API) — ensures pricing is current
+// 5. Create instant reservation from quote (BE-API) — passes pm_... directly
+// 6. Attach payment to guest for automation (Open API)
+// 7. Save to Supabase
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -474,14 +447,15 @@ app.post('/api/website/reserve', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    const gToken = await getGuestyToken();
+    const openToken = await getOpenApiToken();
+    const beToken   = await getBeApiToken();
 
-    // ── Step 1: Find or create guest in Guesty ──
+    // ── Step 1: Find or create guest (Open API) ──
     console.log(`Creating reservation for ${firstName} ${lastName} (${email})`);
     let guestId = null;
     const guestSearchRes  = await fetch(
       `https://open-api.guesty.com/v1/guests?email=${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${gToken}` } }
+      { headers: { Authorization: `Bearer ${openToken}` } }
     );
     const guestSearchData = await guestSearchRes.json();
     const existingGuest   = guestSearchData.results?.[0];
@@ -491,7 +465,7 @@ app.post('/api/website/reserve', async (req, res) => {
     } else {
       const guestCreateRes  = await fetch('https://open-api.guesty.com/v1/guests', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
         body: JSON.stringify({ firstName, lastName, email, phone })
       });
       const guestCreateData = await guestCreateRes.json();
@@ -500,23 +474,7 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Created new guest:', guestId);
     }
 
-    // ── Step 2: Get payment provider ID for this listing ──
-    console.log('Getting payment provider for listing:', listingId);
-    let paymentProviderId = null;
-    try {
-      const ppRes  = await fetch(
-        `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
-        { headers: { Authorization: `Bearer ${gToken}` } }
-      );
-      const ppData = await ppRes.json();
-      paymentProviderId = ppData.paymentProviderId || ppData._id;
-      console.log('Payment provider:', paymentProviderId);
-    } catch(e) {
-      console.warn('Could not get payment provider:', e.message);
-    }
-
-    // ── Step 3: Save to Stripe customer for reusability ──
-    // Card already validated via SetupIntent — just ensure customer linkage
+    // ── Step 2: Save to Stripe customer ──
     try {
       const customers = await stripe.customers.list({ email, limit: 1 });
       let customer = customers.data[0];
@@ -533,119 +491,117 @@ app.post('/api/website/reserve', async (req, res) => {
       await stripe.customers.update(customer.id, {
         invoice_settings: { default_payment_method: stripePaymentMethodId }
       });
-      console.log('Payment method confirmed on Stripe customer:', customer.id);
+      console.log('Payment method saved to Stripe customer:', customer.id);
     } catch(e) {
-      console.warn('Stripe customer update warning:', e.message);
+      console.warn('Stripe customer warning:', e.message);
     }
 
-    // ── Step 4: Attach payment method to Guesty guest ──
-    // ⚠️ stripeCardToken field — NOT token
-    // ⚠️ skipSetupIntent: true — we handled setup on frontend
-    console.log('Attaching payment method to Guesty guest:', guestId);
+    // ── Step 3: Get paymentProviderId (Open API) ──
+    let paymentProviderId = null;
+    try {
+      const ppRes  = await fetch(
+        `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
+        { headers: { Authorization: `Bearer ${openToken}` } }
+      );
+      const ppData = await ppRes.json();
+      paymentProviderId = ppData.paymentProviderId || ppData._id;
+      console.log('Payment provider:', paymentProviderId);
+    } catch(e) {
+      console.warn('Could not get payment provider:', e.message);
+    }
+
+    // ── Step 4: Create fresh quote (BE-API) ──
+    // Always create a fresh quote at reservation time to ensure pricing is current
+    console.log('Creating fresh quote for reservation...');
+    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${beToken}`,
+        'Content-Type': 'application/json',
+        accept: 'application/json'
+      },
+      body: JSON.stringify({
+        listingId,
+        checkInDateLocalized:  checkIn,
+        checkOutDateLocalized: checkOut,
+        guestsCount: parseInt(guests) || 1
+      })
+    });
+    const quoteText = await quoteRes.text();
+    let quoteData;
+    try { quoteData = JSON.parse(quoteText); } catch(e) { throw new Error('Quote parse error: ' + quoteText.slice(0,200)); }
+    if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0,200));
+    const quoteId    = quoteData._id;
+    const ratePlanId = quoteData.rates?.ratePlans?.[0]?.ratePlan?._id || 'default-rateplan-id';
+    console.log('Quote created:', quoteId, 'Rate plan:', ratePlanId);
+
+    // ── Step 5: Create instant reservation from quote (BE-API) ──
+    // BE-API accepts pm_... directly via ccToken field
+    // No more stripeCardToken complexity from Open API
+    console.log('Creating instant reservation from quote...');
+
+    // Delay per Guesty docs to avoid race conditions
+    await new Promise(r => setTimeout(r, 2000));
+
+    const reserveRes = await fetch(
+      `https://booking.guesty.com/api/reservations/quotes/${quoteId}/instant`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `Bearer ${beToken}`,
+          'Content-Type': 'application/json',
+          accept: 'application/json'
+        },
+        body: JSON.stringify({
+          ratePlanId,
+          ccToken: stripePaymentMethodId,
+          guest: {
+            firstName,
+            lastName,
+            email,
+            phone: phone || undefined
+          }
+        })
+      }
+    );
+    const reserveText = await reserveRes.text();
+    let reserveData;
+    try { reserveData = JSON.parse(reserveText); } catch(e) { throw new Error('Reservation parse error: ' + reserveText.slice(0,200)); }
+    if (!reserveData._id) throw new Error('Failed to create reservation: ' + JSON.stringify(reserveData).slice(0,200));
+
+    const reservationId    = reserveData._id;
+    const confirmationCode = reserveData.confirmationCode || reservationId;
+    console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
+
+    // ── Step 6: Attach payment to guest for automation (Open API) ──
+    // Links card to Guesty guest for 49%/51% auto-payment schedule
+    console.log('Attaching payment to Guesty guest for automation...');
     let guestyPaymentMethodId = null;
     try {
-      const pmBody = {
-        stripeCardToken:   stripePaymentMethodId,
-        paymentProviderId: paymentProviderId,
-        skipSetupIntent:   true,
-        reuse:             true
-      };
-      console.log('Payment method attach body:', JSON.stringify(pmBody));
       const pmRes  = await fetch(
         `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
         {
           method: 'POST',
-          headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(pmBody)
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stripeCardToken:   stripePaymentMethodId,
+            paymentProviderId: paymentProviderId,
+            reservationId:     reservationId,
+            skipSetupIntent:   true,
+            reuse:             true
+          })
         }
       );
       const pmText = await pmRes.text();
       let pmData;
       try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
-      console.log('Payment method attach to guest:', JSON.stringify(pmData).slice(0, 300));
+      console.log('Payment attached to guest:', JSON.stringify(pmData).slice(0, 200));
       guestyPaymentMethodId = pmData._id || pmData.id;
     } catch(e) {
-      console.warn('Could not attach payment method to Guesty guest:', e.message);
+      console.warn('Could not attach payment to guest:', e.message);
     }
 
-    // ── Step 5: Create reservation in Guesty ──
-    const reservationData  = await createGuestyReservation(gToken, {
-      listingId,
-      checkInDateLocalized:  checkIn,
-      checkOutDateLocalized: checkOut,
-      guestsCount: parseInt(guests) || 1,
-      guestId,
-      source: 'direct',
-      status: 'confirmed',
-      money: { invoiceItems: [] }
-    });
-    const reservationId    = reservationData._id;
-    const confirmationCode = reservationData.confirmationCode || reservationId;
-    console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
-
-    // ── Step 6: Re-attach with reservationId for payment automation ──
-    console.log('Linking payment method to reservation for automation...');
-    try {
-      const linkBody = {
-        stripeCardToken:   stripePaymentMethodId,
-        paymentProviderId: paymentProviderId,
-        reservationId:     reservationId,
-        skipSetupIntent:   true,
-        reuse:             true
-      };
-      const linkRes  = await fetch(
-        `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify(linkBody)
-        }
-      );
-      const linkText = await linkRes.text();
-      let linkData;
-      try { linkData = JSON.parse(linkText); } catch(e) { linkData = { raw: linkText }; }
-      console.log('Link payment to reservation:', JSON.stringify(linkData).slice(0, 300));
-      if (linkData._id || linkData.id) {
-        guestyPaymentMethodId = linkData._id || linkData.id;
-      }
-    } catch(e) {
-      console.warn('Could not link payment to reservation:', e.message);
-    }
-
-    // ── Step 7: Trigger Guesty payment ──
-    console.log('Triggering Guesty payment processing...');
-    try {
-      if (!guestyPaymentMethodId) {
-        console.warn('No Guesty payment method ID — skipping charge trigger');
-      } else {
-        const chargeBody = {
-          paymentMethod: {
-            method:           'STRIPE',
-            saveForFutureUse: true,
-            id:               guestyPaymentMethodId
-          },
-          amount: parseFloat(totalAmount),
-          note:   'Direct booking payment — premiumrentals.homes'
-        };
-        console.log('Charge body:', JSON.stringify(chargeBody));
-        const chargeRes  = await fetch(
-          `https://open-api.guesty.com/v1/reservations/${reservationId}/payments`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${gToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify(chargeBody)
-          }
-        );
-        const chargeText = await chargeRes.text();
-        let chargeData;
-        try { chargeData = JSON.parse(chargeText); } catch(e) { chargeData = { raw: chargeText }; }
-        console.log('Guesty payment trigger response:', JSON.stringify(chargeData).slice(0, 500));
-      }
-    } catch(e) {
-      console.warn('Could not trigger Guesty payment:', e.message);
-    }
-
-    // ── Step 8: Save to Supabase ──
+    // ── Step 7: Save to Supabase ──
     await supabase.from('website_contacts').insert([{
       first_name: firstName,
       last_name:  lastName,
@@ -669,7 +625,7 @@ app.post('/api/website/reserve', async (req, res) => {
 
 // ── Health check ──
 app.get('/', (req, res) => res.json({
-  status: 'Premium Rentals API running',
+  status: 'Premium Rentals API running — BE-API enabled',
   cache: {
     listings:  cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
     reviews:   cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
@@ -684,7 +640,7 @@ setInterval(async () => {
 }, 24 * 60 * 60 * 1000);
 
 setInterval(async () => {
-  console.log('Refreshing fee config from Guesty...');
+  console.log('Refreshing fee config...');
   feeConfigCache = null; feeConfigExpiry = 0;
   try { await getFeeConfig(); } catch(e) { console.error('Fee config refresh failed:', e.message); }
 }, 60 * 60 * 1000);
@@ -692,4 +648,5 @@ setInterval(async () => {
 app.listen(process.env.PORT || 3001, () => {
   console.log('Server running on port', process.env.PORT || 3001);
   getFeeConfig().catch(e => console.error('Startup fee config failed:', e.message));
+  getBeApiToken().catch(e => console.error('BE-API token startup failed:', e.message));
 });

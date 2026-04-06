@@ -18,14 +18,30 @@ app.use(cors({
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ── Format phone to E.164 ──
-// Guesty requires E.164 format e.g. +12085551234
+// ── Format phone to E.164 for Guesty ──
+// Handles all common formats guests might enter:
+// 2085550100        → +12085550100  (US 10 digits)
+// 12085550100       → +12085550100  (US with country code)
+// (208) 555-0100    → +12085550100  (formatted US)
+// +12085550100      → +12085550100  (already correct)
+// +441234567890     → +441234567890 (international)
+// 441234567890      → +441234567890 (international no +)
 function formatPhone(phone) {
   if (!phone) return undefined;
-  const digits = phone.replace(/\D/g, '');
+  const cleaned = phone.trim();
+  // Already E.164 with + prefix
+  if (cleaned.startsWith('+')) {
+    const digits = cleaned.replace(/\D/g, '');
+    return digits.length >= 7 ? `+${digits}` : undefined;
+  }
+  // Strip all non-digits
+  const digits = cleaned.replace(/\D/g, '');
+  if (!digits || digits.length < 7) return undefined;
+  // 10 digits — assume US/Canada
   if (digits.length === 10) return `+1${digits}`;
+  // 11 digits starting with 1 — US with country code
   if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
-  if (digits.length > 11) return `+${digits}`;
+  // Any other length — prepend + and trust the guest
   return `+${digits}`;
 }
 
@@ -90,6 +106,8 @@ function setCache(key, data, ttl) {
 }
 
 // ── Listing fees cache (Open API) ──
+// BE-API listings don't include cleaning fee or extra person fee
+// Fetched once from Open API and cached permanently per server instance
 const listingFeesCache = {};
 
 async function getListingFees(listingId) {
@@ -127,6 +145,8 @@ function getFeeRates() {
 }
 
 // ── Extract pricing from BE-API quote ──
+// BE-API quote returns: ratePlan, inquiryId, days only — no money/invoice items
+// Extra person fee baked into accommodation total
 async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const ratePlan   = quoteData.rates?.ratePlans?.[0];
   const days       = ratePlan?.days || [];
@@ -136,10 +156,12 @@ async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const listingFees = await getListingFees(listingId);
   const { cleaningFee, extraPersonFee, guestsIncludedInRegularFee } = listingFees;
 
+  // Base accommodation from day prices
   const baseAccommodation = Math.round(
     days.reduce((sum, d) => sum + (d.price || 0), 0) * 100
   ) / 100;
 
+  // Extra person fee baked into accommodation
   const guestCount       = parseInt(guests) || 1;
   const extraGuests      = Math.max(0, guestCount - guestsIncludedInRegularFee);
   const extraPersonTotal = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
@@ -148,17 +170,9 @@ async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const nightlyAvg    = nights > 0 && accommodation > 0
     ? Math.round((accommodation / nights) * 100) / 100 : 0;
 
-  const serviceFee = Math.round(
-    (accommodation + cleaningFee) * fees.serviceFeeRate * 100
-  ) / 100;
-
-  const taxes = Math.round(
-    (accommodation + cleaningFee + serviceFee) * fees.taxRate * 100
-  ) / 100;
-
-  const total = Math.round(
-    (accommodation + cleaningFee + serviceFee + taxes) * 100
-  ) / 100;
+  const serviceFee = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
+  const taxes      = Math.round((accommodation + cleaningFee + serviceFee) * fees.taxRate * 100) / 100;
+  const total      = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
 
   console.log(`Pricing [${listingId}] ${guestCount} guests: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
 
@@ -212,7 +226,7 @@ app.get('/api/website/listings', async (req, res) => {
   }
 });
 
-// ── Route 2: Availability + pricing ──
+// ── Route 2: Availability + pricing (BE-API quote) ──
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -413,7 +427,7 @@ app.post('/api/website/reserve', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Format phone to E.164 for Guesty
+    // Format phone to E.164 — handles any format guest enters
     const formattedPhone = formatPhone(phone);
     console.log(`Creating reservation for ${firstName} ${lastName} (${email}) phone: ${formattedPhone}`);
 
@@ -439,7 +453,7 @@ app.post('/api/website/reserve', async (req, res) => {
           firstName,
           lastName,
           email,
-          phone: formattedPhone  // ← E.164 formatted
+          phone: formattedPhone  // E.164 formatted
         })
       });
       const guestCreateData = await guestCreateRes.json();
@@ -527,7 +541,7 @@ app.post('/api/website/reserve', async (req, res) => {
             firstName,
             lastName,
             email,
-            phone: formattedPhone || undefined  // ← E.164 formatted
+            phone: formattedPhone || undefined  // E.164 formatted
           }
         })
       }

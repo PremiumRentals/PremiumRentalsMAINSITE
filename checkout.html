@@ -39,6 +39,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .fg input{border:1px solid #e0ddd8;padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--dark);outline:none;border-radius:4px;transition:border-color .2s;background:#fff;width:100%}
 .fg input:focus{border-color:var(--gold)}
 .fg input[readonly]{background:var(--light);color:var(--mid);cursor:default}
+.fg .hint{font-size:11px;color:var(--mid);margin-top:3px}
 .required{color:var(--gold)}
 .guests-wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
 .guests-label-group{flex:1}
@@ -101,8 +102,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cancel-tooltip-wrap:hover .cancel-tooltip,.cancel-tooltip.tap-open{display:block}
 .cancel-tooltip a{color:var(--gold);text-decoration:none}
 .mobile-summary-toggle{display:none;background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:16px 20px;margin-bottom:20px;cursor:pointer;align-items:center;justify-content:space-between}
-.mobile-summary-toggle .mst-price{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark)}
-.mobile-summary-toggle .mst-label{font-size:12px;color:var(--gold);font-weight:600}
+.mst-price{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark)}
+.mst-label{font-size:12px;color:var(--gold);font-weight:600}
 .mobile-summary-body{display:none;background:var(--white);border:1px solid #eeede9;border-radius:8px;overflow:hidden;margin-bottom:20px}
 #podium-website-widget{z-index:149!important}
 @media(max-width:900px){#podium-website-widget{display:none!important}}
@@ -121,8 +122,8 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
   .checkout-wrap{padding:16px 4% 100px}
 }
 .mobile-pay-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:#fff;border-top:1px solid #e0ddd8;padding:12px 5%;align-items:center;justify-content:space-between;gap:12px}
-.mobile-pay-bar .mpb-total{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
-.mobile-pay-bar .mpb-sub{font-size:11px;color:var(--mid)}
+.mpb-total{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
+.mpb-sub{font-size:11px;color:var(--mid)}
 .mobile-pay-bar button{background:var(--gold);color:#fff;border:none;padding:13px 24px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
 @media(max-width:900px){.mobile-pay-bar{display:flex}}
 </style>
@@ -145,12 +146,12 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
   </div>
 </div>
 
-<div class="checkout-wrap" id="checkout-wrap-top">
+<div class="checkout-wrap">
   <div class="checkout-left">
     <h1 class="section-title serif">Complete Your Booking</h1>
-    <p class="section-sub">Fill in your details and payment info below to confirm your reservation.</p>
+    <p class="section-sub">Fill in your details and payment info to confirm your reservation.</p>
 
-    <!-- STATUS STEPS — shown at top when processing -->
+    <!-- STATUS — shown at top when processing -->
     <div class="status-steps" id="status-steps">
       <div class="status-steps-title serif">Processing your booking…</div>
       <div class="status-step" id="status-1"><div class="status-dot" id="dot-1">1</div><span>Validating card details…</span></div>
@@ -181,7 +182,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
       </div>
     </div>
 
-    <!-- GUEST INFO -->
+    <!-- 1. GUEST INFO -->
     <div class="form-card" id="guest-form-wrap">
       <div class="form-card-title"><span>1</span>Guest Information</div>
       <div class="form-row">
@@ -189,10 +190,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
         <div class="fg"><label>Last Name <span class="required">*</span></label><input type="text" id="g-last" placeholder="Hartwell" autocomplete="family-name"></div>
       </div>
       <div class="fg"><label>Email Address <span class="required">*</span></label><input type="email" id="g-email" placeholder="your@email.com" autocomplete="email"></div>
-      <div class="fg" style="margin-bottom:0"><label>Phone Number <span class="required">*</span></label><input type="tel" id="g-phone" placeholder="+1 (208) 555-0100" autocomplete="tel"></div>
+      <div class="fg" style="margin-bottom:0">
+        <label>Phone Number <span class="required">*</span></label>
+        <input type="tel" id="g-phone" placeholder="(208) 555-0100" autocomplete="tel" inputmode="numeric" oninput="formatPhoneInput(this)">
+        <div class="hint">US number — just type your 10 digits</div>
+      </div>
     </div>
 
-    <!-- STAY DETAILS -->
+    <!-- 2. STAY DETAILS -->
     <div class="form-card">
       <div class="form-card-title"><span>2</span>Stay Details</div>
       <div class="form-row" style="margin-bottom:16px">
@@ -215,7 +220,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
       </div>
     </div>
 
-    <!-- PAYMENT -->
+    <!-- 3. PAYMENT -->
     <div class="form-card" id="card-form-wrap">
       <div class="form-card-title"><span>3</span>Payment Details</div>
       <div class="fg">
@@ -315,29 +320,27 @@ let pricing = {
 };
 let coGuests = parseInt(params.get('guests') || '2');
 
-// ── Init Stripe with Link enabled ──
+// ── Stripe init with Link enabled ──
 const stripe   = Stripe(STRIPE_PK);
 const elements = stripe.elements({
   appearance: {
     theme: 'stripe',
     variables: {
-      colorPrimary:       '#C9A96E',
-      colorBackground:    '#ffffff',
-      colorText:          '#1a1a1a',
-      colorDanger:        '#c0392b',
-      fontFamily:         'Inter, sans-serif',
-      borderRadius:       '4px'
+      colorPrimary:    '#C9A96E',
+      colorBackground: '#ffffff',
+      colorText:       '#1a1a1a',
+      colorDanger:     '#c0392b',
+      fontFamily:      'Inter, sans-serif',
+      borderRadius:    '4px'
     }
   }
 });
-
-// Card element with Link support
 const card = elements.create('card', {
   style: {
     base: {
-      fontFamily: 'Inter, sans-serif',
-      fontSize:   '14px',
-      color:      '#1a1a1a',
+      fontFamily:      'Inter, sans-serif',
+      fontSize:        '14px',
+      color:           '#1a1a1a',
       '::placeholder': { color: '#bbb' }
     },
     invalid: { color: '#c0392b' }
@@ -347,25 +350,35 @@ card.mount('#stripe-card-element');
 card.on('focus',  () => document.getElementById('stripe-card-element').classList.add('focused'));
 card.on('blur',   () => document.getElementById('stripe-card-element').classList.remove('focused'));
 card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
+document.getElementById('billing-state').addEventListener('input', function() { this.value = this.value.toUpperCase(); });
 
-document.getElementById('billing-state').addEventListener('input', function() {
-  this.value = this.value.toUpperCase();
-});
+// ── Phone auto-format ──
+// Types 2085551234 → shows (208) 555-1234
+// Backend strips formatting and adds +1 country code
+function formatPhoneInput(input) {
+  const digits = input.value.replace(/\D/g, '').slice(0, 10);
+  let formatted = '';
+  if (digits.length > 0) formatted  = '(' + digits.slice(0, 3);
+  if (digits.length >= 4) formatted += ') ' + digits.slice(3, 6);
+  if (digits.length >= 7) formatted += '-' + digits.slice(6, 10);
+  else if (digits.length > 3) formatted += digits.slice(3);
+  input.value = formatted;
+}
 
 // ── Date formatter ──
 function fmtDate(str, short) {
   if (!str) return '—';
-  const opts = short
-    ? { month:'short', day:'numeric' }
-    : { weekday:'short', month:'short', day:'numeric', year:'numeric' };
-  return new Date(str+'T12:00:00').toLocaleDateString('en-US', opts);
+  return new Date(str+'T12:00:00').toLocaleDateString('en-US',
+    short ? { month:'short', day:'numeric' }
+          : { weekday:'short', month:'short', day:'numeric', year:'numeric' }
+  );
 }
 
 // ── Populate static fields ──
 function populateStatic() {
-  document.getElementById('co-checkin').value  = fmtDate(checkIn);
-  document.getElementById('co-checkout').value = fmtDate(checkOut);
-  document.getElementById('co-guests-input').value = coGuests;
+  document.getElementById('co-checkin').value          = fmtDate(checkIn);
+  document.getElementById('co-checkout').value         = fmtDate(checkOut);
+  document.getElementById('co-guests-input').value     = coGuests;
   document.getElementById('guests-max-label').textContent = `Max ${maxGuests}`;
   document.getElementById('summary-checkin').textContent  = fmtDate(checkIn, true);
   document.getElementById('summary-checkout').textContent = fmtDate(checkOut, true);
@@ -375,11 +388,10 @@ function populateStatic() {
   renderPricing();
 }
 
-// ── Render pricing ──
+// ── Render pricing breakdown ──
 function renderPricing() {
   const { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total } = pricing;
-  const guestLabel = `${coGuests} guest${coGuests!==1?'s':''}`;
-  document.getElementById('summary-guests').textContent = guestLabel;
+  document.getElementById('summary-guests').textContent = `${coGuests} guest${coGuests!==1?'s':''}`;
 
   if (!total) {
     const html = '<div class="price-loading">Calculating price…</div>';
@@ -425,7 +437,7 @@ function updateGuestButtons() {
   document.getElementById('co-guests-plus').disabled  = coGuests >= maxGuests;
 }
 
-// ── Live repricing ──
+// ── Live repricing when guests change ──
 let repriceTimer = null;
 function triggerReprice() {
   clearTimeout(repriceTimer);
@@ -469,12 +481,12 @@ async function loadListing() {
       const photo = listing.picture?.regular || listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
       const loc   = '📍 ' + (city || 'Idaho');
       const name  = listing.title || listing.nickname || 'Luxury Property';
-      document.getElementById('summary-img').src                    = photo;
-      document.getElementById('mobile-summary-img').src             = photo;
-      document.getElementById('summary-location').textContent       = loc;
-      document.getElementById('mobile-summary-location').textContent = loc;
-      document.getElementById('summary-name').textContent           = name;
-      document.getElementById('mobile-summary-name').textContent    = name;
+      document.getElementById('summary-img').src                      = photo;
+      document.getElementById('mobile-summary-img').src               = photo;
+      document.getElementById('summary-location').textContent         = loc;
+      document.getElementById('mobile-summary-location').textContent  = loc;
+      document.getElementById('summary-name').textContent             = name;
+      document.getElementById('mobile-summary-name').textContent      = name;
       document.title = `Book ${name} – Premium Rentals`;
     }
   } catch(e) { console.warn('Could not load listing'); }
@@ -505,7 +517,6 @@ function showStatus() {
   document.getElementById('status-steps').style.display    = 'block';
   document.getElementById('guest-form-wrap').style.opacity = '.4';
   document.getElementById('card-form-wrap').style.opacity  = '.4';
-  // Scroll to top so guest sees processing status immediately
   window.scrollTo({ top: 0, behavior: 'smooth' });
 }
 function setStep(step, state) {
@@ -541,7 +552,7 @@ async function submitBooking() {
   const btn = document.getElementById('submit-btn');
   btn.disabled    = true;
   btn.textContent = 'Processing…';
-  showStatus(); // ← scrolls to top here
+  showStatus();
 
   try {
     // ── Step 1: SetupIntent pre-auth ──

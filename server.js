@@ -19,7 +19,6 @@ const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SER
 const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
 // ── Open API Auth ──
-// Used for: guests, reviews, fees, payment provider lookup, payment attachment
 let openApiToken = null;
 let openApiTokenExpiry = 0;
 
@@ -44,7 +43,6 @@ async function getOpenApiToken() {
 }
 
 // ── BE-API Auth ──
-// Used for: listings, calendar, availability quotes, reservations
 let beApiToken = null;
 let beApiTokenExpiry = 0;
 
@@ -81,46 +79,57 @@ function setCache(key, data, ttl) {
 }
 
 // ── Extract pricing from BE-API quote ──
-// Uses Guesty's exact calculations — no env var math
-// Handles account-level AND property-level fees/taxes automatically
+// BE-API quote may return invoice items OR just day prices
+// This function handles both cases and always returns complete pricing
 function extractPricingFromQuote(quoteData, nights) {
   const ratePlan     = quoteData.rates?.ratePlans?.[0];
-  const money        = ratePlan?.money?.money || {};
+  const money        = ratePlan?.money?.money || ratePlan?.money || {};
   const invoiceItems = money.invoiceItems || [];
+  const days         = ratePlan?.days || [];
 
-  // Accommodation fare
-  const accommodation = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount
+  // ── Accommodation ──
+  // Try invoice items first, then calculate from day prices
+  let accommodation = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount
     || money.fareAccommodation
     || 0;
+  if (!accommodation && days.length > 0) {
+    accommodation = days.reduce((sum, d) => sum + (d.price || 0), 0);
+  }
 
-  // Cleaning fee
+  // ── Cleaning fee ──
   const cleaningFee = invoiceItems.find(i => i.type === 'CLEANING_FEE')?.amount
     || money.fareCleaning
     || 0;
 
-  // Nightly average
-  const nightlyAvg = nights > 0
+  // ── Nightly average ──
+  const nightlyAvg = nights > 0 && accommodation > 0
     ? Math.round((accommodation / nights) * 100) / 100
-    : 0;
+    : days.length > 0
+      ? Math.round((days.reduce((s, d) => s + (d.price || 0), 0) / days.length) * 100) / 100
+      : 0;
 
-  // Service fee — from Guesty's calculation
+  // ── Service fee ──
+  // Use Guesty's value if available, otherwise fallback to 13.5%
   const serviceFee = money.hostServiceFee
     || invoiceItems.find(i => i.type === 'HOST_SERVICE_FEE')?.amount
-    || 0;
+    || Math.round((accommodation + cleaningFee) * 0.135 * 100) / 100;
 
-  // Taxes — from Guesty's calculation (account or property level)
-  const taxes = money.totalTaxes || 0;
+  // ── Taxes ──
+  // Use Guesty's exact tax calculation if available, otherwise fallback to 8%
+  const taxes = money.totalTaxes
+    || Math.round((accommodation + cleaningFee + serviceFee) * 0.08 * 100) / 100;
 
-  // Additional fees (pet fees, extra person fees etc.)
+  // ── Additional fees (pet fees etc.) ──
   const additionalFees = invoiceItems
     .filter(i => i.type === 'ADDITIONAL')
     .reduce((sum, i) => sum + (i.amount || 0), 0);
 
-  // Total — use Guesty's exact total
-  const subTotal = money.subTotalPrice || (accommodation + cleaningFee + additionalFees);
-  const total    = Math.round((subTotal + taxes) * 100) / 100;
+  // ── Total ──
+  const total = money.subTotalPrice
+    ? Math.round((money.subTotalPrice + (money.totalTaxes || 0)) * 100) / 100
+    : Math.round((accommodation + cleaningFee + serviceFee + taxes + additionalFees) * 100) / 100;
 
-  // Rate plan ID for reservation creation
+  // ── Rate plan ID ──
   const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
 
   return {
@@ -151,10 +160,10 @@ async function syncPricing() {
     try {
       await new Promise(r => setTimeout(r, 300));
       const { error } = await supabase.from('listing_pricing').upsert({
-        listing_id: listing._id,
+        listing_id:   listing._id,
         nightly_rate: listing.prices?.basePrice || null,
-        currency: 'USD',
-        updated_at: new Date().toISOString()
+        currency:     'USD',
+        updated_at:   new Date().toISOString()
       }, { onConflict: 'listing_id' });
       if (error) throw error;
       synced++;
@@ -185,9 +194,6 @@ app.get('/api/website/listings', async (req, res) => {
 });
 
 // ── Route 2: Availability + exact pricing (BE-API quote) ──
-// BE-API quote returns EXACT pricing from Guesty
-// Handles property-level AND account-level fees/taxes automatically
-// No env var math — Guesty calculates everything
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -201,13 +207,12 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     const token  = await getBeApiToken();
     const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
 
-    // Create quote — returns exact pricing from Guesty
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${token}`,
+        Authorization:  `Bearer ${token}`,
         'Content-Type': 'application/json',
-        accept: 'application/json'
+        accept:         'application/json'
       },
       body: JSON.stringify({
         listingId,
@@ -223,7 +228,6 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
     }
 
-    // Not available
     if (quoteRes.status !== 200 || !quoteData._id) {
       return res.json({
         success:   true,
@@ -232,8 +236,10 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       });
     }
 
-    // Extract exact pricing
+    // Extract exact pricing — handles both invoice items and day prices
     const pricing = extractPricingFromQuote(quoteData, nights);
+
+    console.log(`Pricing for ${listingId}: accommodation=${pricing.accommodation} cleaning=${pricing.cleaningFee} service=${pricing.serviceFee} taxes=${pricing.taxes} total=${pricing.total}`);
 
     const result = {
       available:  true,
@@ -252,7 +258,6 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
 });
 
 // ── Route 3: Calendar (BE-API) ──
-// Clean status-based calendar — no more allotment/blocks guessing
 app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -269,7 +274,7 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } }
     );
     const days = await response.json();
-    if (!Array.isArray(days)) throw new Error('Invalid calendar response: ' + JSON.stringify(days).slice(0, 100));
+    if (!Array.isArray(days)) throw new Error('Invalid calendar response');
 
     const blockedDates      = [];
     const checkoutOnlyDates = [];
@@ -285,10 +290,6 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       if (!isAvailable) {
         const prevDay       = index > 0 ? days[index - 1] : null;
         const prevAvailable = prevDay ? prevDay.status === 'available' : true;
-
-        // Checkout allowed if:
-        // 1. Not closed to departure (ctd) AND previous day was available
-        // 2. This covers both owner blocks starting today and guest checkouts
         const isCheckoutOnly = !day.ctd && prevAvailable && (isReserved || isBlocked);
 
         if (isCheckoutOnly) {
@@ -383,8 +384,7 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
-// ── Route 9: Fee config (Open API) ──
-// Now only used as reference — BE-API quote handles all real pricing
+// ── Route 9: Fee config ──
 app.get('/api/website/fee-config', async (req, res) => {
   try {
     const token = await getOpenApiToken();
@@ -406,12 +406,12 @@ app.get('/api/website/fee-config', async (req, res) => {
       });
     }
     res.json({
-      success: true,
+      success:        true,
       serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
       tourismTaxRate,
       salesTaxRate,
-      totalTaxRate: tourismTaxRate + salesTaxRate,
-      note: 'Reference only — BE-API quote returns exact pricing'
+      totalTaxRate:   tourismTaxRate + salesTaxRate,
+      note:           'Reference only — BE-API quote returns exact pricing'
     });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });
@@ -419,14 +419,10 @@ app.get('/api/website/fee-config', async (req, res) => {
 });
 
 // ── Route 10: Create SetupIntent ──
-// $0 pre-authorization — validates card before reservation is created
-// If this fails card is invalid/declined — frontend stops immediately
-// No reservation is created for bad cards
 app.post('/api/website/create-setup-intent', async (req, res) => {
   try {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email required' });
-
     const customers = await stripe.customers.list({ email, limit: 1 });
     let customer = customers.data[0];
     if (!customer) {
@@ -435,17 +431,14 @@ app.post('/api/website/create-setup-intent', async (req, res) => {
     } else {
       console.log('Found Stripe customer:', customer.id);
     }
-
     const setupIntent = await stripe.setupIntents.create({
       customer:             customer.id,
       payment_method_types: ['card'],
       usage:                'off_session',
       metadata:             { email, name: name || '' }
     });
-
     console.log('Created SetupIntent:', setupIntent.id);
     res.json({ success: true, clientSecret: setupIntent.client_secret });
-
   } catch(e) {
     console.error('SetupIntent error:', e.message);
     res.status(500).json({ success: false, error: e.message });
@@ -453,8 +446,6 @@ app.post('/api/website/create-setup-intent', async (req, res) => {
 });
 
 // ── Route 11: Reserve ──
-// 7-step flow using both APIs
-// Card already validated via SetupIntent before this is called
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -500,9 +491,7 @@ app.post('/api/website/reserve', async (req, res) => {
       let customer = customers.data[0];
       if (!customer) {
         customer = await stripe.customers.create({
-          email,
-          name:  `${firstName} ${lastName}`,
-          phone: phone || undefined
+          email, name: `${firstName} ${lastName}`, phone: phone || undefined
         });
       }
       try {
@@ -533,14 +522,13 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 4: Create fresh quote (BE-API) ──
-    // Always fresh at reservation time — ensures current pricing
     console.log('Creating fresh quote...');
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
       headers: {
-        Authorization: `Bearer ${beToken}`,
+        Authorization:  `Bearer ${beToken}`,
         'Content-Type': 'application/json',
-        accept: 'application/json'
+        accept:         'application/json'
       },
       body: JSON.stringify({
         listingId,
@@ -556,15 +544,13 @@ app.post('/api/website/reserve', async (req, res) => {
     }
     if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
 
-    const quoteId    = quoteData._id;
     const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
     const pricing    = extractPricingFromQuote(quoteData, nights);
+    const quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
-    console.log('Quote created:', quoteId, 'Rate plan:', ratePlanId, 'Total:', pricing.total);
+    console.log('Quote created:', quoteId, 'Total:', pricing.total);
 
     // ── Step 5: Create instant reservation (BE-API) ──
-    // ccToken accepts pm_... directly — no stripeCardToken needed
-    // Delay per Guesty docs to avoid race conditions
     console.log('Creating instant reservation from quote...');
     await new Promise(r => setTimeout(r, 2000));
 
@@ -573,9 +559,9 @@ app.post('/api/website/reserve', async (req, res) => {
       {
         method: 'POST',
         headers: {
-          Authorization: `Bearer ${beToken}`,
+          Authorization:  `Bearer ${beToken}`,
           'Content-Type': 'application/json',
-          accept: 'application/json'
+          accept:         'application/json'
         },
         body: JSON.stringify({
           ratePlanId,
@@ -597,7 +583,7 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!reserveData._id) {
       const errMsg = JSON.stringify(reserveData);
       if (errMsg.includes('minNights')) {
-        throw new Error('This property requires a longer minimum stay for your selected dates. Please go back and select different dates.');
+        throw new Error('This property requires a longer minimum stay. Please go back and select different dates.');
       }
       throw new Error('Failed to create reservation: ' + errMsg.slice(0, 200));
     }
@@ -607,7 +593,6 @@ app.post('/api/website/reserve', async (req, res) => {
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
     // ── Step 6: Attach payment to Guesty guest for automation (Open API) ──
-    // Links card to guest for 49%/51% auto-payment scheduling
     console.log('Attaching payment to Guesty guest for automation...');
     try {
       const pmRes  = await fetch(

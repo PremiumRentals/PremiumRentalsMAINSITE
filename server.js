@@ -18,7 +18,8 @@ app.use(cors({
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ── Open API Auth (listings cache, reviews, guests, fee config) ──
+// ── Open API Auth ──
+// Used for: guests, reviews, fees, payment provider lookup, payment attachment
 let openApiToken = null;
 let openApiTokenExpiry = 0;
 
@@ -42,7 +43,8 @@ async function getOpenApiToken() {
   return openApiToken;
 }
 
-// ── BE-API Auth (availability, pricing, reservations) ──
+// ── BE-API Auth ──
+// Used for: listings, calendar, availability quotes, reservations
 let beApiToken = null;
 let beApiTokenExpiry = 0;
 
@@ -78,41 +80,61 @@ function setCache(key, data, ttl) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Fee Config (Open API) ──
-let feeConfigCache = null;
-let feeConfigExpiry = 0;
+// ── Extract pricing from BE-API quote ──
+// Uses Guesty's exact calculations — no env var math
+// Handles account-level AND property-level fees/taxes automatically
+function extractPricingFromQuote(quoteData, nights) {
+  const ratePlan     = quoteData.rates?.ratePlans?.[0];
+  const money        = ratePlan?.money?.money || {};
+  const invoiceItems = money.invoiceItems || [];
 
-async function getFeeConfig() {
-  if (feeConfigCache && Date.now() < feeConfigExpiry) return feeConfigCache;
-  let serviceFeeRate = parseFloat(process.env.SERVICE_FEE_RATE) || 0.135;
-  let tourismTaxRate = parseFloat(process.env.TOURISM_TAX_RATE) || 0.02;
-  let salesTaxRate   = parseFloat(process.env.SALES_TAX_RATE)   || 0.06;
-  let source = 'env_vars';
-  try {
-    const token = await getOpenApiToken();
-    const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const accountData = await accountRes.json();
-    const accountTaxes = accountData.taxes || [];
-    if (accountTaxes.length > 0) {
-      tourismTaxRate = 0; salesTaxRate = 0;
-      accountTaxes.forEach(tax => {
-        if (tax.units === 'PERCENTAGE') {
-          const rate = tax.amount / 100;
-          if (tax.type === 'TOURISM_TAX') tourismTaxRate += rate;
-          else if (tax.type === 'LOCAL_TAX') salesTaxRate += rate;
-          else salesTaxRate += rate;
-        }
-      });
-      source = 'guesty_account';
-    }
-  } catch(e) {
-    console.warn('Could not fetch account fees:', e.message);
-  }
-  feeConfigCache = { serviceFeeRate, tourismTaxRate, salesTaxRate, totalTaxRate: tourismTaxRate + salesTaxRate, source };
-  feeConfigExpiry = Date.now() + (60 * 60 * 1000);
-  return feeConfigCache;
+  // Accommodation fare
+  const accommodation = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount
+    || money.fareAccommodation
+    || 0;
+
+  // Cleaning fee
+  const cleaningFee = invoiceItems.find(i => i.type === 'CLEANING_FEE')?.amount
+    || money.fareCleaning
+    || 0;
+
+  // Nightly average
+  const nightlyAvg = nights > 0
+    ? Math.round((accommodation / nights) * 100) / 100
+    : 0;
+
+  // Service fee — from Guesty's calculation
+  const serviceFee = money.hostServiceFee
+    || invoiceItems.find(i => i.type === 'HOST_SERVICE_FEE')?.amount
+    || 0;
+
+  // Taxes — from Guesty's calculation (account or property level)
+  const taxes = money.totalTaxes || 0;
+
+  // Additional fees (pet fees, extra person fees etc.)
+  const additionalFees = invoiceItems
+    .filter(i => i.type === 'ADDITIONAL')
+    .reduce((sum, i) => sum + (i.amount || 0), 0);
+
+  // Total — use Guesty's exact total
+  const subTotal = money.subTotalPrice || (accommodation + cleaningFee + additionalFees);
+  const total    = Math.round((subTotal + taxes) * 100) / 100;
+
+  // Rate plan ID for reservation creation
+  const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
+
+  return {
+    nightlyAvg,
+    nights,
+    accommodation,
+    cleaningFee,
+    serviceFee,
+    taxes,
+    additionalFees,
+    total,
+    ratePlanId,
+    feeSource: 'be_api_quote'
+  };
 }
 
 // ── Pricing sync ──
@@ -124,16 +146,15 @@ async function syncPricing() {
   });
   const listData = await listRes.json();
   const listings = (listData.results || []).filter(l => l.active !== false);
-  const today  = new Date();
-  const future = new Date(); future.setDate(future.getDate() + 30);
-  const fmt    = d => d.toISOString().split('T')[0];
   let synced = 0, failed = 0;
   for (const listing of listings) {
     try {
       await new Promise(r => setTimeout(r, 300));
       const { error } = await supabase.from('listing_pricing').upsert({
-        listing_id: listing._id, nightly_rate: listing.prices?.basePrice || null,
-        currency: 'USD', updated_at: new Date().toISOString()
+        listing_id: listing._id,
+        nightly_rate: listing.prices?.basePrice || null,
+        currency: 'USD',
+        updated_at: new Date().toISOString()
       }, { onConflict: 'listing_id' });
       if (error) throw error;
       synced++;
@@ -144,7 +165,6 @@ async function syncPricing() {
 }
 
 // ── Route 1: Listings (BE-API) ──
-// Uses BE-API for richer listing data including availability
 app.get('/api/website/listings', async (req, res) => {
   try {
     const cached = getCache('listings_all');
@@ -165,7 +185,9 @@ app.get('/api/website/listings', async (req, res) => {
 });
 
 // ── Route 2: Availability + exact pricing (BE-API quote) ──
-// Uses BE-API quote endpoint for EXACT pricing — no more ~$1 rounding gap
+// BE-API quote returns EXACT pricing from Guesty
+// Handles property-level AND account-level fees/taxes automatically
+// No env var math — Guesty calculates everything
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -176,9 +198,10 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     const cached   = getCache(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
 
-    const token = await getBeApiToken();
+    const token  = await getBeApiToken();
+    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
 
-    // Create quote to get exact pricing
+    // Create quote — returns exact pricing from Guesty
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
       headers: {
@@ -196,52 +219,27 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
 
     const quoteText = await quoteRes.text();
     let quoteData;
-    try { quoteData = JSON.parse(quoteText); } catch(e) { throw new Error('Quote parse error: ' + quoteText.slice(0, 200)); }
-
-    // Check if property is available
-    if (quoteRes.status === 400 || !quoteData._id) {
-      return res.json({ success: true, available: false, error: quoteData.message || 'Not available' });
+    try { quoteData = JSON.parse(quoteText); } catch(e) {
+      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
     }
 
-    // Extract pricing from quote
-    const ratePlan = quoteData.rates?.ratePlans?.[0];
-    const money    = ratePlan?.money?.money || ratePlan?.money || {};
-    const days     = ratePlan?.days || [];
-    const nights   = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    // Not available
+    if (quoteRes.status !== 200 || !quoteData._id) {
+      return res.json({
+        success:   true,
+        available: false,
+        error:     quoteData.message || quoteData.error || 'Not available for these dates'
+      });
+    }
 
-    // Get exact amounts from quote invoice items
-    const invoiceItems   = money.invoiceItems || [];
-    const accommodation  = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount || money.fareAccommodation || 0;
-    const cleaningFee    = invoiceItems.find(i => i.type === 'CLEANING_FEE')?.amount || money.fareCleaning || 0;
-    const nightlyAvg     = nights > 0 ? Math.round(accommodation / nights) : 0;
-
-    // Use Guesty's exact tax and fee calculations
-    const totalTaxes     = money.totalTaxes || 0;
-    const hostServiceFee = money.hostServiceFee || 0;
-    const subTotal       = money.subTotalPrice || (accommodation + cleaningFee);
-    const total          = money.subTotalPrice
-      ? Math.round((money.subTotalPrice + totalTaxes) * 100) / 100
-      : Math.round((accommodation + cleaningFee + hostServiceFee + totalTaxes) * 100) / 100;
-
-    // Service fee — use our rate if Guesty doesn't provide it
-    const fees       = await getFeeConfig();
-    const serviceFee = hostServiceFee || Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
-    const taxes      = totalTaxes || Math.round((accommodation + cleaningFee + serviceFee) * fees.totalTaxRate * 100) / 100;
-    const finalTotal = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
+    // Extract exact pricing
+    const pricing = extractPricingFromQuote(quoteData, nights);
 
     const result = {
-      available:    true,
-      quoteId:      quoteData._id,
-      ratePlanId:   ratePlan?.ratePlan?._id || 'default-rateplan-id',
-      days,
-      nights,
-      nightlyAvg,
-      accommodation,
-      cleaningFee,
-      serviceFee,
-      taxes,
-      total:        finalTotal,
-      feeSource:    'be_api_quote'
+      available:  true,
+      quoteId:    quoteData._id,
+      days:       quoteData.rates?.ratePlans?.[0]?.days || [],
+      ...pricing
     };
 
     setCache(cacheKey, result, 30 * 1000);
@@ -271,17 +269,16 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } }
     );
     const days = await response.json();
-
-    if (!Array.isArray(days)) throw new Error('Invalid calendar response');
+    if (!Array.isArray(days)) throw new Error('Invalid calendar response: ' + JSON.stringify(days).slice(0, 100));
 
     const blockedDates      = [];
     const checkoutOnlyDates = [];
     const dayData           = {};
 
     days.forEach((day, index) => {
-      // BE-API gives us clean status field — no more allotment guessing
       const isAvailable = day.status === 'available';
       const isReserved  = day.status === 'reserved' || day.status === 'booked';
+      const isBlocked   = day.status === 'unavailable';
 
       if (day.minNights) dayData[day.date] = { minNights: day.minNights };
 
@@ -289,11 +286,10 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
         const prevDay       = index > 0 ? days[index - 1] : null;
         const prevAvailable = prevDay ? prevDay.status === 'available' : true;
 
-        // ctd = closed to departure (checkout not allowed)
-        // cta = closed to arrival (checkin not allowed)
-        // If previous day was available and today is blocked — checkout allowed
-        const isCheckoutOnly = (!day.ctd && prevAvailable && isReserved) ||
-                               (day.cta && !day.ctd && prevAvailable);
+        // Checkout allowed if:
+        // 1. Not closed to departure (ctd) AND previous day was available
+        // 2. This covers both owner blocks starting today and guest checkouts
+        const isCheckoutOnly = !day.ctd && prevAvailable && (isReserved || isBlocked);
 
         if (isCheckoutOnly) {
           checkoutOnlyDates.push(day.date);
@@ -387,23 +383,50 @@ app.post('/api/website/newsletter', async (req, res) => {
   }
 });
 
-// ── Route 9: Fee config ──
+// ── Route 9: Fee config (Open API) ──
+// Now only used as reference — BE-API quote handles all real pricing
 app.get('/api/website/fee-config', async (req, res) => {
   try {
-    const fees = await getFeeConfig();
-    res.json({ success: true, ...fees });
+    const token = await getOpenApiToken();
+    const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const accountData = await accountRes.json();
+    const taxes = accountData.taxes || [];
+    let tourismTaxRate = parseFloat(process.env.TOURISM_TAX_RATE) || 0.02;
+    let salesTaxRate   = parseFloat(process.env.SALES_TAX_RATE)   || 0.06;
+    if (taxes.length > 0) {
+      tourismTaxRate = 0; salesTaxRate = 0;
+      taxes.forEach(tax => {
+        if (tax.units === 'PERCENTAGE') {
+          const rate = tax.amount / 100;
+          if (tax.type === 'TOURISM_TAX') tourismTaxRate += rate;
+          else salesTaxRate += rate;
+        }
+      });
+    }
+    res.json({
+      success: true,
+      serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
+      tourismTaxRate,
+      salesTaxRate,
+      totalTaxRate: tourismTaxRate + salesTaxRate,
+      note: 'Reference only — BE-API quote returns exact pricing'
+    });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
 // ── Route 10: Create SetupIntent ──
-// Pre-auth validates card before reservation is created
-// If this fails — invalid/declined card — frontend stops immediately
+// $0 pre-authorization — validates card before reservation is created
+// If this fails card is invalid/declined — frontend stops immediately
+// No reservation is created for bad cards
 app.post('/api/website/create-setup-intent', async (req, res) => {
   try {
     const { email, name } = req.body;
     if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+
     const customers = await stripe.customers.list({ email, limit: 1 });
     let customer = customers.data[0];
     if (!customer) {
@@ -412,29 +435,26 @@ app.post('/api/website/create-setup-intent', async (req, res) => {
     } else {
       console.log('Found Stripe customer:', customer.id);
     }
+
     const setupIntent = await stripe.setupIntents.create({
       customer:             customer.id,
       payment_method_types: ['card'],
       usage:                'off_session',
       metadata:             { email, name: name || '' }
     });
+
     console.log('Created SetupIntent:', setupIntent.id);
     res.json({ success: true, clientSecret: setupIntent.client_secret });
+
   } catch(e) {
     console.error('SetupIntent error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
 });
 
-// ── Route 11: Reserve (BE-API) ──
-// Full flow:
-// 1. Find/create Guesty guest (Open API)
-// 2. Save to Stripe customer
-// 3. Get paymentProviderId (Open API)
-// 4. Create fresh quote (BE-API) — ensures pricing is current
-// 5. Create instant reservation from quote (BE-API) — passes pm_... directly
-// 6. Attach payment to guest for automation (Open API)
-// 7. Save to Supabase
+// ── Route 11: Reserve ──
+// 7-step flow using both APIs
+// Card already validated via SetupIntent before this is called
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
@@ -480,7 +500,9 @@ app.post('/api/website/reserve', async (req, res) => {
       let customer = customers.data[0];
       if (!customer) {
         customer = await stripe.customers.create({
-          email, name: `${firstName} ${lastName}`, phone: phone || undefined
+          email,
+          name:  `${firstName} ${lastName}`,
+          phone: phone || undefined
         });
       }
       try {
@@ -511,8 +533,8 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 4: Create fresh quote (BE-API) ──
-    // Always create a fresh quote at reservation time to ensure pricing is current
-    console.log('Creating fresh quote for reservation...');
+    // Always fresh at reservation time — ensures current pricing
+    console.log('Creating fresh quote...');
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
       headers: {
@@ -529,18 +551,21 @@ app.post('/api/website/reserve', async (req, res) => {
     });
     const quoteText = await quoteRes.text();
     let quoteData;
-    try { quoteData = JSON.parse(quoteText); } catch(e) { throw new Error('Quote parse error: ' + quoteText.slice(0,200)); }
-    if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0,200));
+    try { quoteData = JSON.parse(quoteText); } catch(e) {
+      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
+    }
+    if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
+
     const quoteId    = quoteData._id;
-    const ratePlanId = quoteData.rates?.ratePlans?.[0]?.ratePlan?._id || 'default-rateplan-id';
-    console.log('Quote created:', quoteId, 'Rate plan:', ratePlanId);
+    const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    const pricing    = extractPricingFromQuote(quoteData, nights);
+    const ratePlanId = pricing.ratePlanId;
+    console.log('Quote created:', quoteId, 'Rate plan:', ratePlanId, 'Total:', pricing.total);
 
-    // ── Step 5: Create instant reservation from quote (BE-API) ──
-    // BE-API accepts pm_... directly via ccToken field
-    // No more stripeCardToken complexity from Open API
-    console.log('Creating instant reservation from quote...');
-
+    // ── Step 5: Create instant reservation (BE-API) ──
+    // ccToken accepts pm_... directly — no stripeCardToken needed
     // Delay per Guesty docs to avoid race conditions
+    console.log('Creating instant reservation from quote...');
     await new Promise(r => setTimeout(r, 2000));
 
     const reserveRes = await fetch(
@@ -566,17 +591,24 @@ app.post('/api/website/reserve', async (req, res) => {
     );
     const reserveText = await reserveRes.text();
     let reserveData;
-    try { reserveData = JSON.parse(reserveText); } catch(e) { throw new Error('Reservation parse error: ' + reserveText.slice(0,200)); }
-    if (!reserveData._id) throw new Error('Failed to create reservation: ' + JSON.stringify(reserveData).slice(0,200));
+    try { reserveData = JSON.parse(reserveText); } catch(e) {
+      throw new Error('Reservation parse error: ' + reserveText.slice(0, 200));
+    }
+    if (!reserveData._id) {
+      const errMsg = JSON.stringify(reserveData);
+      if (errMsg.includes('minNights')) {
+        throw new Error('This property requires a longer minimum stay for your selected dates. Please go back and select different dates.');
+      }
+      throw new Error('Failed to create reservation: ' + errMsg.slice(0, 200));
+    }
 
     const reservationId    = reserveData._id;
     const confirmationCode = reserveData.confirmationCode || reservationId;
     console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
 
-    // ── Step 6: Attach payment to guest for automation (Open API) ──
-    // Links card to Guesty guest for 49%/51% auto-payment schedule
+    // ── Step 6: Attach payment to Guesty guest for automation (Open API) ──
+    // Links card to guest for 49%/51% auto-payment scheduling
     console.log('Attaching payment to Guesty guest for automation...');
-    let guestyPaymentMethodId = null;
     try {
       const pmRes  = await fetch(
         `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
@@ -596,7 +628,6 @@ app.post('/api/website/reserve', async (req, res) => {
       let pmData;
       try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
       console.log('Payment attached to guest:', JSON.stringify(pmData).slice(0, 200));
-      guestyPaymentMethodId = pmData._id || pmData.id;
     } catch(e) {
       console.warn('Could not attach payment to guest:', e.message);
     }
@@ -607,14 +638,14 @@ app.post('/api/website/reserve', async (req, res) => {
       last_name:  lastName,
       email,
       interest: 'booking',
-      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${totalAmount} | Guesty ID: ${reservationId}`
+      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount} | Guesty ID: ${reservationId}`
     }]);
 
     res.json({
       success:          true,
       reservationId,
       confirmationCode,
-      amount:           totalAmount
+      amount:           pricing.total || totalAmount
     });
 
   } catch(e) {
@@ -629,7 +660,7 @@ app.get('/', (req, res) => res.json({
   cache: {
     listings:  cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
     reviews:   cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
-    feeConfig: feeConfigCache        ? `cached until ${new Date(feeConfigExpiry).toISOString()}`              : 'empty'
+    feeConfig: 'handled by BE-API quote — exact pricing'
   }
 }));
 
@@ -640,13 +671,13 @@ setInterval(async () => {
 }, 24 * 60 * 60 * 1000);
 
 setInterval(async () => {
-  console.log('Refreshing fee config...');
-  feeConfigCache = null; feeConfigExpiry = 0;
-  try { await getFeeConfig(); } catch(e) { console.error('Fee config refresh failed:', e.message); }
-}, 60 * 60 * 1000);
+  console.log('Refreshing BE-API token...');
+  beApiToken = null; beApiTokenExpiry = 0;
+  try { await getBeApiToken(); } catch(e) { console.error('BE-API token refresh failed:', e.message); }
+}, 23 * 60 * 60 * 1000);
 
 app.listen(process.env.PORT || 3001, () => {
   console.log('Server running on port', process.env.PORT || 3001);
-  getFeeConfig().catch(e => console.error('Startup fee config failed:', e.message));
-  getBeApiToken().catch(e => console.error('BE-API token startup failed:', e.message));
+  getBeApiToken().catch(e => console.error('BE-API startup failed:', e.message));
+  getOpenApiToken().catch(e => console.error('Open API startup failed:', e.message));
 });

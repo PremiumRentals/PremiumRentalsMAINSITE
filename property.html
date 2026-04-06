@@ -813,6 +813,7 @@ function proceedBooking() {
   if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
   const p = new URLSearchParams({
     id:listingId, checkIn:ci, checkOut:co, guests:guestCount,
+    maxGuests,
     nightlyAvg:bookingData.nightlyAvg, nights:bookingData.nights,
     accommodation:bookingData.accommodation, cleaningFee:bookingData.cleaningFee,
     serviceFee:bookingData.serviceFee, taxes:bookingData.taxes, total:bookingData.total

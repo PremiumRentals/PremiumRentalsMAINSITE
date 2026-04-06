@@ -1,868 +1,673 @@
 const express = require('express');
+const fetch = require('node-fetch');
 const cors = require('cors');
-const axios = require('axios');
-const qs = require('qs');
 const { createClient } = require('@supabase/supabase-js');
+const Stripe = require('stripe');
 
 const app = express();
-app.use(cors({ origin: '*' }));
 app.use(express.json());
+app.use(cors({
+  origin: [
+    'https://premiumrentals.homes',
+    'https://www.premiumrentals.homes',
+    'https://premium-rentals-mainsite.vercel.app',
+    'http://localhost:3000'
+  ]
+}));
 
-const supabase = createClient(
-  process.env.SUPABASE_URL,
-  process.env.SUPABASE_SERVICE_KEY
-);
+const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
+const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
-// ─── Guesty auth ───────────────────────────────────────────────────────────
+// ── Open API Auth ──
+let openApiToken = null;
+let openApiTokenExpiry = 0;
 
-let guestyToken = null;
-let guestyTokenExpiry = null;
-
-async function getGuestyToken() {
-  if (guestyToken && guestyTokenExpiry && Date.now() < guestyTokenExpiry) return guestyToken;
-  const res = await axios({
+async function getOpenApiToken() {
+  if (openApiToken && Date.now() < openApiTokenExpiry) return openApiToken;
+  const res = await fetch('https://open-api.guesty.com/oauth2/token', {
     method: 'POST',
-    url: 'https://open-api.guesty.com/oauth2/token',
-    headers: { 'Accept': 'application/json', 'Content-Type': 'application/x-www-form-urlencoded' },
-    data: qs.stringify({
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
       grant_type: 'client_credentials',
       scope: 'open-api',
       client_id: process.env.GUESTY_CLIENT_ID,
       client_secret: process.env.GUESTY_CLIENT_SECRET
     })
   });
-  guestyToken = res.data.access_token;
-  guestyTokenExpiry = Date.now() + (res.data.expires_in - 300) * 1000;
-  console.log('Guesty token obtained');
-  return guestyToken;
+  const d = await res.json();
+  if (!d.access_token) throw new Error('Open API auth failed: ' + JSON.stringify(d));
+  openApiToken = d.access_token;
+  openApiTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
+  console.log('Open API token refreshed');
+  return openApiToken;
 }
 
-async function guestyRequest(method, path, data = null) {
-  const token = await getGuestyToken();
-  const url = `https://open-api.guesty.com/v1${path}`;
-  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-  if (data) headers['Content-Type'] = 'application/json';
+// ── BE-API Auth ──
+let beApiToken = null;
+let beApiTokenExpiry = 0;
+
+async function getBeApiToken() {
+  if (beApiToken && Date.now() < beApiTokenExpiry) return beApiToken;
+  const res = await fetch('https://booking.guesty.com/oauth2/token', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: new URLSearchParams({
+      grant_type: 'client_credentials',
+      scope: 'booking_engine:api',
+      client_id: process.env.GUESTY_BE_CLIENT_ID,
+      client_secret: process.env.GUESTY_BE_CLIENT_SECRET
+    })
+  });
+  const d = await res.json();
+  if (!d.access_token) throw new Error('BE-API auth failed: ' + JSON.stringify(d));
+  beApiToken = d.access_token;
+  beApiTokenExpiry = Date.now() + (d.expires_in - 60) * 1000;
+  console.log('BE-API token refreshed');
+  return beApiToken;
+}
+
+// ── Cache Layer ──
+const cache = {};
+function getCache(key) {
+  const entry = cache[key];
+  if (!entry) return null;
+  if (Date.now() > entry.expiry) { delete cache[key]; return null; }
+  return entry.data;
+}
+function setCache(key, data, ttl) {
+  cache[key] = { data, expiry: Date.now() + ttl };
+}
+
+// ── Listing fees cache (Open API) ──
+// BE-API listings don't include cleaning fee or extra person fee
+// Fetched once from Open API and cached per listing per server instance
+const listingFeesCache = {};
+
+async function getListingFees(listingId) {
+  if (listingFeesCache[listingId]) return listingFeesCache[listingId];
   try {
-    const res = await axios({ method, url, headers, data, maxRedirects: 10 });
-    return res.data;
-  } catch (err) {
-    console.error(`Guesty error [${method} ${url}]:`, err.response?.status, JSON.stringify(err.response?.data)?.slice(0, 200));
-    throw err;
+    const token = await getOpenApiToken();
+    const res   = await fetch(
+      `https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    const fees = {
+      cleaningFee:                data?.prices?.cleaningFee                || 0,
+      extraPersonFee:             data?.prices?.extraPersonFee             || 0,
+      guestsIncludedInRegularFee: data?.prices?.guestsIncludedInRegularFee || 2
+    };
+    listingFeesCache[listingId] = fees;
+    console.log(`Listing fees [${listingId}]: cleaning=$${fees.cleaningFee} extraPerson=$${fees.extraPersonFee} baseGuests=${fees.guestsIncludedInRegularFee}`);
+    return fees;
+  } catch(e) {
+    console.warn('Could not fetch listing fees for', listingId, e.message);
+    const fallback = { cleaningFee: 0, extraPersonFee: 0, guestsIncludedInRegularFee: 2 };
+    listingFeesCache[listingId] = fallback;
+    return fallback;
   }
 }
 
-// ─── Podium OAuth token management ────────────────────────────────────────
-
-async function getPodiumTokens() {
-  const { data } = await supabase
-    .from('settings')
-    .select('podium_access_token, podium_refresh_token, podium_token_expiry, podium_location_uid')
-    .eq('id', 1)
-    .single();
-  return data;
-}
-
-async function savePodiumTokens(access_token, refresh_token, expires_in = 36000) {
-  const expiry = new Date(Date.now() + (expires_in - 300) * 1000).toISOString();
-  await supabase.from('settings').update({
-    podium_access_token: access_token,
-    podium_refresh_token: refresh_token,
-    podium_token_expiry: expiry,
-  }).eq('id', 1);
-  console.log('Podium tokens saved, expires:', expiry);
-}
-
-async function getValidPodiumToken() {
-  const tokens = await getPodiumTokens();
-  if (!tokens?.podium_access_token) throw new Error('No Podium token — visit /auth/podium to authenticate');
-  const expiry = tokens.podium_token_expiry ? new Date(tokens.podium_token_expiry) : null;
-  if (expiry && Date.now() < expiry.getTime()) return tokens.podium_access_token;
-  console.log('Podium token expired, refreshing...');
-  const res = await axios.post('https://api.podium.com/oauth/token', {
-    client_id: process.env.PODIUM_CLIENT_ID,
-    client_secret: process.env.PODIUM_CLIENT_SECRET,
-    grant_type: 'refresh_token',
-    refresh_token: tokens.podium_refresh_token,
-  }, { headers: { 'Content-Type': 'application/json' } });
-  await savePodiumTokens(res.data.access_token, res.data.refresh_token, res.data.expires_in);
-  return res.data.access_token;
-}
-
-async function podiumRequest(method, path, data = null) {
-  const token = await getValidPodiumToken();
-  const url = `https://api.podium.com/v4${path}`;
-  const headers = { 'Authorization': `Bearer ${token}`, 'Accept': 'application/json' };
-  if (data) headers['Content-Type'] = 'application/json';
-  try {
-    const res = await axios({ method, url, headers, data });
-    return res.data;
-  } catch (err) {
-    console.error(`Podium error [${method} ${url}]:`, err.response?.status, JSON.stringify(err.response?.data)?.slice(0, 200));
-    throw err;
-  }
-}
-
-async function sendPodiumReply(podiumConversationId, body) {
-  const tokens = await getPodiumTokens();
-  const locationUid = tokens?.podium_location_uid || process.env.PODIUM_LOCATION_UID;
-  return podiumRequest('POST', `/conversations/${podiumConversationId}/messages`, { body, locationUid });
-}
-
-// ─── Podium OAuth routes ───────────────────────────────────────────────────
-
-app.get('/auth/podium', (req, res) => {
-  const scopes = [
-    'read_messages', 'write_messages',
-    'read_contacts', 'write_contacts',
-    'read_locations', 'read_organizations',
-  ].join(' ');
-  const url = new URL('https://api.podium.com/oauth/authorize');
-  url.searchParams.set('client_id', process.env.PODIUM_CLIENT_ID);
-  url.searchParams.set('redirect_uri', process.env.PODIUM_REDIRECT_URI);
-  url.searchParams.set('scope', scopes);
-  url.searchParams.set('state', 'premiumrentals_autopilot');
-  console.log('Redirecting to Podium OAuth:', url.toString());
-  res.redirect(url.toString());
-});
-
-app.get('/auth/podium/callback', async (req, res) => {
-  const { code, error } = req.query;
-  if (error) return res.send(`<h2>Podium auth failed: ${error}</h2>`);
-  if (!code) return res.status(400).send('<h2>No code received from Podium</h2>');
-  try {
-    const tokenRes = await axios.post('https://api.podium.com/oauth/token', {
-      client_id: process.env.PODIUM_CLIENT_ID,
-      client_secret: process.env.PODIUM_CLIENT_SECRET,
-      redirect_uri: process.env.PODIUM_REDIRECT_URI,
-      grant_type: 'authorization_code',
-      code,
-    }, { headers: { 'Content-Type': 'application/json' } });
-    await savePodiumTokens(tokenRes.data.access_token, tokenRes.data.refresh_token, tokenRes.data.expires_in || 36000);
-
-    // Auto-fetch and store location UID
-    try {
-      const locations = await podiumRequest('GET', '/locations');
-      const locationUid = locations?.data?.[0]?.uid || locations?.[0]?.uid;
-      if (locationUid) {
-        await supabase.from('settings').update({ podium_location_uid: locationUid }).eq('id', 1);
-        console.log('Podium location UID saved:', locationUid);
-      }
-    } catch (e) { console.log('Could not auto-fetch location UID:', e.message); }
-
-    res.send(`
-      <html><body style="font-family:'Inter',sans-serif;max-width:480px;margin:80px auto;padding:24px">
-        <div style="background:#f7f5f2;border:1px solid #eeede9;padding:32px;border-radius:2px">
-          <div style="font-size:13px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:#C9A96E;margin-bottom:12px">Podium</div>
-          <h2 style="font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:#1a1a1a;margin-bottom:12px">Connected successfully</h2>
-          <p style="font-size:14px;color:#6b6b6b;line-height:1.7;margin-bottom:24px">Access token stored and will auto-refresh. Inbound SMS messages will now appear in your unified inbox.</p>
-          <a href="https://premiumrentals.ai" style="background:#C9A96E;color:#fff;padding:12px 28px;border-radius:2px;text-decoration:none;font-size:13px;font-weight:600;letter-spacing:0.5px">Go to Dashboard</a>
-        </div>
-      </body></html>
-    `);
-  } catch (err) {
-    console.error('Podium token exchange error:', err.response?.data || err.message);
-    res.status(500).send(`<h2>Token exchange failed</h2><pre>${JSON.stringify(err.response?.data, null, 2)}</pre>`);
-  }
-});
-
-app.get('/auth/podium/status', async (req, res) => {
-  try {
-    const tokens = await getPodiumTokens();
-    const hasToken = !!tokens?.podium_access_token;
-    const expiry = tokens?.podium_token_expiry;
-    const expired = expiry ? new Date(expiry) < new Date() : true;
-    res.json({
-      connected: hasToken && !expired,
-      hasToken,
-      expired,
-      expiry,
-      locationUid: tokens?.podium_location_uid || null,
-      authUrl: `${process.env.API_URL}/auth/podium`,
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── Phone normalization ───────────────────────────────────────────────────
-
-function normalizePhone(phone) {
-  if (!phone) return null;
-  const digits = phone.replace(/\D/g, '');
-  if (digits.length === 11 && digits.startsWith('1')) return digits.slice(1);
-  return digits.slice(-10);
-}
-
-// ─── Podium guest matching ─────────────────────────────────────────────────
-
-async function matchPodiumGuestToGuesty(phone) {
-  const normalized = normalizePhone(phone);
-  if (!normalized) return null;
-
-  // Check cache first — only use if reservation is still active
-  const { data: cached } = await supabase
-    .from('podium_contacts').select('*').eq('phone', normalized).single()
-    .catch(() => ({ data: null }));
-
-  if (cached?.reservation_id) {
-    const checkOut = cached.check_out ? new Date(cached.check_out) : null;
-    const still_active = checkOut && checkOut > new Date();
-    if (still_active) {
-      console.log(`Podium cache hit for ${normalized} → ${cached.reservation_id}`);
-      return cached;
-    }
-    console.log(`Podium cache expired for ${normalized}, re-searching Guesty`);
-  }
-
-  // Search Guesty reservations by phone
-  let matched = null;
-  try {
-    const data = await guestyRequest('GET', `/reservations?limit=50&sort=-checkIn&fields=_id listingId checkIn checkOut status confirmationCode guestsCount keyCode source guest`);
-    const reservations = data?.results || [];
-    for (const r of reservations) {
-      const guestPhone = r.guest?.phone || r.guest?.phones?.[0]?.number || r.guest?.phones?.[0] || '';
-      const guestNormalized = normalizePhone(guestPhone);
-      if (guestNormalized && guestNormalized === normalized) {
-        const checkOut = r.checkOut ? new Date(r.checkOut) : null;
-        const oneDayAgo = new Date(Date.now() - 86400000);
-        if (!checkOut || checkOut > oneDayAgo) { matched = r; break; }
-      }
-    }
-  } catch (e) { console.error('Guesty phone search error:', e.message); }
-
-  const contactRecord = {
-    phone: normalized,
-    last_matched_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
+// ── Fee rates from env vars ──
+function getFeeRates() {
+  return {
+    serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
+    taxRate:        (parseFloat(process.env.TOURISM_TAX_RATE) || 0.02) +
+                    (parseFloat(process.env.SALES_TAX_RATE)   || 0.06)
   };
-
-  if (matched) {
-    const full = await guestyRequest('GET', `/reservations/${matched._id}`).catch(() => matched);
-    const guestName = full.guest?.fullName || [full.guest?.firstName, full.guest?.lastName].filter(Boolean).join(' ') || 'Guest';
-    Object.assign(contactRecord, {
-      guest_name: guestName,
-      guest_email: full.guest?.email || null,
-      reservation_id: full._id,
-      listing_id: full.listingId,
-      check_in: full.checkIn,
-      check_out: full.checkOut,
-      door_code: full.keyCode || full.notes?.guest || null,
-      confirmation_code: full.confirmationCode || null,
-      guests_count: full.guestsCount || null,
-      platform: full.source || 'Direct',
-    });
-    console.log(`Podium guest matched: ${guestName} → ${full._id}`);
-  } else {
-    console.log(`No Guesty reservation found for phone ${normalized}`);
-  }
-
-  await supabase.from('podium_contacts').upsert(contactRecord, { onConflict: 'phone', ignoreDuplicates: false });
-  return matched ? contactRecord : null;
 }
 
-// ─── Calendar helpers ──────────────────────────────────────────────────────
+// ── Extract pricing from BE-API quote ──
+// BE-API quote returns: ratePlan, inquiryId, days only
+// Accommodation = sum of day prices
+// Cleaning fee + extra person fee = from Open API listing (cached)
+// Service fee + taxes = calculated from env var rates
+async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
+  const ratePlan   = quoteData.rates?.ratePlans?.[0];
+  const days       = ratePlan?.days || [];
+  const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
+  const fees       = getFeeRates();
 
-async function getListingCalendar(listingId, from, to) {
-  try {
-    const data = await guestyRequest('GET', `/listings/${listingId}/calendar?from=${from}&to=${to}`);
-    return Array.isArray(data) ? data : [];
-  } catch { return []; }
+  // Get listing fees from Open API (cached)
+  const listingFees = await getListingFees(listingId);
+  const { cleaningFee, extraPersonFee, guestsIncludedInRegularFee } = listingFees;
+
+  // Accommodation from day prices
+  const accommodation = Math.round(
+    days.reduce((sum, d) => sum + (d.price || 0), 0) * 100
+  ) / 100;
+
+  // Nightly average
+  const nightlyAvg = nights > 0 && accommodation > 0
+    ? Math.round((accommodation / nights) * 100) / 100
+    : 0;
+
+  // Extra person fee
+  // Only applies for guests beyond the base included in regular fee
+  const guestCount       = parseInt(guests) || 1;
+  const extraGuests      = Math.max(0, guestCount - guestsIncludedInRegularFee);
+  const extraPersonTotal = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
+
+  // Service fee on accommodation + cleaning + extra person
+  const serviceFee = Math.round(
+    (accommodation + cleaningFee + extraPersonTotal) * fees.serviceFeeRate * 100
+  ) / 100;
+
+  // Taxes on accommodation + cleaning + extra person + service
+  const taxes = Math.round(
+    (accommodation + cleaningFee + extraPersonTotal + serviceFee) * fees.taxRate * 100
+  ) / 100;
+
+  // Total
+  const total = Math.round(
+    (accommodation + cleaningFee + extraPersonTotal + serviceFee + taxes) * 100
+  ) / 100;
+
+  console.log(`Pricing [${listingId}] ${guestCount} guests: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + extraPerson=$${extraPersonTotal} (${extraGuests} extra @ $${extraPersonFee}/night) + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
+
+  return {
+    nightlyAvg,
+    nights,
+    accommodation,
+    cleaningFee,
+    extraPersonFee:  extraPersonTotal,
+    extraGuests,
+    serviceFee,
+    taxes,
+    total,
+    ratePlanId,
+    feeSource: 'be_api_days'
+  };
 }
 
-async function getListingReservations(listingId, from, to) {
-  try {
-    const data = await guestyRequest('GET', `/reservations?listingId=${listingId}&checkIn=${from}&checkOut=${to}&fields=_id checkIn checkOut status guestId`);
-    return data?.results || [];
-  } catch { return []; }
-}
-
-function formatCalendarContext(calendar, reservations) {
-  if (!calendar.length) return 'Calendar data unavailable.';
-  const available = calendar.filter(d => d.status === 'available');
-  const booked = calendar.filter(d => d.blocks?.r || d.status === 'unavailable');
-  const lines = ['CALENDAR CONTEXT (next 60 days):'];
-  lines.push(`Available dates: ${available.length}`);
-  lines.push(`Booked/blocked dates: ${booked.length}`);
-  if (reservations.length) {
-    lines.push('Upcoming reservations:');
-    reservations.forEach(r => {
-      const cin = r.checkIn ? new Date(r.checkIn).toISOString().split('T')[0] : '?';
-      const cout = r.checkOut ? new Date(r.checkOut).toISOString().split('T')[0] : '?';
-      lines.push(`  • ${cin} → ${cout} (${r.status})`);
-    });
-  }
-  const sorted = [...reservations].sort((a, b) => new Date(a.checkIn) - new Date(b.checkIn));
-  for (let i = 0; i < sorted.length - 1; i++) {
-    const cout = new Date(sorted[i].checkOut).toISOString().split('T')[0];
-    const nextCin = new Date(sorted[i + 1].checkIn).toISOString().split('T')[0];
-    if (cout === nextCin) lines.push(`  ⚠ Same-day turnover on ${cout} — early check-in / late check-out not possible`);
-  }
-  return lines.join('\n');
-}
-
-// ─── Email notifications ───────────────────────────────────────────────────
-
-async function sendEmailNotification(subject, body) {
-  if (!process.env.NOTIFICATION_EMAIL || !process.env.SENDGRID_API_KEY) return;
-  try {
-    await axios.post('https://api.sendgrid.com/v3/mail/send', {
-      personalizations: [{ to: [{ email: process.env.NOTIFICATION_EMAIL }] }],
-      from: { email: 'autopilot@premiumrentals.ai', name: 'Autopilot by Premium Rentals' },
-      subject,
-      content: [{ type: 'text/plain', value: body }]
-    }, { headers: { 'Authorization': `Bearer ${process.env.SENDGRID_API_KEY}`, 'Content-Type': 'application/json' } });
-  } catch (err) { console.error('Email notification failed:', err.message); }
-}
-
-// ─── Core AI reply generator (shared by Guesty + Podium) ──────────────────
-
-async function generateAIReply(listingId, guestName, guestMessage, reservationContext, settings) {
-  const { data: listing } = await supabase.from('listings').select('*').eq('id', listingId).single().catch(() => ({ data: null }));
-  const { data: knowledge } = await supabase.from('listing_knowledge').select('*').eq('listing_id', listingId).catch(() => ({ data: [] }));
-  const { data: goodExamples } = await supabase.from('sent_log')
-    .select('body, guest_message').eq('listing_id', listingId).eq('thumbs_up', true).limit(5);
-  const examplesText = goodExamples?.length
-    ? `\nGOOD REPLY EXAMPLES:\n${goodExamples.map(e => `Guest: "${e.guest_message}"\nReply: "${e.body}"`).join('\n\n')}` : '';
-
-  let calendarContext = '';
-  if (listing?.id) {
-    const today = new Date().toISOString().split('T')[0];
-    const in60 = new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0];
-    const [calendar, reservations] = await Promise.all([
-      getListingCalendar(listing.id, today, in60),
-      getListingReservations(listing.id, today, in60)
-    ]);
-    calendarContext = formatCalendarContext(calendar, reservations);
-  }
-
-  const knowledgeText = (knowledge || []).map(k => `${k.label}: ${k.value}`).join('\n');
-  const listingContext = listing ? `
-Property: ${listing.nickname} — ${listing.title}
-Address: ${listing.address}
-Door code: ${reservationContext?.door_code || listing.door_code || 'not set'}
-WiFi: ${listing.wifi_name} / ${listing.wifi_password}
-Check-in: ${listing.check_in_time} | Check-out: ${listing.check_out_time}
-Bedrooms: ${listing.bedrooms} | Bathrooms: ${listing.bathrooms} | Sleeps: ${listing.accommodates}
-Parking: ${listing.parking || 'not set'}
-Min nights: ${listing.min_nights} | Max nights: ${listing.max_nights}
-Cleaning fee: $${listing.cleaning_fee} | Pet fee: $${listing.pet_fee}
-Amenities: ${listing.amenities || 'not set'}
-House rules: ${listing.description_house_rules || 'not set'}
-Special notes: ${listing.special_notes || 'none'}
-${knowledgeText ? `Additional info:\n${knowledgeText}` : ''}
-${examplesText}` : 'Property info not available.';
-
-  const reservationText = reservationContext
-    ? `Guest: ${guestName} | Platform: ${reservationContext.platform || 'SMS'}
-Confirmation: ${reservationContext.confirmation_code || 'N/A'} | Guests: ${reservationContext.guests_count || 'unknown'}
-Check-in: ${reservationContext.check_in} | Check-out: ${reservationContext.check_out}`
-    : `Guest: ${guestName} | No active reservation found`;
-
-  const systemPrompt = `${settings?.system_prompt || 'You are a professional short-term rental host assistant for Autopilot by Premium Rentals.'}
-Tone: ${settings?.reply_tone || 'friendly'}
-
-PROPERTY KNOWLEDGE BASE:
-${listingContext}
-
-GUEST RESERVATION:
-${reservationText}
-
-${calendarContext}
-
-CRITICAL INSTRUCTIONS:
-- Use calendar context to accurately answer availability, early check-in, late check-out, and extra night requests
-- If same-day turnover exists, politely decline early check-in or late check-out
-- If guest asks if they are talking to AI, a bot, or a real person — set suspectsAI to true
-- Always address guest by first name
-- Be warm, helpful, and professional
-- Keep replies concise — this may be SMS
-
-Respond ONLY with a JSON object — no markdown:
-{"reply": "your reply here", "confidence": 0-100, "reasoning": "brief reason", "suspectsAI": false}`;
-
-  const aiRes = await axios.post('https://api.anthropic.com/v1/messages', {
-    model: 'claude-sonnet-4-20250514',
-    max_tokens: 500,
-    system: systemPrompt,
-    messages: [{ role: 'user', content: `Guest message: "${guestMessage}"` }]
-  }, { headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' } });
-
-  const raw = aiRes.data.content[0].text.replace(/```json|```/g, '').trim();
-  return JSON.parse(raw);
-}
-
-// ─── Base ──────────────────────────────────────────────────────────────────
-
-app.get('/', (req, res) => res.json({ status: 'ok', app: 'Autopilot by Premium Rentals' }));
-
-// ─── Listings ──────────────────────────────────────────────────────────────
-
-app.post('/api/listings/sync', async (req, res) => {
-  try {
-    let allListings = [], skip = 0;
-    const limit = 25;
-    while (true) {
-      const data = await guestyRequest('GET', `/listings?limit=${limit}&skip=${skip}`);
-      const results = data?.results || data?.data || (Array.isArray(data) ? data : []);
-      allListings = allListings.concat(results);
-      if (results.length < limit) break;
-      skip += limit;
-    }
-    const rows = allListings.map(l => ({
-      id: l._id, nickname: l.nickname || l.title, title: l.title,
-      address: l.address?.full || [l.address?.street, l.address?.city, l.address?.state, l.address?.zipcode].filter(Boolean).join(', '),
-      city: l.address?.city || null, state: l.address?.state || null, zipcode: l.address?.zipcode || null,
-      lat: l.address?.lat || null, lng: l.address?.lng || null, timezone: l.timezone || null,
-      listing_type: l.propertyType || 'SINGLE', room_type: l.roomType || null,
-      picture_url: l.picture?.thumbnail || l.pictures?.[0]?.thumbnail || null,
-      bedrooms: l.bedrooms || null, bathrooms: l.bathrooms || null, beds: l.beds || null,
-      accommodates: l.accommodates || null, area_sq_ft: l.areaSquareFeet || null,
-      check_in_time: l.defaultCheckInTime || null, check_out_time: l.defaultCheckOutTime || null,
-      wifi_name: l.wifiName || null, wifi_password: l.wifiPassword || null,
-      base_price: l.prices?.basePrice || null, cleaning_fee: l.prices?.cleaningFee || null,
-      pet_fee: l.prices?.petFee || null, security_deposit: l.prices?.securityDepositFee || null,
-      min_nights: l.terms?.minNights || null, max_nights: l.terms?.maxNights || null,
-      description_summary: l.publicDescription?.summary || null, description_access: l.publicDescription?.access || null,
-      description_house_rules: l.publicDescription?.houseRules || null, description_neighborhood: l.publicDescription?.neighborhood || null,
-      amenities: l.amenities?.length ? l.amenities.join(', ') : null,
-      tags: l.tags?.length ? l.tags.join(', ') : null, is_listed: l.isListed ?? true, active: l.active ?? true,
-    }));
-    const { error } = await supabase.from('listings').upsert(rows, { onConflict: 'id', ignoreDuplicates: false });
-    if (error) throw error;
-    res.json({ success: true, synced: rows.length });
-  } catch (err) { console.error('Listings sync error:', err.message); res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/listings', async (req, res) => {
-  try {
-    const { data: listings, error } = await supabase.from('listings').select('*').order('nickname');
-    if (error) throw error;
-    const { data: knowledge } = await supabase.from('listing_knowledge').select('*');
-    res.json(listings.map(l => ({ ...l, extras: (knowledge || []).filter(k => k.listing_id === l.id) })));
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.patch('/api/listings/:id', async (req, res) => {
-  try {
-    const { extras, ...fields } = req.body;
-    const { error } = await supabase.from('listings').update(fields).eq('id', req.params.id);
-    if (error) throw error;
-    if (extras !== undefined) {
-      await supabase.from('listing_knowledge').delete().eq('listing_id', req.params.id);
-      if (extras.length > 0) await supabase.from('listing_knowledge').insert(extras.map(e => ({ listing_id: req.params.id, label: e.label, value: e.value })));
-    }
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/listings/:id/calendar', async (req, res) => {
-  try {
-    const { from, to } = req.query;
-    const today = new Date().toISOString().split('T')[0];
-    const in60 = new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0];
-    const [calendar, reservations] = await Promise.all([
-      getListingCalendar(req.params.id, from || today, to || in60),
-      getListingReservations(req.params.id, from || today, to || in60)
-    ]);
-    res.json({ calendar, reservations });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/listings/:id/availability', async (req, res) => {
-  try {
-    const { date } = req.query;
-    if (!date) return res.status(400).json({ error: 'date required' });
-    const dayBefore = new Date(new Date(date).getTime() - 86400000).toISOString().split('T')[0];
-    const dayAfter = new Date(new Date(date).getTime() + 86400000).toISOString().split('T')[0];
-    const in3 = new Date(new Date(date).getTime() + 3 * 86400000).toISOString().split('T')[0];
-    const [calendar, reservations] = await Promise.all([
-      getListingCalendar(req.params.id, dayBefore, in3),
-      getListingReservations(req.params.id, dayBefore, in3)
-    ]);
-    const dayData = calendar.find(d => d.date === date);
-    const prevDay = calendar.find(d => d.date === dayBefore);
-    const nextDay = calendar.find(d => d.date === dayAfter);
-    const hasCheckoutBefore = reservations.some(r => new Date(r.checkOut).toISOString().split('T')[0] === date);
-    const hasCheckinAfter = reservations.some(r => new Date(r.checkIn).toISOString().split('T')[0] === dayAfter);
-    res.json({
-      date, available: dayData?.status === 'available', price: dayData?.price, minNights: dayData?.minNights,
-      sameDayTurnover: hasCheckoutBefore && hasCheckinAfter,
-      previousNightBooked: prevDay?.status !== 'available', nextNightBooked: nextDay?.status !== 'available',
-      earlyCheckinPossible: !hasCheckoutBefore, lateCheckoutPossible: !hasCheckinAfter,
-    });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── Conversations ─────────────────────────────────────────────────────────
-
-app.post('/api/conversations/sync', async (req, res) => {
-  try {
-    const data = await guestyRequest('GET', `/reservations?limit=25&sort=-createdAt`);
-    const reservations = data?.results || [];
-    let synced = 0;
-    for (const r of reservations) {
-      const full = await guestyRequest('GET', `/reservations/${r._id}`).catch(() => null);
-      if (!full) continue;
-      const guestName = full.guest?.fullName || [full.guest?.firstName, full.guest?.lastName].filter(Boolean).join(' ') || 'Guest';
-      let guestyStatus = 'open';
-      try {
-        const convData = await guestyRequest('GET', `/conversations?reservationId=${full._id}&limit=1`);
-        const conv = convData?.results?.[0] || convData?.[0];
-        if (conv) {
-          const raw = (conv.status || conv.conversationStatus || '').toLowerCase();
-          guestyStatus = ['archived', 'closed', 'resolved'].includes(raw) ? 'archived' : 'open';
-        }
-      } catch (e) { console.log(`Could not fetch conversation status for ${full._id}:`, e.message); }
-
-      await supabase.from('conversations').upsert({
-        id: full._id, listing_id: full.listingId, reservation_id: full._id,
-        guest_name: guestName, guest_email: full.guest?.email,
-        guest_phone: normalizePhone(full.guest?.phone || full.guest?.phones?.[0]?.number || ''),
-        platform: full.source || 'Direct', check_in: full.checkIn, check_out: full.checkOut,
-        door_code: full.keyCode || full.notes?.guest || null,
-        confirmation_code: full.confirmationCode || null, guests_count: full.guestsCount || null,
-        status: 'pending', source: 'guesty', guesty_status: guestyStatus,
-      }, { onConflict: 'id' });
+// ── Pricing sync ──
+async function syncPricing() {
+  console.log('Starting pricing sync...');
+  const token = await getOpenApiToken();
+  const listRes = await fetch('https://open-api.guesty.com/v1/listings?limit=100', {
+    headers: { Authorization: `Bearer ${token}` }
+  });
+  const listData = await listRes.json();
+  const listings = (listData.results || []).filter(l => l.active !== false);
+  let synced = 0, failed = 0;
+  for (const listing of listings) {
+    try {
+      await new Promise(r => setTimeout(r, 300));
+      const { error } = await supabase.from('listing_pricing').upsert({
+        listing_id:   listing._id,
+        nightly_rate: listing.prices?.basePrice || null,
+        currency:     'USD',
+        updated_at:   new Date().toISOString()
+      }, { onConflict: 'listing_id' });
+      if (error) throw error;
       synced++;
-    }
-    res.json({ success: true, synced });
-  } catch (err) { console.error('Conversations sync error:', err.message); res.status(500).json({ error: err.message }); }
-});
-
-app.get('/api/inbox', async (req, res) => {
-  try {
-    const showArchived = req.query.archived === 'true';
-    let query = supabase.from('conversations').select('*, listings(*)').order('check_in', { ascending: true });
-    if (showArchived) {
-      query = query.eq('guesty_status', 'archived');
-    } else {
-      query = query.not('status', 'eq', 'replied').or('guesty_status.is.null,guesty_status.eq.open');
-    }
-    const { data: convos, error } = await query;
-    if (error) throw error;
-    const result = [];
-    for (const c of convos) {
-      const { data: msgs } = await supabase.from('messages').select('*')
-        .eq('conversation_id', c.id).order('created_at', { ascending: false }).limit(10);
-      const lastInbound = (msgs || []).find(m => m.direction === 'inbound');
-      result.push({ ...c, lastMessage: lastInbound || null, messages: msgs || [] });
-    }
-    res.json(result);
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.patch('/api/conversations/:id/snooze', async (req, res) => {
-  try {
-    const { hours, reason } = req.body;
-    const snoozed_until = hours ? new Date(Date.now() + hours * 3600000).toISOString() : null;
-    await supabase.from('conversations').update({ snoozed: true, snoozed_until, snooze_reason: reason || 'manual' }).eq('id', req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.patch('/api/conversations/:id/unsnooze', async (req, res) => {
-  try {
-    await supabase.from('conversations').update({ snoozed: false, snoozed_until: null, snooze_reason: null }).eq('id', req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.patch('/api/conversations/:id/archive', async (req, res) => {
-  try {
-    await supabase.from('conversations').update({ guesty_status: 'archived' }).eq('id', req.params.id);
-    try {
-      const convData = await guestyRequest('GET', `/conversations?reservationId=${req.params.id}&limit=1`);
-      const conv = convData?.results?.[0] || convData?.[0];
-      if (conv?._id) await guestyRequest('PUT', `/conversations/${conv._id}`, { status: 'archived' });
-    } catch (e) { console.log('Guesty archive sync skipped:', e.message); }
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-app.patch('/api/conversations/:id/unarchive', async (req, res) => {
-  try {
-    await supabase.from('conversations').update({ guesty_status: 'open' }).eq('id', req.params.id);
-    try {
-      const convData = await guestyRequest('GET', `/conversations?reservationId=${req.params.id}&limit=1`);
-      const conv = convData?.results?.[0] || convData?.[0];
-      if (conv?._id) await guestyRequest('PUT', `/conversations/${conv._id}`, { status: 'open' });
-    } catch (e) { console.log('Guesty unarchive sync skipped:', e.message); }
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
-});
-
-// ─── AI Reply (Guesty) ─────────────────────────────────────────────────────
-
-app.post('/api/generate-reply', async (req, res) => {
-  try {
-    const { conversationId, messageId } = req.body;
-    const { data: convo } = await supabase.from('conversations').select('*, listings(*)').eq('id', conversationId).single();
-    const { data: msg } = await supabase.from('messages').select('*').eq('id', messageId).single();
-    const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single();
-    const { data: listing_settings } = await supabase.from('listing_autopilot').select('*').eq('listing_id', convo.listing_id).single().catch(() => ({ data: null }));
-    if (listing_settings?.autopilot_enabled === false) return res.json({ reply: null, confidence: 0, reasoning: 'Autopilot disabled', autoSent: false });
-
-    const parsed = await generateAIReply(convo.listing_id, convo.guest_name, msg.body, {
-      door_code: convo.door_code, confirmation_code: convo.confirmation_code,
-      guests_count: convo.guests_count, check_in: convo.check_in, check_out: convo.check_out, platform: convo.platform,
-    }, settings);
-
-    await supabase.from('messages').update({ ai_draft: parsed.reply, ai_confidence: parsed.confidence, ai_reasoning: parsed.reasoning }).eq('id', messageId);
-
-    if (parsed.suspectsAI) {
-      await supabase.from('conversations').update({ snoozed: true, snoozed_until: null, snooze_reason: 'ai_suspicion' }).eq('id', conversationId);
-      await sendEmailNotification(`⚠️ Guest suspects AI — ${convo.guest_name}`, `Guest ${convo.guest_name} at ${convo.listings?.nickname} may suspect AI.\n\nMessage: "${msg.body}"\n\nSnoozed for review.`);
-      return res.json({ reply: parsed.reply, confidence: parsed.confidence, reasoning: parsed.reasoning, autoSent: false, snoozed: true });
-    }
-
-    const threshold = settings?.confidence_threshold || 85;
-    const autoSent = settings?.auto_send_enabled && parsed.confidence >= threshold;
-    if (autoSent) {
-      await sendGuestyReply(conversationId, messageId, parsed.reply, true, parsed.confidence, convo, convo.listings, msg.body);
-    } else {
-      await sendEmailNotification(`📬 Message needs review — ${convo.guest_name}`, `Guest ${convo.guest_name} at ${convo.listings?.nickname}.\n\nMessage: "${msg.body}"\n\nDraft (${parsed.confidence}%): "${parsed.reply}"\n\nhttps://premiumrentals.ai`);
-    }
-    res.json({ reply: parsed.reply, confidence: parsed.confidence, reasoning: parsed.reasoning, autoSent });
-  } catch (err) { console.error('Generate reply error:', err.message); res.status(500).json({ error: err.message }); }
-});
-
-async function sendGuestyReply(conversationId, messageId, body, autoSent, confidence, convo, listing, guestMessage) {
-  await guestyRequest('POST', `/conversations/${conversationId}/messages`, { body, type: 'host' });
-  await supabase.from('messages').update({ sent_at: new Date().toISOString(), auto_sent: autoSent }).eq('id', messageId);
-  await supabase.from('conversations').update({ status: 'replied' }).eq('id', conversationId);
-  await supabase.from('sent_log').insert({ message_id: messageId, conversation_id: conversationId, listing_id: convo?.listing_id, guest_name: convo?.guest_name, body, guest_message: guestMessage || null, auto_sent: autoSent, confidence, channel: 'guesty' });
+    } catch(e) { console.error(`Failed to sync ${listing._id}:`, e.message); failed++; }
+  }
+  console.log(`Pricing sync complete: ${synced} synced, ${failed} failed`);
+  return { synced, failed, total: listings.length };
 }
 
-app.post('/api/send-reply', async (req, res) => {
+// ── Route 1: Listings (BE-API) ──
+app.get('/api/website/listings', async (req, res) => {
   try {
-    const { conversationId, messageId, body } = req.body;
-    const { data: convo } = await supabase.from('conversations').select('*, listings(*)').eq('id', conversationId).single();
-    const { data: msg } = await supabase.from('messages').select('*').eq('id', messageId).single();
-    if (convo?.source === 'podium') {
-      await sendPodiumReply(convo.podium_conversation_id, body);
-      await supabase.from('messages').update({ sent_at: new Date().toISOString(), auto_sent: false }).eq('id', messageId);
-      await supabase.from('conversations').update({ status: 'replied' }).eq('id', conversationId);
-      await supabase.from('sent_log').insert({ message_id: messageId, conversation_id: conversationId, listing_id: convo?.listing_id, guest_name: convo?.guest_name, body, guest_message: msg?.body, auto_sent: false, confidence: null, channel: 'podium' });
-    } else {
-      await sendGuestyReply(conversationId, messageId, body, false, null, convo, convo?.listings, msg?.body);
-    }
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const cached = getCache('listings_all');
+    if (cached) return res.json({ success: true, count: cached.length, listings: cached, cached: true });
+    const token    = await getBeApiToken();
+    const response = await fetch('https://booking.guesty.com/api/listings?limit=100', {
+      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
+    });
+    const data    = await response.json();
+    const results = data.results || [];
+    setCache('listings_all', results, 5 * 60 * 1000);
+    res.json({ success: true, count: results.length, listings: results, cached: false });
+  } catch(e) {
+    const stale = cache['listings_all'];
+    if (stale) return res.json({ success: true, count: stale.data.length, listings: stale.data, cached: true, stale: true });
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.patch('/api/sent-log/:id/feedback', async (req, res) => {
+// ── Route 2: Availability + pricing (BE-API quote) ──
+app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
-    const { thumbs_up } = req.body;
-    await supabase.from('sent_log').update({ thumbs_up }).eq('id', req.params.id);
-    res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { listingId } = req.params;
+    const { checkIn, checkOut, guests } = req.query;
+    if (!checkIn || !checkOut) return res.status(400).json({ error: 'checkIn and checkOut required' });
+
+    const cacheKey = `avail_${listingId}_${checkIn}_${checkOut}_${guests||1}`;
+    const cached   = getCache(cacheKey);
+    if (cached) return res.json({ success: true, ...cached, cached: true });
+
+    const token  = await getBeApiToken();
+    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+
+    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: {
+        Authorization:  `Bearer ${token}`,
+        'Content-Type': 'application/json',
+        accept:         'application/json'
+      },
+      body: JSON.stringify({
+        listingId,
+        checkInDateLocalized:  checkIn,
+        checkOutDateLocalized: checkOut,
+        guestsCount: parseInt(guests) || 1
+      })
+    });
+
+    const quoteText = await quoteRes.text();
+    let quoteData;
+    try { quoteData = JSON.parse(quoteText); } catch(e) {
+      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
+    }
+
+    if (quoteRes.status !== 200 || !quoteData._id) {
+      return res.json({
+        success:   true,
+        available: false,
+        error:     quoteData.message || quoteData.error || 'Not available for these dates'
+      });
+    }
+
+    // Extract pricing — passes guests for extra person fee calculation
+    const pricing = await extractPricingFromQuote(quoteData, nights, listingId, guests);
+
+    const result = {
+      available: true,
+      quoteId:   quoteData._id,
+      days:      quoteData.rates?.ratePlans?.[0]?.days || [],
+      ...pricing
+    };
+
+    setCache(cacheKey, result, 30 * 1000);
+    res.json({ success: true, ...result });
+
+  } catch(e) {
+    console.error('Availability error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-// ─── Podium webhook ────────────────────────────────────────────────────────
-
-app.post('/webhook/podium', async (req, res) => {
-  res.sendStatus(200);
+// ── Route 3: Calendar (BE-API) ──
+app.get('/api/website/calendar/:listingId', async (req, res) => {
   try {
-    const event = req.body;
-    console.log('Podium webhook:', JSON.stringify(event).slice(0, 300));
+    const { listingId } = req.params;
+    const { startDate, endDate } = req.query;
+    if (!startDate || !endDate) return res.status(400).json({ error: 'startDate and endDate required' });
 
-    const messageBody = event.body || event.message?.body || event.content || '';
-    const fromPhone = event.customer?.phoneNumber || event.from || event.phoneNumber || event.contact?.phoneNumber || '';
-    const podiumConvId = event.conversationUid || event.conversation?.uid || event.conversationId || event.uid || '';
-    const customerName = event.customer?.name || event.contact?.name || event.name || 'Guest';
-    const direction = event.direction || event.type || '';
+    const cacheKey = `cal_${listingId}_${startDate}_${endDate}`;
+    const cached   = getCache(cacheKey);
+    if (cached) return res.json({ success: true, ...cached, cached: true });
 
-    if (!messageBody || !fromPhone) { console.log('Podium webhook: missing body or phone'); return; }
-    if (['outbound', 'sent', 'fromBusiness'].includes(direction)) { console.log('Podium webhook: outbound, skipping'); return; }
+    const token    = await getBeApiToken();
+    const response = await fetch(
+      `https://booking.guesty.com/api/listings/${listingId}/calendar?from=${startDate}&to=${endDate}`,
+      { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } }
+    );
+    const days = await response.json();
+    if (!Array.isArray(days)) throw new Error('Invalid calendar response');
 
-    const normalized = normalizePhone(fromPhone);
-    if (normalized && podiumConvId) {
-      await supabase.from('podium_contacts').upsert({ phone: normalized, podium_conversation_id: podiumConvId, updated_at: new Date().toISOString() }, { onConflict: 'phone' });
-    }
+    const blockedDates      = [];
+    const checkoutOnlyDates = [];
+    const dayData           = {};
 
-    const guestContact = await matchPodiumGuestToGuesty(fromPhone);
-    const convId = `podium_${podiumConvId || normalized}`;
-    const guestName = guestContact?.guest_name || customerName;
-
-    await supabase.from('conversations').upsert({
-      id: convId, source: 'podium', podium_conversation_id: podiumConvId,
-      guest_name: guestName, guest_phone: normalized, guest_email: guestContact?.guest_email || null,
-      listing_id: guestContact?.listing_id || null, reservation_id: guestContact?.reservation_id || null,
-      platform: 'SMS / Podium', check_in: guestContact?.check_in || null, check_out: guestContact?.check_out || null,
-      door_code: guestContact?.door_code || null, confirmation_code: guestContact?.confirmation_code || null,
-      guests_count: guestContact?.guests_count || null, status: 'pending', guesty_status: 'open',
-    }, { onConflict: 'id' });
-
-    const msgId = `podium_msg_${podiumConvId}_${Date.now()}`;
-    await supabase.from('messages').upsert({ id: msgId, conversation_id: convId, direction: 'inbound', body: messageBody, created_at: new Date().toISOString() }, { onConflict: 'id', ignoreDuplicates: true });
-
-    if (!guestContact?.listing_id) {
-      console.log(`Podium: no listing match for ${fromPhone}, queuing for review`);
-      await sendEmailNotification(`📱 Podium SMS — unknown guest ${fromPhone}`, `SMS from ${fromPhone} — no Guesty match.\n\nMessage: "${messageBody}"\n\nhttps://premiumrentals.ai`);
-      return;
-    }
-
-    const { data: listing_settings } = await supabase.from('listing_autopilot').select('*').eq('listing_id', guestContact.listing_id).single().catch(() => ({ data: null }));
-    if (listing_settings?.autopilot_enabled === false) { console.log(`Podium: autopilot disabled for ${guestContact.listing_id}`); return; }
-
-    const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single();
-    const parsed = await generateAIReply(guestContact.listing_id, guestName, messageBody, guestContact, settings);
-    await supabase.from('messages').update({ ai_draft: parsed.reply, ai_confidence: parsed.confidence, ai_reasoning: parsed.reasoning }).eq('id', msgId);
-
-    if (parsed.suspectsAI) {
-      await supabase.from('conversations').update({ snoozed: true, snoozed_until: null, snooze_reason: 'ai_suspicion' }).eq('id', convId);
-      await sendEmailNotification(`⚠️ Podium guest suspects AI — ${guestName}`, `Guest ${guestName} (${fromPhone}) may suspect AI.\n\nMessage: "${messageBody}"`);
-      return;
-    }
-
-    const threshold = settings?.confidence_threshold || 85;
-    const autoSend = settings?.auto_send_enabled && parsed.confidence >= threshold;
-    if (autoSend && podiumConvId) {
-      await sendPodiumReply(podiumConvId, parsed.reply);
-      await supabase.from('messages').update({ sent_at: new Date().toISOString(), auto_sent: true }).eq('id', msgId);
-      await supabase.from('conversations').update({ status: 'replied' }).eq('id', convId);
-      await supabase.from('sent_log').insert({ message_id: msgId, conversation_id: convId, listing_id: guestContact.listing_id, guest_name: guestName, body: parsed.reply, guest_message: messageBody, auto_sent: true, confidence: parsed.confidence, channel: 'podium' });
-      console.log(`Podium: auto-sent to ${fromPhone} (${parsed.confidence}%)`);
-    } else {
-      await sendEmailNotification(`📱 Podium SMS needs review — ${guestName}`, `Guest ${guestName} (${fromPhone}).\n\nMessage: "${messageBody}"\n\nDraft (${parsed.confidence}%): "${parsed.reply}"\n\nhttps://premiumrentals.ai`);
-    }
-  } catch (err) { console.error('Podium webhook error:', err.message); }
-});
-
-// ─── Guesty webhook ────────────────────────────────────────────────────────
-
-app.post('/webhook/guesty', async (req, res) => {
-  res.sendStatus(200);
-  try {
-    const event = req.body;
-    console.log('Guesty webhook:', event.event);
-    if (!['reservation.messageReceived', 'conversation.message.created'].includes(event.event)) return;
-    const reservationId = event.reservationId;
-    const conversation = event.conversation;
-    const message = event.message;
-    if (!conversation || !message) return;
-    if (message.type === 'fromHost') return;
-    const convId = conversation._id;
-    const guestName = conversation.meta?.guestName || 'Guest';
-    const reservationMeta = conversation.meta?.reservations?.[0];
-    const reservation = reservationId ? await guestyRequest('GET', `/reservations/${reservationId}`).catch(() => null) : null;
-    await supabase.from('conversations').upsert({
-      id: convId, listing_id: reservation?.listingId, reservation_id: reservationId || null,
-      guest_name: guestName, guest_email: reservation?.guest?.email,
-      guest_phone: normalizePhone(reservation?.guest?.phone || reservation?.guest?.phones?.[0]?.number || ''),
-      platform: reservation?.source || 'Direct',
-      check_in: reservationMeta?.checkIn || reservation?.checkIn, check_out: reservationMeta?.checkOut || reservation?.checkOut,
-      door_code: reservation?.keyCode || reservation?.notes?.guest || null,
-      confirmation_code: reservationMeta?.confirmationCode || reservation?.confirmationCode || null,
-      guests_count: reservation?.guestsCount || null, status: 'pending', source: 'guesty', guesty_status: 'open',
-    }, { onConflict: 'id' });
-    const msgId = message._id || message.postId;
-    await supabase.from('messages').upsert({ id: msgId, conversation_id: convId, direction: 'inbound', body: message.body || '', created_at: message.createdAt }, { onConflict: 'id', ignoreDuplicates: true });
-    await axios.post(`${process.env.API_URL}/api/generate-reply`, { conversationId: convId, messageId: msgId });
-  } catch (err) { console.error('Guesty webhook error:', err.message); }
-});
-
-// ─── Playground ────────────────────────────────────────────────────────────
-
-app.post('/api/playground', async (req, res) => {
-  try {
-    const { message, listingId } = req.body;
-    const { data: settings } = await supabase.from('settings').select('*').eq('id', 1).single();
-    let listingContext = '', calendarContext = '';
-    if (listingId) {
-      const { data: listing } = await supabase.from('listings').select('*').eq('id', listingId).single();
-      if (listing) {
-        listingContext = `Property: ${listing.nickname}, WiFi: ${listing.wifi_name}/${listing.wifi_password}, Check-in: ${listing.check_in_time}, Check-out: ${listing.check_out_time}, Door: ${listing.door_code || 'not set'}, Sleeps: ${listing.accommodates}, Min nights: ${listing.min_nights}`;
-        const today = new Date().toISOString().split('T')[0];
-        const in60 = new Date(Date.now() + 60 * 86400000).toISOString().split('T')[0];
-        const [cal, r] = await Promise.all([getListingCalendar(listingId, today, in60), getListingReservations(listingId, today, in60)]);
-        calendarContext = formatCalendarContext(cal, r);
+    days.forEach((day, index) => {
+      const isAvailable    = day.status === 'available';
+      const isReserved     = day.status === 'reserved' || day.status === 'booked';
+      const isBlocked      = day.status === 'unavailable';
+      if (day.minNights) dayData[day.date] = { minNights: day.minNights };
+      if (!isAvailable) {
+        const prevDay        = index > 0 ? days[index - 1] : null;
+        const prevAvailable  = prevDay ? prevDay.status === 'available' : true;
+        const isCheckoutOnly = !day.ctd && prevAvailable && (isReserved || isBlocked);
+        if (isCheckoutOnly) checkoutOnlyDates.push(day.date);
+        else blockedDates.push(day.date);
       }
-    }
-    const systemPrompt = `${settings?.system_prompt || 'You are a professional short-term rental host assistant for Premium Rentals.'}
-Tone: ${settings?.reply_tone || 'friendly'}
-${listingContext ? `Property: ${listingContext}` : ''}
-${calendarContext ? `\n${calendarContext}` : ''}
-Keep replies under 150 words.
-Respond ONLY with a JSON object: {"reply": "your reply", "confidence": 0-100, "suspectsAI": false}`;
-    const aiRes = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-sonnet-4-20250514', max_tokens: 400, system: systemPrompt,
-      messages: [{ role: 'user', content: message }]
-    }, { headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' } });
-    const raw = aiRes.data.content[0].text.replace(/```json|```/g, '').trim();
-    const parsed = JSON.parse(raw);
-    res.json({ reply: parsed.reply, confidence: parsed.confidence, suspectsAI: parsed.suspectsAI });
-  } catch (err) { console.error('Playground error:', err.message); res.status(500).json({ error: err.message }); }
+    });
+
+    const result = {
+      blockedDates:      blockedDates.sort(),
+      checkoutOnlyDates: checkoutOnlyDates.sort(),
+      dayData,
+      totalDays: days.length
+    };
+    setCache(cacheKey, result, 30 * 1000);
+    res.json({ success: true, ...result, cached: false });
+
+  } catch(e) {
+    console.error('Calendar error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/message-categories', async (req, res) => {
+// ── Route 4: Pricing from Supabase ──
+app.get('/api/website/pricing', async (req, res) => {
   try {
-    const { data: messages } = await supabase.from('messages').select('body, direction').eq('direction', 'inbound').limit(100);
-    if (!messages || messages.length === 0) return res.json([]);
-    const sample = messages.slice(0, 50).map(m => m.body).join('\n---\n');
-    const aiRes = await axios.post('https://api.anthropic.com/v1/messages', {
-      model: 'claude-sonnet-4-20250514', max_tokens: 600,
-      system: 'Analyze short-term rental guest messages. Return ONLY a JSON array, no markdown: [{"label": "category", "count": number}]. Categories: Check-in questions, WiFi & amenities, Late checkout requests, Early check-in requests, Maintenance issues, Booking inquiries, Availability questions, Payment questions, General courtesy, Other.',
-      messages: [{ role: 'user', content: `Categorize these ${messages.length} messages:\n\n${sample}` }]
-    }, { headers: { 'x-api-key': process.env.ANTHROPIC_API_KEY, 'anthropic-version': '2023-06-01', 'content-type': 'application/json' } });
-    const raw = aiRes.data.content[0].text.replace(/```json|```/g, '').trim();
-    const categories = JSON.parse(raw);
-    const total = categories.reduce((a, b) => a + b.count, 0);
-    res.json(categories.map(c => ({ label: c.label, count: c.count, pct: Math.round(c.count / total * 100) })).sort((a, b) => b.pct - a.pct));
-  } catch (err) { console.error('Categories error:', err.message); res.json([]); }
+    const { data, error } = await supabase.from('listing_pricing').select('*');
+    if (error) throw error;
+    res.json({ success: true, count: data.length, pricing: data });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/listing-autopilot', async (req, res) => {
-  const { data } = await supabase.from('listing_autopilot').select('*');
-  res.json(data || []);
-});
-
-app.patch('/api/listing-autopilot/:listingId', async (req, res) => {
+// ── Route 5: Sync pricing ──
+app.post('/api/website/sync-pricing', async (req, res) => {
+  const secret = req.headers['x-sync-secret'];
+  if (secret !== process.env.SYNC_SECRET) return res.status(401).json({ error: 'Unauthorized' });
   try {
-    const { autopilot_enabled } = req.body;
-    await supabase.from('listing_autopilot').upsert({ listing_id: req.params.listingId, autopilot_enabled }, { onConflict: 'listing_id' });
+    res.json({ success: true, message: 'Pricing sync started' });
+    const result = await syncPricing();
+    console.log('Sync result:', result);
+  } catch(e) { console.error('Sync error:', e.message); }
+});
+
+// ── Route 6: Reviews (Open API) ──
+app.get('/api/website/reviews', async (req, res) => {
+  try {
+    const cached = getCache('reviews');
+    if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
+    const token    = await getOpenApiToken();
+    const response = await fetch(
+      'https://open-api.guesty.com/v1/reviews?limit=50&fields=rating,publicReview,reviewer,listingId,createdAt',
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data       = await response.json();
+    const allReviews = data.results || data.data || [];
+    const fiveStars  = allReviews.filter(r => r.rating >= 5 && r.publicReview?.trim().length > 20);
+    setCache('reviews', fiveStars, 60 * 60 * 1000);
+    res.json({ success: true, count: fiveStars.length, reviews: fiveStars });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Route 7: Contact ──
+app.post('/api/website/contact', async (req, res) => {
+  try {
+    const { firstName, lastName, email, interest, message } = req.body;
+    const { error } = await supabase.from('website_contacts')
+      .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
+    if (error) throw error;
     res.json({ success: true });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/podium-contacts', async (req, res) => {
+// ── Route 8: Newsletter ──
+app.post('/api/website/newsletter', async (req, res) => {
   try {
-    const { data } = await supabase.from('podium_contacts').select('*').order('updated_at', { ascending: false }).limit(100);
-    res.json(data || []);
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { email } = req.body;
+    const { error } = await supabase.from('newsletter_subscribers')
+      .upsert([{ email, subscribed_at: new Date() }], { onConflict: 'email' });
+    if (error) throw error;
+    res.json({ success: true });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/settings', async (req, res) => {
-  const { data } = await supabase.from('settings').select('confidence_threshold, reply_tone, auto_send_enabled, system_prompt, notification_email').eq('id', 1).single();
-  res.json(data);
-});
-
-app.patch('/api/settings', async (req, res) => {
-  const { error } = await supabase.from('settings').update(req.body).eq('id', 1);
-  res.json({ success: !error, error: error?.message });
-});
-
-app.get('/api/sent-log', async (req, res) => {
-  const { data } = await supabase.from('sent_log').select('*').order('sent_at', { ascending: false }).limit(100);
-  res.json(data || []);
-});
-
-// ─── Debug ─────────────────────────────────────────────────────────────────
-
-app.get('/api/debug-conversations', async (req, res) => {
+// ── Route 9: Fee config ──
+app.get('/api/website/fee-config', async (req, res) => {
   try {
-    const data = await guestyRequest('GET', `/reservations?limit=1&sort=-createdAt`);
-    const r = data?.results?.[0];
-    if (!r) return res.json({ error: 'No reservations found' });
-    const full = await guestyRequest('GET', `/reservations/${r._id}`);
-    res.json({ topLevelKeys: Object.keys(full), guestName: full.guest?.fullName, guestPhone: full.guest?.phone, guestPhones: full.guest?.phones, keyCode: full.keyCode, source: full.source, checkIn: full.checkIn, checkOut: full.checkOut });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const fees = getFeeRates();
+    res.json({
+      success: true,
+      ...fees,
+      note: 'Accommodation from BE-API day prices, cleaning + extra person from Open API'
+    });
+  } catch(e) {
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-app.get('/api/debug-podium-match/:phone', async (req, res) => {
+// ── Route 10: Create SetupIntent ──
+app.post('/api/website/create-setup-intent', async (req, res) => {
   try {
-    const result = await matchPodiumGuestToGuesty(req.params.phone);
-    res.json({ matched: !!result, contact: result });
-  } catch (err) { res.status(500).json({ error: err.message }); }
+    const { email, name } = req.body;
+    if (!email) return res.status(400).json({ success: false, error: 'Email required' });
+    const customers = await stripe.customers.list({ email, limit: 1 });
+    let customer = customers.data[0];
+    if (!customer) {
+      customer = await stripe.customers.create({ email, name: name || email });
+      console.log('Created Stripe customer:', customer.id);
+    } else {
+      console.log('Found Stripe customer:', customer.id);
+    }
+    const setupIntent = await stripe.setupIntents.create({
+      customer:             customer.id,
+      payment_method_types: ['card'],
+      usage:                'off_session',
+      metadata:             { email, name: name || '' }
+    });
+    console.log('Created SetupIntent:', setupIntent.id);
+    res.json({ success: true, clientSecret: setupIntent.client_secret });
+  } catch(e) {
+    console.error('SetupIntent error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
 });
 
-const PORT = process.env.PORT || 8080;
-app.listen(PORT, () => console.log(`Autopilot by Premium Rentals — port ${PORT}`));
+// ── Route 11: Reserve ──
+app.post('/api/website/reserve', async (req, res) => {
+  try {
+    const {
+      listingId, checkIn, checkOut, guests,
+      firstName, lastName, email, phone,
+      stripePaymentMethodId, totalAmount
+    } = req.body;
+
+    if (!listingId || !checkIn || !checkOut || !firstName || !lastName || !email || !stripePaymentMethodId) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    const openToken = await getOpenApiToken();
+    const beToken   = await getBeApiToken();
+
+    // ── Step 1: Find or create guest (Open API) ──
+    console.log(`Creating reservation for ${firstName} ${lastName} (${email})`);
+    let guestId = null;
+    const guestSearchRes  = await fetch(
+      `https://open-api.guesty.com/v1/guests?email=${encodeURIComponent(email)}`,
+      { headers: { Authorization: `Bearer ${openToken}` } }
+    );
+    const guestSearchData = await guestSearchRes.json();
+    const existingGuest   = guestSearchData.results?.[0];
+    if (existingGuest) {
+      guestId = existingGuest._id;
+      console.log('Found existing guest:', guestId);
+    } else {
+      const guestCreateRes  = await fetch('https://open-api.guesty.com/v1/guests', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ firstName, lastName, email, phone })
+      });
+      const guestCreateData = await guestCreateRes.json();
+      if (!guestCreateData._id) throw new Error('Failed to create guest: ' + JSON.stringify(guestCreateData));
+      guestId = guestCreateData._id;
+      console.log('Created new guest:', guestId);
+    }
+
+    // ── Step 2: Save to Stripe customer ──
+    try {
+      const customers = await stripe.customers.list({ email, limit: 1 });
+      let customer = customers.data[0];
+      if (!customer) {
+        customer = await stripe.customers.create({
+          email, name: `${firstName} ${lastName}`, phone: phone || undefined
+        });
+      }
+      try {
+        await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customer.id });
+      } catch(attachErr) {
+        if (!attachErr.message?.includes('already been attached')) throw attachErr;
+      }
+      await stripe.customers.update(customer.id, {
+        invoice_settings: { default_payment_method: stripePaymentMethodId }
+      });
+      console.log('Payment method saved to Stripe customer:', customer.id);
+    } catch(e) {
+      console.warn('Stripe customer warning:', e.message);
+    }
+
+    // ── Step 3: Get paymentProviderId (Open API) ──
+    let paymentProviderId = null;
+    try {
+      const ppRes  = await fetch(
+        `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
+        { headers: { Authorization: `Bearer ${openToken}` } }
+      );
+      const ppData = await ppRes.json();
+      paymentProviderId = ppData.paymentProviderId || ppData._id;
+      console.log('Payment provider:', paymentProviderId);
+    } catch(e) {
+      console.warn('Could not get payment provider:', e.message);
+    }
+
+    // ── Step 4: Create fresh quote (BE-API) ──
+    console.log('Creating fresh quote...');
+    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: {
+        Authorization:  `Bearer ${beToken}`,
+        'Content-Type': 'application/json',
+        accept:         'application/json'
+      },
+      body: JSON.stringify({
+        listingId,
+        checkInDateLocalized:  checkIn,
+        checkOutDateLocalized: checkOut,
+        guestsCount: parseInt(guests) || 1
+      })
+    });
+    const quoteText = await quoteRes.text();
+    let quoteData;
+    try { quoteData = JSON.parse(quoteText); } catch(e) {
+      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
+    }
+    if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
+
+    const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    const pricing    = await extractPricingFromQuote(quoteData, nights, listingId, guests);
+    const quoteId    = quoteData._id;
+    const ratePlanId = pricing.ratePlanId;
+    console.log('Quote created:', quoteId, 'Total:', pricing.total);
+
+    // ── Step 5: Create instant reservation (BE-API) ──
+    console.log('Creating instant reservation from quote...');
+    await new Promise(r => setTimeout(r, 2000));
+
+    const reserveRes = await fetch(
+      `https://booking.guesty.com/api/reservations/quotes/${quoteId}/instant`,
+      {
+        method: 'POST',
+        headers: {
+          Authorization:  `Bearer ${beToken}`,
+          'Content-Type': 'application/json',
+          accept:         'application/json'
+        },
+        body: JSON.stringify({
+          ratePlanId,
+          ccToken: stripePaymentMethodId,
+          guest: {
+            firstName,
+            lastName,
+            email,
+            phone: phone || undefined
+          }
+        })
+      }
+    );
+    const reserveText = await reserveRes.text();
+    let reserveData;
+    try { reserveData = JSON.parse(reserveText); } catch(e) {
+      throw new Error('Reservation parse error: ' + reserveText.slice(0, 200));
+    }
+    if (!reserveData._id) {
+      const errMsg = JSON.stringify(reserveData);
+      if (errMsg.includes('minNights')) {
+        throw new Error('This property requires a longer minimum stay. Please go back and select different dates.');
+      }
+      throw new Error('Failed to create reservation: ' + errMsg.slice(0, 200));
+    }
+
+    const reservationId    = reserveData._id;
+    const confirmationCode = reserveData.confirmationCode || reservationId;
+    console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
+
+    // ── Step 6: Attach payment to Guesty guest for automation (Open API) ──
+    console.log('Attaching payment to Guesty guest for automation...');
+    try {
+      const pmRes  = await fetch(
+        `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
+        {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            stripeCardToken:   stripePaymentMethodId,
+            paymentProviderId: paymentProviderId,
+            reservationId:     reservationId,
+            skipSetupIntent:   true,
+            reuse:             true
+          })
+        }
+      );
+      const pmText = await pmRes.text();
+      let pmData;
+      try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
+      console.log('Payment attached to guest:', JSON.stringify(pmData).slice(0, 200));
+    } catch(e) {
+      console.warn('Could not attach payment to guest:', e.message);
+    }
+
+    // ── Step 7: Save to Supabase ──
+    await supabase.from('website_contacts').insert([{
+      first_name: firstName,
+      last_name:  lastName,
+      email,
+      interest: 'booking',
+      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount} | Guesty ID: ${reservationId}`
+    }]);
+
+    res.json({
+      success:          true,
+      reservationId,
+      confirmationCode,
+      amount:           pricing.total || totalAmount
+    });
+
+  } catch(e) {
+    console.error('Reserve error:', e.message);
+    res.status(500).json({ success: false, error: e.message });
+  }
+});
+
+// ── Health check ──
+app.get('/', (req, res) => res.json({
+  status: 'Premium Rentals API running — BE-API enabled',
+  cache: {
+    listings:     cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
+    reviews:      cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
+    listingFees:  `${Object.keys(listingFeesCache).length} listings cached`
+  }
+}));
+
+// ── Scheduled tasks ──
+setInterval(async () => {
+  console.log('Running scheduled daily pricing sync...');
+  try { await syncPricing(); } catch(e) { console.error('Scheduled sync failed:', e.message); }
+}, 24 * 60 * 60 * 1000);
+
+setInterval(async () => {
+  console.log('Refreshing BE-API token...');
+  beApiToken = null; beApiTokenExpiry = 0;
+  try { await getBeApiToken(); } catch(e) { console.error('BE-API token refresh failed:', e.message); }
+}, 23 * 60 * 60 * 1000);
+
+app.listen(process.env.PORT || 3001, () => {
+  console.log('Server running on port', process.env.PORT || 3001);
+  getBeApiToken().catch(e => console.error('BE-API startup failed:', e.message));
+  getOpenApiToken().catch(e => console.error('Open API startup failed:', e.message));
+});

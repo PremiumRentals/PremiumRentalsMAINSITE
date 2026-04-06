@@ -78,18 +78,32 @@ function setCache(key, data, ttl) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Get cleaning fee from listing cache ──
-// BE-API listings include prices.cleaningFee
-function getCleaningFeeFromCache(listingId) {
-  const cached = cache['listings_all'];
-  if (!cached) return 0;
-  const listing = cached.data?.find(l => l._id === listingId);
-  if (!listing) return 0;
-  return listing.prices?.cleaningFee || 0;
+// ── Cleaning fee cache (Open API) ──
+// BE-API listings don't include cleaning fee — fetched from Open API once per listing
+// Cached permanently per server instance since cleaning fees rarely change
+const cleaningFeeCache = {};
+
+async function getCleaningFee(listingId) {
+  if (cleaningFeeCache[listingId] !== undefined) return cleaningFeeCache[listingId];
+  try {
+    const token = await getOpenApiToken();
+    const res   = await fetch(
+      `https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`,
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data = await res.json();
+    const fee  = data?.prices?.cleaningFee || 0;
+    cleaningFeeCache[listingId] = fee;
+    console.log(`Cleaning fee for ${listingId}: $${fee}`);
+    return fee;
+  } catch(e) {
+    console.warn('Could not fetch cleaning fee for', listingId, e.message);
+    cleaningFeeCache[listingId] = 0;
+    return 0;
+  }
 }
 
-// ── Get fee config from env vars ──
-// Used as fallback since BE-API quote doesn't return fee breakdown
+// ── Fee rates from env vars ──
 function getFeeRates() {
   return {
     serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
@@ -99,11 +113,11 @@ function getFeeRates() {
 }
 
 // ── Extract pricing from BE-API quote ──
-// BE-API quote only returns ratePlan, inquiryId, days — no money/invoice items
-// Accommodation = sum of day prices
-// Cleaning fee = from listing cache
+// BE-API quote returns: ratePlan, inquiryId, days only — no money/invoice items
+// Accommodation = sum of day prices from quote
+// Cleaning fee = from Open API listing (cached)
 // Service fee + taxes = calculated from env var rates
-function extractPricingFromQuote(quoteData, nights, listingId) {
+async function extractPricingFromQuote(quoteData, nights, listingId) {
   const ratePlan   = quoteData.rates?.ratePlans?.[0];
   const days       = ratePlan?.days || [];
   const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
@@ -119,8 +133,8 @@ function extractPricingFromQuote(quoteData, nights, listingId) {
     ? Math.round((accommodation / nights) * 100) / 100
     : 0;
 
-  // Cleaning fee from listing cache
-  const cleaningFee = getCleaningFeeFromCache(listingId);
+  // Cleaning fee from Open API (cached per listing)
+  const cleaningFee = await getCleaningFee(listingId);
 
   // Service fee on accommodation + cleaning
   const serviceFee = Math.round(
@@ -137,7 +151,7 @@ function extractPricingFromQuote(quoteData, nights, listingId) {
     (accommodation + cleaningFee + serviceFee + taxes) * 100
   ) / 100;
 
-  console.log(`Pricing: accommodation=${accommodation} cleaning=${cleaningFee} service=${serviceFee} taxes=${taxes} total=${total}`);
+  console.log(`Pricing [${listingId}]: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
 
   return {
     nightlyAvg,
@@ -201,9 +215,6 @@ app.get('/api/website/listings', async (req, res) => {
 });
 
 // ── Route 2: Availability + pricing (BE-API quote) ──
-// Creates a quote to check availability and get day prices
-// Cleaning fee pulled from listing cache
-// Service fee + taxes calculated from env var rates
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -246,13 +257,12 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       });
     }
 
-    // Extract pricing from quote days + listing cache
-    const pricing = extractPricingFromQuote(quoteData, nights, listingId);
+    const pricing = await extractPricingFromQuote(quoteData, nights, listingId);
 
     const result = {
-      available:  true,
-      quoteId:    quoteData._id,
-      days:       quoteData.rates?.ratePlans?.[0]?.days || [],
+      available: true,
+      quoteId:   quoteData._id,
+      days:      quoteData.rates?.ratePlans?.[0]?.days || [],
       ...pricing
     };
 
@@ -389,7 +399,11 @@ app.post('/api/website/newsletter', async (req, res) => {
 app.get('/api/website/fee-config', async (req, res) => {
   try {
     const fees = getFeeRates();
-    res.json({ success: true, ...fees, note: 'Used as fallback — BE-API quote provides day prices' });
+    res.json({
+      success: true,
+      ...fees,
+      note: 'Accommodation from BE-API day prices, cleaning fee from Open API'
+    });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -522,7 +536,7 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
 
     const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-    const pricing    = extractPricingFromQuote(quoteData, nights, listingId);
+    const pricing    = await extractPricingFromQuote(quoteData, nights, listingId);
     const quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
     console.log('Quote created:', quoteId, 'Total:', pricing.total);
@@ -620,9 +634,9 @@ app.post('/api/website/reserve', async (req, res) => {
 app.get('/', (req, res) => res.json({
   status: 'Premium Rentals API running — BE-API enabled',
   cache: {
-    listings:  cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
-    reviews:   cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
-    feeConfig: 'day prices from BE-API quote + cleaning fee from listing cache'
+    listings:     cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
+    reviews:      cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
+    cleaningFees: `${Object.keys(cleaningFeeCache).length} listings cached`
   }
 }));
 

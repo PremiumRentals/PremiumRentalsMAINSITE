@@ -5,15 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Complete Your Booking – Premium Rentals</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<script src="https://js.stripe.com/v3/"></script>
 <style>
 *{margin:0;padding:0;box-sizing:border-box}
-:root{--gold:#C9A96E;--gold-light:#E8D5B0;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
+:root{--gold:#C9A96E;--dark:#1a1a1a;--mid:#6b6b6b;--light:#f7f5f2;--white:#fff;--accent:#2C4A3E}
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
 .nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
 .nav-logo span{color:var(--gold)}
-.nav-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid);text-decoration:none;transition:color .2s;cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif}
+.nav-back{font-size:13px;color:var(--mid);cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif;transition:color .2s}
 .nav-back:hover{color:var(--gold)}
 .progress-bar{margin-top:64px;background:var(--white);border-bottom:1px solid #eeede9;padding:16px 5%}
 .progress-steps{display:flex;align-items:center;max-width:600px;margin:0 auto}
@@ -25,45 +26,106 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .step-label.active{color:var(--dark);font-weight:600}
 .step-label.inactive{color:var(--mid)}
 .step-line{flex:1;height:1px;background:#e0ddd8;margin:0 12px}
-.checkout-wrap{max-width:1100px;margin:0 auto;padding:40px 5% 80px;display:grid;grid-template-columns:1fr 400px;gap:48px;align-items:start}
-.section-title{font-family:'Playfair Display',serif;font-size:24px;font-weight:500;color:var(--dark);margin-bottom:24px}
-.form-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:32px;margin-bottom:24px}
-.form-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:20px}
-.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-bottom:16px}
-.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:16px}
+.checkout-wrap{max-width:1100px;margin:0 auto;padding:40px 5% 80px;display:grid;grid-template-columns:1fr 380px;gap:48px;align-items:start}
+.section-title{font-family:'Playfair Display',serif;font-size:26px;font-weight:500;color:var(--dark);margin-bottom:8px}
+.section-sub{font-size:13px;color:var(--mid);margin-bottom:28px}
+.form-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:28px;margin-bottom:20px}
+.form-card-title{font-size:11px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:18px;display:flex;align-items:center;gap:8px}
+.form-card-title span{width:24px;height:24px;border-radius:50%;background:var(--accent);color:#fff;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700;flex-shrink:0}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.fg{display:flex;flex-direction:column;gap:6px;margin-bottom:14px}
 .fg:last-child{margin-bottom:0}
 .fg label{font-size:11px;font-weight:600;letter-spacing:.8px;text-transform:uppercase;color:var(--mid)}
-.fg input,.fg select,.fg textarea{border:1px solid #e0ddd8;padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--dark);outline:none;border-radius:4px;transition:border-color .2s;background:#fff;width:100%}
-.fg input:focus,.fg select:focus,.fg textarea:focus{border-color:var(--gold)}
-.fg input::placeholder,.fg textarea::placeholder{color:#bbb}
-.fg textarea{resize:vertical;min-height:80px}
-.fg select{-webkit-appearance:none}
+.fg input{border:1px solid #e0ddd8;padding:12px 14px;font-family:'Inter',sans-serif;font-size:14px;color:var(--dark);outline:none;border-radius:4px;transition:border-color .2s;background:#fff;width:100%}
+.fg input:focus{border-color:var(--gold)}
+.fg input[readonly]{background:var(--light);color:var(--mid);cursor:default}
+.fg .hint{font-size:11px;color:var(--mid);margin-top:3px}
 .required{color:var(--gold)}
-.terms-check{display:flex;gap:12px;align-items:flex-start;padding:16px;background:var(--light);border-radius:4px;border:1px solid #eeede9}
-.terms-check input[type=checkbox]{width:18px;height:18px;margin-top:1px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
+.guests-wrap{display:flex;align-items:center;justify-content:space-between;gap:16px}
+.guests-label-group{flex:1}
+.guests-label-group .gl{font-size:14px;font-weight:600;color:var(--dark)}
+.guests-label-group .gs{font-size:12px;color:var(--mid);margin-top:2px}
+.guests-control{display:flex;align-items:center;border:1px solid #e0ddd8;border-radius:4px;overflow:hidden;background:#fff}
+.guests-btn{width:40px;height:40px;border:none;background:#fff;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--dark);flex-shrink:0;font-family:'Inter',sans-serif;line-height:1}
+.guests-btn:hover:not(:disabled){background:var(--light);color:var(--accent)}
+.guests-btn:disabled{opacity:.25;cursor:not-allowed}
+.guests-btn.minus{border-right:1px solid #e0ddd8}
+.guests-btn.plus{border-left:1px solid #e0ddd8}
+.guests-input{width:52px;border:none;outline:none;font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:var(--dark);text-align:center;background:#fff;cursor:text;padding:0 4px;height:40px}
+.guests-input::-webkit-outer-spin-button,.guests-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
+.reprice-note{font-size:11px;color:var(--accent);margin-top:8px;min-height:16px;font-weight:500}
+.billing-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+#stripe-card-element{border:1px solid #e0ddd8;padding:14px;border-radius:4px;background:#fff;transition:border-color .2s}
+#stripe-card-element.focused{border-color:var(--gold)}
+.card-errors{color:#c0392b;font-size:13px;margin-top:8px;min-height:18px}
+.status-steps{background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:24px;margin-bottom:20px;display:none;box-shadow:0 4px 24px rgba(0,0,0,.08)}
+.status-steps-title{font-family:'Playfair Display',serif;font-size:16px;font-weight:500;margin-bottom:16px;color:var(--dark)}
+.status-step{display:flex;align-items:center;gap:12px;font-size:14px;color:var(--mid);padding:8px 0;border-bottom:1px solid #f0ede8}
+.status-step:last-child{border-bottom:none}
+.status-step.active{color:var(--accent);font-weight:600}
+.status-step.done{color:var(--accent)}
+.status-step.error{color:#c0392b}
+.status-dot{width:24px;height:24px;border-radius:50%;background:#e0ddd8;flex-shrink:0;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:700}
+.status-step.active .status-dot{background:var(--accent);color:#fff;animation:pulse 1s infinite}
+.status-step.done .status-dot{background:var(--gold);color:#fff}
+.status-step.error .status-dot{background:#c0392b;color:#fff}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.4}}
+.form-error{background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.2);color:#c0392b;padding:12px 16px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none;line-height:1.5}
+.form-error.show{display:block}
+.terms-check{display:flex;gap:12px;align-items:flex-start;padding:16px;background:var(--light);border-radius:4px;border:1px solid #eeede9;margin-bottom:16px}
+.terms-check input[type=checkbox]{width:18px;height:18px;margin-top:2px;flex-shrink:0;accent-color:var(--accent);cursor:pointer}
 .terms-check label{font-size:13px;color:var(--mid);line-height:1.6;cursor:pointer}
 .terms-check a{color:var(--gold);text-decoration:none}
-.submit-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:18px;border-radius:4px;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;margin-top:20px;letter-spacing:.5px}
-.submit-btn:hover{background:#b8914e;transform:translateY(-1px)}
-.submit-note{text-align:center;font-size:12px;color:var(--mid);margin-top:12px;line-height:1.6}
-.form-error{background:rgba(192,57,43,.07);border:1px solid rgba(192,57,43,.2);color:#c0392b;padding:12px 16px;border-radius:4px;font-size:13px;margin-bottom:16px;display:none}
-.form-error.show{display:block}
+.submit-btn{width:100%;background:var(--gold);color:#fff;border:none;padding:18px;border-radius:4px;font-family:'Inter',sans-serif;font-size:15px;font-weight:600;cursor:pointer;transition:all .25s;letter-spacing:.3px}
+.submit-btn:hover{background:#b8914e}
+.submit-btn:disabled{background:#ccc;cursor:default}
+.submit-note{text-align:center;font-size:12px;color:var(--mid);margin-top:10px;line-height:1.6}
 .summary-card{background:var(--white);border:1px solid #eeede9;border-radius:8px;overflow:hidden;position:sticky;top:80px}
-.summary-img{height:200px;overflow:hidden;background:#f0ede8}
+.summary-img{height:180px;overflow:hidden;background:#f0ede8}
 .summary-img img{width:100%;height:100%;object-fit:cover}
-.summary-body{padding:24px}
-.summary-location{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:6px}
-.summary-name{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark);margin-bottom:16px;line-height:1.3}
-.summary-dates{display:grid;grid-template-columns:1fr 1fr;gap:12px;padding:16px 0;border-top:1px solid #f0ede8;border-bottom:1px solid #f0ede8;margin-bottom:16px}
-.summary-date-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:4px}
-.summary-date-val{font-size:14px;font-weight:600;color:var(--dark)}
-.summary-guests{font-size:13px;color:var(--mid);margin-bottom:20px}
-.price-breakdown{border-top:1px solid #f0ede8;padding-top:16px}
-.price-row{display:flex;justify-content:space-between;font-size:14px;color:var(--mid);padding:5px 0}
-.price-row.total{font-weight:700;color:var(--dark);font-size:16px;border-top:1px solid #e0ddd8;padding-top:12px;margin-top:6px}
-.loading-price{text-align:center;padding:20px;color:var(--mid);font-size:13px}
-.secure-badge{display:flex;align-items:center;gap:8px;justify-content:center;padding:14px;background:var(--light);border-top:1px solid #f0ede8;font-size:12px;color:var(--mid)}
-@media(max-width:860px){.checkout-wrap{grid-template-columns:1fr;gap:24px}.summary-card{position:relative;top:0}.form-row{grid-template-columns:1fr}}
+.summary-body{padding:20px}
+.summary-location{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:5px}
+.summary-name{font-family:'Playfair Display',serif;font-size:18px;font-weight:500;color:var(--dark);margin-bottom:14px;line-height:1.3}
+.summary-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-top:1px solid #f0ede8;border-bottom:1px solid #f0ede8;margin-bottom:14px}
+.summary-date-label{font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:3px}
+.summary-date-val{font-size:13px;font-weight:600;color:var(--dark)}
+.price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:4px 0}
+.price-row.total{font-weight:700;color:var(--dark);font-size:15px;border-top:1px solid #e0ddd8;padding-top:10px;margin-top:6px}
+.price-loading{font-size:12px;color:var(--mid);font-style:italic;padding:8px 0;text-align:center}
+.secure-badge{display:flex;align-items:center;gap:8px;justify-content:center;padding:12px;background:var(--light);border-top:1px solid #f0ede8;font-size:11px;color:var(--mid)}
+.cancel-badge-wrap{display:flex;align-items:center;gap:6px;padding:12px 0 4px}
+.cancel-badge{display:inline-flex;align-items:center;gap:5px;background:var(--light);border:1px solid #e0ddd8;padding:5px 10px;border-radius:4px;font-size:11px;font-weight:700;color:var(--dark);letter-spacing:.5px;text-transform:uppercase}
+.cancel-tooltip-wrap{position:relative;display:inline-flex;align-items:center}
+.cancel-tooltip-btn{width:16px;height:16px;border-radius:50%;background:#e0ddd8;border:none;cursor:pointer;font-size:10px;font-weight:700;color:var(--mid);display:flex;align-items:center;justify-content:center;font-family:'Inter',sans-serif;flex-shrink:0}
+.cancel-tooltip{position:absolute;bottom:calc(100% + 8px);left:50%;transform:translateX(-50%);background:var(--dark);color:#fff;font-size:11px;line-height:1.6;padding:10px 14px;border-radius:4px;width:220px;text-align:left;z-index:50;display:none;font-weight:400}
+.cancel-tooltip::after{content:'';position:absolute;top:100%;left:50%;transform:translateX(-50%);border:5px solid transparent;border-top-color:var(--dark)}
+.cancel-tooltip-wrap:hover .cancel-tooltip,.cancel-tooltip.tap-open{display:block}
+.cancel-tooltip a{color:var(--gold);text-decoration:none}
+.mobile-summary-toggle{display:none;background:var(--white);border:1px solid #eeede9;border-radius:8px;padding:16px 20px;margin-bottom:20px;cursor:pointer;align-items:center;justify-content:space-between}
+.mst-price{font-family:'Playfair Display',serif;font-size:20px;font-weight:500;color:var(--dark)}
+.mst-label{font-size:12px;color:var(--gold);font-weight:600}
+.mobile-summary-body{display:none;background:var(--white);border:1px solid #eeede9;border-radius:8px;overflow:hidden;margin-bottom:20px}
+#podium-website-widget{z-index:149!important}
+@media(max-width:900px){#podium-website-widget{display:none!important}}
+@media(min-width:901px){#podium-website-widget{bottom:20px!important}}
+@media(max-width:900px){
+  .checkout-wrap{grid-template-columns:1fr;gap:0;padding:20px 4% 100px}
+  .desktop-summary{display:none}
+  .mobile-summary-toggle{display:flex}
+  .section-title{font-size:22px}
+  .form-card{padding:20px}
+  .billing-row{grid-template-columns:1fr}
+}
+@media(max-width:600px){
+  .form-row{grid-template-columns:1fr}
+  .progress-step .step-label{display:none}
+  .checkout-wrap{padding:16px 4% 100px}
+}
+.mobile-pay-bar{display:none;position:fixed;bottom:0;left:0;right:0;z-index:150;background:#fff;border-top:1px solid #e0ddd8;padding:12px 5%;align-items:center;justify-content:space-between;gap:12px}
+.mpb-total{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark);font-weight:500}
+.mpb-sub{font-size:11px;color:var(--mid)}
+.mobile-pay-bar button{background:var(--gold);color:#fff;border:none;padding:13px 24px;border-radius:4px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap}
+@media(max-width:900px){.mobile-pay-bar{display:flex}}
 </style>
 </head>
 <body>
@@ -78,182 +140,443 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
   <div class="progress-steps">
     <div class="progress-step"><div class="step-num done">✓</div><span class="step-label inactive">Property</span></div>
     <div class="step-line"></div>
-    <div class="progress-step"><div class="step-num active">2</div><span class="step-label active">Your Details</span></div>
+    <div class="progress-step"><div class="step-num active">2</div><span class="step-label active">Details & Payment</span></div>
     <div class="step-line"></div>
-    <div class="progress-step"><div class="step-num inactive">3</div><span class="step-label inactive">Payment</span></div>
-    <div class="step-line"></div>
-    <div class="progress-step"><div class="step-num inactive">4</div><span class="step-label inactive">Confirmation</span></div>
+    <div class="progress-step"><div class="step-num inactive">3</div><span class="step-label inactive">Confirmation</span></div>
   </div>
 </div>
 
 <div class="checkout-wrap">
-  <div>
+  <div class="checkout-left">
     <h1 class="section-title serif">Complete Your Booking</h1>
+    <p class="section-sub">Fill in your details and payment info to confirm your reservation.</p>
+
+    <!-- STATUS -->
+    <div class="status-steps" id="status-steps">
+      <div class="status-steps-title serif">Processing your booking…</div>
+      <div class="status-step" id="status-1"><div class="status-dot" id="dot-1">1</div><span>Validating card details…</span></div>
+      <div class="status-step" id="status-2"><div class="status-dot" id="dot-2">2</div><span>Securing your reservation…</span></div>
+      <div class="status-step" id="status-3"><div class="status-dot" id="dot-3">3</div><span>Confirming booking…</span></div>
+    </div>
+
     <div class="form-error" id="form-error"></div>
 
-    <div class="form-card">
-      <div class="form-card-title">Guest Information</div>
+    <!-- MOBILE SUMMARY TOGGLE -->
+    <div class="mobile-summary-toggle" onclick="toggleMobileSummary()">
+      <div>
+        <div class="mst-label" id="mobile-toggle-label">▼ Show price summary</div>
+        <div class="mst-price serif" id="mobile-total-display">—</div>
+      </div>
+      <div style="font-size:13px;color:var(--mid)" id="mobile-toggle-icon">▼</div>
+    </div>
+    <div class="mobile-summary-body" id="mobile-summary-body">
+      <div class="summary-img"><img id="mobile-summary-img" src="" alt="" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'"></div>
+      <div style="padding:16px">
+        <div style="font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:4px" id="mobile-summary-location"></div>
+        <div style="font-family:'Playfair Display',serif;font-size:16px;font-weight:500;margin-bottom:12px" id="mobile-summary-name"></div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;padding:12px 0;border-top:1px solid #f0ede8;border-bottom:1px solid #f0ede8;margin-bottom:12px">
+          <div><div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:3px">Check In</div><div style="font-size:13px;font-weight:600" id="mobile-summary-checkin">—</div></div>
+          <div><div style="font-size:10px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:3px">Check Out</div><div style="font-size:13px;font-weight:600" id="mobile-summary-checkout">—</div></div>
+        </div>
+        <div id="mobile-price-breakdown"></div>
+      </div>
+    </div>
+
+    <!-- 1. GUEST INFO -->
+    <div class="form-card" id="guest-form-wrap">
+      <div class="form-card-title"><span>1</span>Guest Information</div>
       <div class="form-row">
         <div class="fg"><label>First Name <span class="required">*</span></label><input type="text" id="g-first" placeholder="Alexandra" autocomplete="given-name"></div>
         <div class="fg"><label>Last Name <span class="required">*</span></label><input type="text" id="g-last" placeholder="Hartwell" autocomplete="family-name"></div>
       </div>
       <div class="fg"><label>Email Address <span class="required">*</span></label><input type="email" id="g-email" placeholder="your@email.com" autocomplete="email"></div>
-      <div class="fg"><label>Phone Number <span class="required">*</span></label><input type="tel" id="g-phone" placeholder="+1 (208) 555-0100" autocomplete="tel"></div>
-      <div class="fg" style="margin-bottom:0"><label>Special Requests <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:#bbb">(optional)</span></label><textarea id="g-notes" placeholder="Early check-in, late check-out, allergies, accessibility needs…"></textarea></div>
-    </div>
-
-    <div class="form-card">
-      <div class="form-card-title">Stay Details</div>
-      <div class="form-row">
-        <div class="fg"><label>Check In</label><input type="date" id="co-checkin" onchange="updateSummary()"></div>
-        <div class="fg"><label>Check Out</label><input type="date" id="co-checkout" onchange="updateSummary()"></div>
-      </div>
       <div class="fg" style="margin-bottom:0">
-        <label>Number of Guests</label>
-        <select id="co-guests">
-          <option value="1">1 guest</option><option value="2" selected>2 guests</option>
-          <option value="3">3 guests</option><option value="4">4 guests</option>
-          <option value="6">6 guests</option><option value="8">8 guests</option>
-          <option value="10">10 guests</option><option value="16">16+ guests</option>
-        </select>
+        <label>Phone Number <span class="required">*</span></label>
+        <input type="tel" id="g-phone" placeholder="2085550100" autocomplete="tel" inputmode="tel">
+        <div class="hint">US: enter 10 digits · International: include country code e.g. +441234567890</div>
       </div>
     </div>
 
+    <!-- 2. STAY DETAILS -->
     <div class="form-card">
+      <div class="form-card-title"><span>2</span>Stay Details</div>
+      <div class="form-row" style="margin-bottom:16px">
+        <div class="fg" style="margin-bottom:0"><label>Check In</label><input type="text" id="co-checkin" readonly></div>
+        <div class="fg" style="margin-bottom:0"><label>Check Out</label><input type="text" id="co-checkout" readonly></div>
+      </div>
+      <div>
+        <div class="guests-wrap">
+          <div class="guests-label-group">
+            <div class="gl">Guests</div>
+            <div class="gs" id="guests-max-label">Max guests</div>
+          </div>
+          <div class="guests-control">
+            <button class="guests-btn minus" id="co-guests-minus" onclick="changeCoGuests(-1)">−</button>
+            <input class="guests-input" id="co-guests-input" type="number" min="1" value="2" inputmode="numeric" onchange="onCoGuestsChange()" onblur="onCoGuestsChange()" onfocus="this.select()">
+            <button class="guests-btn plus" id="co-guests-plus" onclick="changeCoGuests(1)">+</button>
+          </div>
+        </div>
+        <div class="reprice-note" id="reprice-note"></div>
+      </div>
+    </div>
+
+    <!-- 3. PAYMENT -->
+    <div class="form-card" id="card-form-wrap">
+      <div class="form-card-title"><span>3</span>Payment Details</div>
+      <div class="fg">
+        <label>Name on Card</label>
+        <input type="text" id="card-name" placeholder="Alexandra Hartwell" autocomplete="cc-name">
+      </div>
+      <div class="fg">
+        <label>Card Information</label>
+        <div id="stripe-card-element"></div>
+        <div class="card-errors" id="card-errors"></div>
+      </div>
+      <div style="height:1px;background:#f0ede8;margin:16px 0"></div>
+      <div style="font-size:10px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--dark);margin-bottom:14px">Billing Address</div>
+      <div class="fg"><label>Address</label><input type="text" id="billing-address" placeholder="123 Main St" autocomplete="street-address"></div>
+      <div class="billing-row">
+        <div class="fg"><label>City</label><input type="text" id="billing-city" placeholder="Boise" autocomplete="address-level2"></div>
+        <div class="fg"><label>State</label><input type="text" id="billing-state" placeholder="ID" autocomplete="address-level1" maxlength="2" style="text-transform:uppercase"></div>
+      </div>
+      <div class="fg" style="margin-bottom:0"><label>ZIP Code</label><input type="text" id="billing-zip" placeholder="83702" autocomplete="postal-code"></div>
+    </div>
+
+    <!-- POLICY + SUBMIT -->
+    <div class="form-card" style="background:var(--light);border-color:#e8e3db">
+      <div style="font-size:13px;color:var(--mid);line-height:1.7;margin-bottom:16px">
+        🔒 Your payment is processed securely via Stripe. Premium Rentals never stores your card details.<br><br>
+        By completing this booking you agree to our <a href="cancellation.html" style="color:var(--gold)" target="_blank">cancellation policy</a>
+        (<strong style="color:var(--dark)">50% refund if cancelled 30+ days before check-in. No refund within 30 days.</strong>)
+      </div>
+      <div class="cancel-badge-wrap" style="padding-top:0;margin-bottom:16px">
+        <div class="cancel-badge">📋 Firm Cancellation</div>
+        <div class="cancel-tooltip-wrap">
+          <button class="cancel-tooltip-btn" onclick="toggleTooltip()">?</button>
+          <div class="cancel-tooltip" id="cancel-tooltip">
+            50% refund if cancelled 30+ days before check-in. No refund within 30 days.
+            <a href="cancellation.html" target="_blank" style="display:block;margin-top:6px;color:var(--gold)">View full policy →</a>
+          </div>
+        </div>
+      </div>
       <div class="terms-check">
         <input type="checkbox" id="terms-check">
-        <label for="terms-check">I agree to the <a href="/#contact" target="_blank">Terms & Conditions</a> and <a href="/#contact" target="_blank">Cancellation Policy</a>. I understand I will be taken to a secure payment page to complete my reservation.</label>
+        <label for="terms-check">I agree to the <a href="terms.html" target="_blank">Terms & Conditions</a> and <a href="cancellation.html" target="_blank">Cancellation Policy</a>. I understand my card will be charged the total amount shown.</label>
       </div>
-      <button class="submit-btn" id="submit-btn" onclick="proceedToPayment()">Continue to Secure Payment →</button>
-      <div class="submit-note">🔒 Next step: enter your card details on our secure payment page.</div>
     </div>
+
+    <button class="submit-btn" id="submit-btn" onclick="submitBooking()">🔒 Confirm & Pay Now</button>
+    <div class="submit-note">You will receive a confirmation email at <span id="guest-email-display" style="font-weight:600"></span></div>
   </div>
 
-  <div>
+  <!-- DESKTOP SUMMARY -->
+  <div class="desktop-summary">
     <div class="summary-card">
       <div class="summary-img"><img id="summary-img" src="" alt="Property" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75'"></div>
       <div class="summary-body">
         <div class="summary-location" id="summary-location">Loading…</div>
-        <div class="summary-name serif" id="summary-name">Loading property…</div>
+        <div class="summary-name serif" id="summary-name">Loading…</div>
         <div class="summary-dates">
           <div><div class="summary-date-label">Check In</div><div class="summary-date-val" id="summary-checkin">—</div></div>
           <div><div class="summary-date-label">Check Out</div><div class="summary-date-val" id="summary-checkout">—</div></div>
         </div>
-        <div class="summary-guests" id="summary-guests">—</div>
-        <div class="price-breakdown" id="price-breakdown"><div class="loading-price">Loading price quote…</div></div>
+        <div style="font-size:12px;color:var(--mid);margin-bottom:14px" id="summary-guests">—</div>
+        <div id="price-breakdown"><div class="price-loading">Loading pricing…</div></div>
       </div>
-      <div class="secure-badge">🔒 Secure booking · Powered by Premium Rentals</div>
+      <div class="secure-badge">🔒 Powered by Stripe · SSL Encrypted</div>
     </div>
   </div>
 </div>
 
+<!-- MOBILE BOTTOM BAR -->
+<div class="mobile-pay-bar">
+  <div>
+    <div class="mpb-total serif" id="mpb-total">—</div>
+    <div class="mpb-sub" id="mpb-sub">Loading price…</div>
+  </div>
+  <button onclick="submitBooking()">🔒 Pay Now</button>
+</div>
+
 <script>
 const API_BASE  = 'https://premiumrentalsmainsite-production.up.railway.app';
+const STRIPE_PK = 'pk_live_AuGRIlxNGEHObUs4UzQJYAkU';
+
 const params    = new URLSearchParams(window.location.search);
 const listingId = params.get('id');
 const checkIn   = params.get('checkIn');
 const checkOut  = params.get('checkOut');
-const guests    = params.get('guests') || '2';
+const maxGuests = parseInt(params.get('maxGuests') || '99');
 
-if (!listingId) window.location.href = 'properties.html';
+if (!listingId || !checkIn || !checkOut) window.location.href = 'properties.html';
 
-let listing = null;
-if (checkIn)  document.getElementById('co-checkin').value  = checkIn;
-if (checkOut) document.getElementById('co-checkout').value = checkOut;
-if (guests)   document.getElementById('co-guests').value   = guests;
+let pricing = {
+  nightlyAvg:    parseFloat(params.get('nightlyAvg')    || '0'),
+  nights:        parseInt(params.get('nights')          || '0'),
+  accommodation: parseFloat(params.get('accommodation') || '0'),
+  cleaningFee:   parseFloat(params.get('cleaningFee')   || '0'),
+  serviceFee:    parseFloat(params.get('serviceFee')    || '0'),
+  taxes:         parseFloat(params.get('taxes')         || '0'),
+  total:         parseFloat(params.get('total')         || '0')
+};
+let coGuests = parseInt(params.get('guests') || '2');
 
-function fmtDate(str) {
-  if (!str) return '—';
-  return new Date(str + 'T12:00:00').toLocaleDateString('en-US', { weekday:'short', month:'short', day:'numeric', year:'numeric' });
-}
-
-function updateSummary() {
-  const ci = document.getElementById('co-checkin').value;
-  const co = document.getElementById('co-checkout').value;
-  const g  = document.getElementById('co-guests').value;
-  document.getElementById('summary-checkin').textContent  = fmtDate(ci);
-  document.getElementById('summary-checkout').textContent = fmtDate(co);
-  document.getElementById('summary-guests').textContent   = `${g} guest${g>1?'s':''}`;
-  if (ci && co && ci < co) loadPriceQuote(ci, co);
-}
-
-async function loadPriceQuote(ci, co) {
-  const breakdown = document.getElementById('price-breakdown');
-  breakdown.innerHTML = `<div class="loading-price">Calculating price…</div>`;
-  try {
-    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}`);
-    const data = await res.json();
-    const nights   = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-    const nightly  = data.price?.nightlyRate || data.price?.basePrice || data.nightlyRate || data.basePrice || 0;
-    const cleaning = data.price?.cleaningFee || listing?.prices?.cleaningFee || 0;
-    const sub      = nightly * nights;
-    const svc      = Math.round(sub * 0.12);
-    const total    = sub + cleaning + svc;
-    if (nightly) {
-      breakdown.innerHTML = `
-        <div class="price-row"><span>$${nightly.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${sub.toLocaleString()}</span></div>
-        <div class="price-row"><span>Cleaning fee</span><span>${cleaning ? '$'+cleaning.toLocaleString() : 'Included'}</span></div>
-        <div class="price-row"><span>Service fee</span><span>$${svc.toLocaleString()}</span></div>
-        <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
-    } else {
-      breakdown.innerHTML = `<div class="loading-price" style="color:var(--mid)">Exact pricing shown at payment</div>`;
-    }
-  } catch(e) {
-    breakdown.innerHTML = `<div style="font-size:13px;color:var(--mid);padding:12px;text-align:center">Exact total shown at payment</div>`;
+// ── Stripe with Link enabled ──
+const stripe   = Stripe(STRIPE_PK);
+const elements = stripe.elements({
+  appearance:{
+    theme:'stripe',
+    variables:{colorPrimary:'#C9A96E',colorBackground:'#ffffff',colorText:'#1a1a1a',colorDanger:'#c0392b',fontFamily:'Inter, sans-serif',borderRadius:'4px'}
   }
+});
+const card = elements.create('card',{
+  style:{base:{fontFamily:'Inter, sans-serif',fontSize:'14px',color:'#1a1a1a','::placeholder':{color:'#bbb'}},invalid:{color:'#c0392b'}}
+});
+card.mount('#stripe-card-element');
+card.on('focus', () => document.getElementById('stripe-card-element').classList.add('focused'));
+card.on('blur',  () => document.getElementById('stripe-card-element').classList.remove('focused'));
+card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
+document.getElementById('billing-state').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+
+// ── Date formatter ──
+function fmtDate(str, short) {
+  if (!str) return '—';
+  return new Date(str+'T12:00:00').toLocaleDateString('en-US',
+    short ? {month:'short',day:'numeric'} : {weekday:'short',month:'short',day:'numeric',year:'numeric'}
+  );
 }
 
+// ── Populate static fields ──
+function populateStatic() {
+  document.getElementById('co-checkin').value              = fmtDate(checkIn);
+  document.getElementById('co-checkout').value             = fmtDate(checkOut);
+  document.getElementById('co-guests-input').value         = coGuests;
+  document.getElementById('guests-max-label').textContent  = `Max ${maxGuests}`;
+  document.getElementById('summary-checkin').textContent   = fmtDate(checkIn, true);
+  document.getElementById('summary-checkout').textContent  = fmtDate(checkOut, true);
+  document.getElementById('mobile-summary-checkin').textContent  = fmtDate(checkIn, true);
+  document.getElementById('mobile-summary-checkout').textContent = fmtDate(checkOut, true);
+  updateGuestButtons();
+  renderPricing();
+}
+
+// ── Render pricing ──
+function renderPricing() {
+  const { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total } = pricing;
+  document.getElementById('summary-guests').textContent = `${coGuests} guest${coGuests!==1?'s':''}`;
+  if (!total) {
+    const html = '<div class="price-loading">Calculating price…</div>';
+    document.getElementById('price-breakdown').innerHTML        = html;
+    document.getElementById('mobile-price-breakdown').innerHTML = html;
+    document.getElementById('mpb-total').textContent            = '—';
+    document.getElementById('mpb-sub').textContent              = 'Loading price…';
+    document.getElementById('mobile-total-display').textContent = '—';
+    return;
+  }
+  const html = `
+    <div class="price-row"><span>$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${accommodation.toLocaleString()}</span></div>
+    <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee?'$'+cleaningFee.toLocaleString():'Included'}</span></div>
+    <div class="price-row"><span>Service fee</span><span>${serviceFee?'$'+serviceFee.toLocaleString():'Included'}</span></div>
+    <div class="price-row"><span>Taxes</span><span>${taxes?'$'+taxes.toLocaleString():'Included'}</span></div>
+    <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
+  document.getElementById('price-breakdown').innerHTML        = html;
+  document.getElementById('mobile-price-breakdown').innerHTML = html;
+  document.getElementById('mpb-total').textContent            = `$${total.toLocaleString()} total`;
+  document.getElementById('mpb-sub').textContent              = `$${nightlyAvg.toLocaleString()}/night · ${nights} nights`;
+  document.getElementById('mobile-total-display').textContent = `$${total.toLocaleString()}`;
+}
+
+// ── Guest counter ──
+function changeCoGuests(delta) {
+  const v = Math.max(1, Math.min(maxGuests, coGuests + delta));
+  if (v === coGuests) return;
+  coGuests = v;
+  document.getElementById('co-guests-input').value = coGuests;
+  updateGuestButtons();
+  triggerReprice();
+}
+function onCoGuestsChange() {
+  coGuests = Math.max(1, Math.min(maxGuests, parseInt(document.getElementById('co-guests-input').value)||1));
+  document.getElementById('co-guests-input').value = coGuests;
+  updateGuestButtons();
+  triggerReprice();
+}
+function updateGuestButtons() {
+  document.getElementById('co-guests-minus').disabled = coGuests <= 1;
+  document.getElementById('co-guests-plus').disabled  = coGuests >= maxGuests;
+}
+
+// ── Live repricing ──
+let repriceTimer = null;
+function triggerReprice() {
+  clearTimeout(repriceTimer);
+  document.getElementById('reprice-note').textContent = 'Updating price…';
+  repriceTimer = setTimeout(reprice, 700);
+}
+async function reprice() {
+  try {
+    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${coGuests}`);
+    const data = await res.json();
+    if (!data.success || !data.available) { document.getElementById('reprice-note').textContent=''; return; }
+    pricing = {nightlyAvg:data.nightlyAvg,nights:data.nights,accommodation:data.accommodation,cleaningFee:data.cleaningFee,serviceFee:data.serviceFee,taxes:data.taxes,total:data.total};
+    renderPricing();
+    document.getElementById('reprice-note').textContent = '✓ Price updated';
+    setTimeout(() => { document.getElementById('reprice-note').textContent=''; }, 2000);
+  } catch(e) { document.getElementById('reprice-note').textContent=''; }
+}
+
+// ── Load listing ──
 async function loadListing() {
   try {
-    const res  = await fetch(`${API_BASE}/api/website/listings`);
-    const data = await res.json();
-    listing = data.listings?.find(l => l._id === listingId);
-    if (!listing) throw new Error('Not found');
-    const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
-    const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
-    document.getElementById('summary-img').src              = photo;
-    document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
-    document.getElementById('summary-name').textContent     = listing.title || listing.nickname || 'Luxury Property';
-    document.title = `Book ${listing.title || 'Property'} – Premium Rentals`;
-    updateSummary();
-  } catch(e) {
-    document.getElementById('summary-name').textContent = 'Property';
-    updateSummary();
-  }
+    const res     = await fetch(`${API_BASE}/api/website/listings`);
+    const data    = await res.json();
+    const listing = data.listings?.find(l => l._id === listingId);
+    if (listing) {
+      const city  = [listing.address?.city,listing.address?.state].filter(Boolean).join(', ');
+      const photo = listing.picture?.regular||listing.pictures?.[0]?.original||listing.pictures?.[0]?.thumbnail||'';
+      const loc   = '📍 '+(city||'Idaho');
+      const name  = listing.title||listing.nickname||'Luxury Property';
+      document.getElementById('summary-img').src                     = photo;
+      document.getElementById('mobile-summary-img').src              = photo;
+      document.getElementById('summary-location').textContent        = loc;
+      document.getElementById('mobile-summary-location').textContent = loc;
+      document.getElementById('summary-name').textContent            = name;
+      document.getElementById('mobile-summary-name').textContent     = name;
+      document.title = `Book ${name} – Premium Rentals`;
+    }
+  } catch(e) { console.warn('Could not load listing'); }
 }
 
-function proceedToPayment() {
-  const first  = document.getElementById('g-first').value.trim();
-  const last   = document.getElementById('g-last').value.trim();
-  const email  = document.getElementById('g-email').value.trim();
-  const phone  = document.getElementById('g-phone').value.trim();
-  const ci     = document.getElementById('co-checkin').value;
-  const co     = document.getElementById('co-checkout').value;
-  const g      = document.getElementById('co-guests').value;
-  const notes  = document.getElementById('g-notes').value.trim();
-  const terms  = document.getElementById('terms-check').checked;
+// ── Mobile summary toggle ──
+let mobileSummaryOpen = false;
+function toggleMobileSummary() {
+  mobileSummaryOpen = !mobileSummaryOpen;
+  document.getElementById('mobile-summary-body').style.display = mobileSummaryOpen?'block':'none';
+  document.getElementById('mobile-toggle-icon').textContent    = mobileSummaryOpen?'▲':'▼';
+  document.getElementById('mobile-toggle-label').textContent   = mobileSummaryOpen?'▲ Hide price summary':'▼ Show price summary';
+}
 
-  if (!first || !last)               return showError('Please enter your first and last name.');
-  if (!email || !email.includes('@')) return showError('Please enter a valid email address.');
-  if (!phone)                        return showError('Please enter your phone number.');
-  if (!ci || !co)                    return showError('Please confirm your check-in and check-out dates.');
-  if (ci >= co)                      return showError('Check-out must be after check-in.');
-  if (!terms)                        return showError('Please agree to the Terms & Conditions to continue.');
+// ── Cancel tooltip ──
+function toggleTooltip() { document.getElementById('cancel-tooltip').classList.toggle('tap-open'); }
+document.addEventListener('click', e => {
+  if (!e.target.closest('.cancel-tooltip-wrap')) document.getElementById('cancel-tooltip')?.classList.remove('tap-open');
+});
+
+// ── Email sync ──
+document.getElementById('g-email').addEventListener('input', function(){
+  document.getElementById('guest-email-display').textContent = this.value.trim();
+});
+
+// ── Status steps ──
+function showStatus() {
+  document.getElementById('status-steps').style.display    = 'block';
+  document.getElementById('guest-form-wrap').style.opacity = '.4';
+  document.getElementById('card-form-wrap').style.opacity  = '.4';
+  window.scrollTo({top:0,behavior:'smooth'});
+}
+function setStep(step, state) {
+  const el  = document.getElementById(`status-${step}`);
+  const dot = document.getElementById(`dot-${step}`);
+  el.className    = `status-step ${state}`;
+  dot.textContent = state==='done'?'✓':state==='error'?'✗':step;
+}
+function resetStatus() {
+  document.getElementById('status-steps').style.display    = 'none';
+  document.getElementById('guest-form-wrap').style.opacity = '1';
+  document.getElementById('card-form-wrap').style.opacity  = '1';
+  [1,2,3].forEach(i=>setStep(i,''));
+}
+
+// ── Submit ──
+async function submitBooking() {
+  const first    = document.getElementById('g-first').value.trim();
+  const last     = document.getElementById('g-last').value.trim();
+  const email    = document.getElementById('g-email').value.trim();
+  const phone    = document.getElementById('g-phone').value.trim();
+  const cardName = document.getElementById('card-name').value.trim();
+  const terms    = document.getElementById('terms-check').checked;
+
+  if (!first||!last)              return showError('Please enter your first and last name.');
+  if (!email||!email.includes('@')) return showError('Please enter a valid email address.');
+  if (!phone)                     return showError('Please enter your phone number.');
+  if (!cardName)                  return showError('Please enter the name on your card.');
+  if (!terms)                     return showError('Please agree to the Terms & Conditions to continue.');
+  if (!pricing.total)             return showError('Unable to calculate total. Please go back and select dates again.');
 
   document.getElementById('form-error').classList.remove('show');
+  const btn = document.getElementById('submit-btn');
+  btn.disabled    = true;
+  btn.textContent = 'Processing…';
+  showStatus();
 
-  const p = new URLSearchParams({ id:listingId, checkIn:ci, checkOut:co, guests:g, firstName:first, lastName:last, email, phone, notes });
-  window.location.href = `payment.html?${p.toString()}`;
+  try {
+    // Step 1: SetupIntent pre-auth
+    setStep(1,'active');
+    const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({email,name:`${first} ${last}`})
+    });
+    const siData = await siRes.json();
+    if (!siData.success) throw new Error(siData.error||'Could not initialize payment.');
+
+    const {setupIntent,error:setupError} = await stripe.confirmCardSetup(siData.clientSecret,{
+      payment_method:{
+        card,
+        billing_details:{
+          name:cardName,email,phone:phone||undefined,
+          address:{
+            line1:document.getElementById('billing-address').value.trim(),
+            city:document.getElementById('billing-city').value.trim(),
+            state:document.getElementById('billing-state').value.trim(),
+            postal_code:document.getElementById('billing-zip').value.trim(),
+            country:'US'
+          }
+        }
+      }
+    });
+
+    if (setupError){setStep(1,'error');throw new Error(setupError.message);}
+    const confirmedPmId = setupIntent.payment_method;
+    setStep(1,'done');
+
+    // Step 2: Create reservation
+    setStep(2,'active');
+    const res  = await fetch(`${API_BASE}/api/website/reserve`,{
+      method:'POST',headers:{'Content-Type':'application/json'},
+      body:JSON.stringify({
+        listingId,checkIn,checkOut,guests:coGuests,
+        firstName:first,lastName:last,email,phone,
+        stripePaymentMethodId:confirmedPmId,totalAmount:pricing.total
+      })
+    });
+    const data = await res.json();
+    if (!data.success){setStep(2,'error');throw new Error(data.error||'Booking failed. Please try again.');}
+    setStep(2,'done');
+
+    // Step 3: Done
+    setStep(3,'active');
+    await new Promise(r=>setTimeout(r,800));
+    setStep(3,'done');
+
+    window.location.href=`confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${coGuests}&total=${pricing.total}&name=${encodeURIComponent(first)}`;
+
+  } catch(e) {
+    resetStatus();
+    showError(e.message||'Something went wrong. Please try again or contact us.');
+    btn.disabled    = false;
+    btn.textContent = '🔒 Confirm & Pay Now';
+  }
 }
 
 function showError(msg) {
   const el = document.getElementById('form-error');
   el.textContent = msg;
   el.classList.add('show');
-  el.scrollIntoView({ behavior:'smooth', block:'nearest' });
+  el.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
+populateStatic();
 loadListing();
 </script>
+<script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

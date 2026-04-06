@@ -78,59 +78,66 @@ function setCache(key, data, ttl) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
+// ── Get cleaning fee from listing cache ──
+// BE-API listings include prices.cleaningFee
+function getCleaningFeeFromCache(listingId) {
+  const cached = cache['listings_all'];
+  if (!cached) return 0;
+  const listing = cached.data?.find(l => l._id === listingId);
+  if (!listing) return 0;
+  return listing.prices?.cleaningFee || 0;
+}
+
+// ── Get fee config from env vars ──
+// Used as fallback since BE-API quote doesn't return fee breakdown
+function getFeeRates() {
+  return {
+    serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
+    taxRate:        (parseFloat(process.env.TOURISM_TAX_RATE) || 0.02) +
+                    (parseFloat(process.env.SALES_TAX_RATE)   || 0.06)
+  };
+}
+
 // ── Extract pricing from BE-API quote ──
-// BE-API quote may return invoice items OR just day prices
-// This function handles both cases and always returns complete pricing
-function extractPricingFromQuote(quoteData, nights) {
-  const ratePlan     = quoteData.rates?.ratePlans?.[0];
-  const money        = ratePlan?.money?.money || ratePlan?.money || {};
-  const invoiceItems = money.invoiceItems || [];
-  const days         = ratePlan?.days || [];
+// BE-API quote only returns ratePlan, inquiryId, days — no money/invoice items
+// Accommodation = sum of day prices
+// Cleaning fee = from listing cache
+// Service fee + taxes = calculated from env var rates
+function extractPricingFromQuote(quoteData, nights, listingId) {
+  const ratePlan   = quoteData.rates?.ratePlans?.[0];
+  const days       = ratePlan?.days || [];
+  const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
+  const fees       = getFeeRates();
 
-  // ── Accommodation ──
-  // Try invoice items first, then calculate from day prices
-  let accommodation = invoiceItems.find(i => i.type === 'ACCOMMODATION_FARE')?.amount
-    || money.fareAccommodation
-    || 0;
-  if (!accommodation && days.length > 0) {
-    accommodation = days.reduce((sum, d) => sum + (d.price || 0), 0);
-  }
+  // Accommodation from day prices
+  const accommodation = Math.round(
+    days.reduce((sum, d) => sum + (d.price || 0), 0) * 100
+  ) / 100;
 
-  // ── Cleaning fee ──
-  const cleaningFee = invoiceItems.find(i => i.type === 'CLEANING_FEE')?.amount
-    || money.fareCleaning
-    || 0;
-
-  // ── Nightly average ──
+  // Nightly average
   const nightlyAvg = nights > 0 && accommodation > 0
     ? Math.round((accommodation / nights) * 100) / 100
-    : days.length > 0
-      ? Math.round((days.reduce((s, d) => s + (d.price || 0), 0) / days.length) * 100) / 100
-      : 0;
+    : 0;
 
-  // ── Service fee ──
-  // Use Guesty's value if available, otherwise fallback to 13.5%
-  const serviceFee = money.hostServiceFee
-    || invoiceItems.find(i => i.type === 'HOST_SERVICE_FEE')?.amount
-    || Math.round((accommodation + cleaningFee) * 0.135 * 100) / 100;
+  // Cleaning fee from listing cache
+  const cleaningFee = getCleaningFeeFromCache(listingId);
 
-  // ── Taxes ──
-  // Use Guesty's exact tax calculation if available, otherwise fallback to 8%
-  const taxes = money.totalTaxes
-    || Math.round((accommodation + cleaningFee + serviceFee) * 0.08 * 100) / 100;
+  // Service fee on accommodation + cleaning
+  const serviceFee = Math.round(
+    (accommodation + cleaningFee) * fees.serviceFeeRate * 100
+  ) / 100;
 
-  // ── Additional fees (pet fees etc.) ──
-  const additionalFees = invoiceItems
-    .filter(i => i.type === 'ADDITIONAL')
-    .reduce((sum, i) => sum + (i.amount || 0), 0);
+  // Taxes on accommodation + cleaning + service
+  const taxes = Math.round(
+    (accommodation + cleaningFee + serviceFee) * fees.taxRate * 100
+  ) / 100;
 
-  // ── Total ──
-  const total = money.subTotalPrice
-    ? Math.round((money.subTotalPrice + (money.totalTaxes || 0)) * 100) / 100
-    : Math.round((accommodation + cleaningFee + serviceFee + taxes + additionalFees) * 100) / 100;
+  // Total
+  const total = Math.round(
+    (accommodation + cleaningFee + serviceFee + taxes) * 100
+  ) / 100;
 
-  // ── Rate plan ID ──
-  const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
+  console.log(`Pricing: accommodation=${accommodation} cleaning=${cleaningFee} service=${serviceFee} taxes=${taxes} total=${total}`);
 
   return {
     nightlyAvg,
@@ -139,10 +146,10 @@ function extractPricingFromQuote(quoteData, nights) {
     cleaningFee,
     serviceFee,
     taxes,
-    additionalFees,
+    additionalFees: 0,
     total,
     ratePlanId,
-    feeSource: 'be_api_quote'
+    feeSource: 'be_api_days'
   };
 }
 
@@ -193,7 +200,10 @@ app.get('/api/website/listings', async (req, res) => {
   }
 });
 
-// ── Route 2: Availability + exact pricing (BE-API quote) ──
+// ── Route 2: Availability + pricing (BE-API quote) ──
+// Creates a quote to check availability and get day prices
+// Cleaning fee pulled from listing cache
+// Service fee + taxes calculated from env var rates
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -236,13 +246,8 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       });
     }
 
-    console.log('Full ratePlan keys:', JSON.stringify(Object.keys(quoteData.rates?.ratePlans?.[0] || {})));
-console.log('Full quote money:', JSON.stringify(quoteData.rates?.ratePlans?.[0]?.money).slice(0, 800));
-    
-    // Extract exact pricing — handles both invoice items and day prices
-    const pricing = extractPricingFromQuote(quoteData, nights);
-
-    console.log(`Pricing for ${listingId}: accommodation=${pricing.accommodation} cleaning=${pricing.cleaningFee} service=${pricing.serviceFee} taxes=${pricing.taxes} total=${pricing.total}`);
+    // Extract pricing from quote days + listing cache
+    const pricing = extractPricingFromQuote(quoteData, nights, listingId);
 
     const result = {
       available:  true,
@@ -284,22 +289,16 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const dayData           = {};
 
     days.forEach((day, index) => {
-      const isAvailable = day.status === 'available';
-      const isReserved  = day.status === 'reserved' || day.status === 'booked';
-      const isBlocked   = day.status === 'unavailable';
-
+      const isAvailable    = day.status === 'available';
+      const isReserved     = day.status === 'reserved' || day.status === 'booked';
+      const isBlocked      = day.status === 'unavailable';
       if (day.minNights) dayData[day.date] = { minNights: day.minNights };
-
       if (!isAvailable) {
-        const prevDay       = index > 0 ? days[index - 1] : null;
-        const prevAvailable = prevDay ? prevDay.status === 'available' : true;
+        const prevDay        = index > 0 ? days[index - 1] : null;
+        const prevAvailable  = prevDay ? prevDay.status === 'available' : true;
         const isCheckoutOnly = !day.ctd && prevAvailable && (isReserved || isBlocked);
-
-        if (isCheckoutOnly) {
-          checkoutOnlyDates.push(day.date);
-        } else {
-          blockedDates.push(day.date);
-        }
+        if (isCheckoutOnly) checkoutOnlyDates.push(day.date);
+        else blockedDates.push(day.date);
       }
     });
 
@@ -309,7 +308,6 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
       dayData,
       totalDays: days.length
     };
-
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result, cached: false });
 
@@ -390,32 +388,8 @@ app.post('/api/website/newsletter', async (req, res) => {
 // ── Route 9: Fee config ──
 app.get('/api/website/fee-config', async (req, res) => {
   try {
-    const token = await getOpenApiToken();
-    const accountRes = await fetch('https://open-api.guesty.com/v1/accounts/me', {
-      headers: { Authorization: `Bearer ${token}` }
-    });
-    const accountData = await accountRes.json();
-    const taxes = accountData.taxes || [];
-    let tourismTaxRate = parseFloat(process.env.TOURISM_TAX_RATE) || 0.02;
-    let salesTaxRate   = parseFloat(process.env.SALES_TAX_RATE)   || 0.06;
-    if (taxes.length > 0) {
-      tourismTaxRate = 0; salesTaxRate = 0;
-      taxes.forEach(tax => {
-        if (tax.units === 'PERCENTAGE') {
-          const rate = tax.amount / 100;
-          if (tax.type === 'TOURISM_TAX') tourismTaxRate += rate;
-          else salesTaxRate += rate;
-        }
-      });
-    }
-    res.json({
-      success:        true,
-      serviceFeeRate: parseFloat(process.env.SERVICE_FEE_RATE) || 0.135,
-      tourismTaxRate,
-      salesTaxRate,
-      totalTaxRate:   tourismTaxRate + salesTaxRate,
-      note:           'Reference only — BE-API quote returns exact pricing'
-    });
+    const fees = getFeeRates();
+    res.json({ success: true, ...fees, note: 'Used as fallback — BE-API quote provides day prices' });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });
   }
@@ -548,7 +522,7 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
 
     const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-    const pricing    = extractPricingFromQuote(quoteData, nights);
+    const pricing    = extractPricingFromQuote(quoteData, nights, listingId);
     const quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
     console.log('Quote created:', quoteId, 'Total:', pricing.total);
@@ -648,7 +622,7 @@ app.get('/', (req, res) => res.json({
   cache: {
     listings:  cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
     reviews:   cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
-    feeConfig: 'handled by BE-API quote — exact pricing'
+    feeConfig: 'day prices from BE-API quote + cleaning fee from listing cache'
   }
 }));
 

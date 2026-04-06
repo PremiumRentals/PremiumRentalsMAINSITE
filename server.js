@@ -78,13 +78,13 @@ function setCache(key, data, ttl) {
   cache[key] = { data, expiry: Date.now() + ttl };
 }
 
-// ── Cleaning fee cache (Open API) ──
-// BE-API listings don't include cleaning fee — fetched from Open API once per listing
-// Cached permanently per server instance since cleaning fees rarely change
-const cleaningFeeCache = {};
+// ── Listing fees cache (Open API) ──
+// BE-API listings don't include cleaning fee or extra person fee
+// Fetched once from Open API and cached per listing per server instance
+const listingFeesCache = {};
 
-async function getCleaningFee(listingId) {
-  if (cleaningFeeCache[listingId] !== undefined) return cleaningFeeCache[listingId];
+async function getListingFees(listingId) {
+  if (listingFeesCache[listingId]) return listingFeesCache[listingId];
   try {
     const token = await getOpenApiToken();
     const res   = await fetch(
@@ -92,14 +92,19 @@ async function getCleaningFee(listingId) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
-    const fee  = data?.prices?.cleaningFee || 0;
-    cleaningFeeCache[listingId] = fee;
-    console.log(`Cleaning fee for ${listingId}: $${fee}`);
-    return fee;
+    const fees = {
+      cleaningFee:                data?.prices?.cleaningFee                || 0,
+      extraPersonFee:             data?.prices?.extraPersonFee             || 0,
+      guestsIncludedInRegularFee: data?.prices?.guestsIncludedInRegularFee || 2
+    };
+    listingFeesCache[listingId] = fees;
+    console.log(`Listing fees [${listingId}]: cleaning=$${fees.cleaningFee} extraPerson=$${fees.extraPersonFee} baseGuests=${fees.guestsIncludedInRegularFee}`);
+    return fees;
   } catch(e) {
-    console.warn('Could not fetch cleaning fee for', listingId, e.message);
-    cleaningFeeCache[listingId] = 0;
-    return 0;
+    console.warn('Could not fetch listing fees for', listingId, e.message);
+    const fallback = { cleaningFee: 0, extraPersonFee: 0, guestsIncludedInRegularFee: 2 };
+    listingFeesCache[listingId] = fallback;
+    return fallback;
   }
 }
 
@@ -113,15 +118,19 @@ function getFeeRates() {
 }
 
 // ── Extract pricing from BE-API quote ──
-// BE-API quote returns: ratePlan, inquiryId, days only — no money/invoice items
-// Accommodation = sum of day prices from quote
-// Cleaning fee = from Open API listing (cached)
+// BE-API quote returns: ratePlan, inquiryId, days only
+// Accommodation = sum of day prices
+// Cleaning fee + extra person fee = from Open API listing (cached)
 // Service fee + taxes = calculated from env var rates
-async function extractPricingFromQuote(quoteData, nights, listingId) {
+async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const ratePlan   = quoteData.rates?.ratePlans?.[0];
   const days       = ratePlan?.days || [];
   const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
   const fees       = getFeeRates();
+
+  // Get listing fees from Open API (cached)
+  const listingFees = await getListingFees(listingId);
+  const { cleaningFee, extraPersonFee, guestsIncludedInRegularFee } = listingFees;
 
   // Accommodation from day prices
   const accommodation = Math.round(
@@ -133,34 +142,38 @@ async function extractPricingFromQuote(quoteData, nights, listingId) {
     ? Math.round((accommodation / nights) * 100) / 100
     : 0;
 
-  // Cleaning fee from Open API (cached per listing)
-  const cleaningFee = await getCleaningFee(listingId);
+  // Extra person fee
+  // Only applies for guests beyond the base included in regular fee
+  const guestCount       = parseInt(guests) || 1;
+  const extraGuests      = Math.max(0, guestCount - guestsIncludedInRegularFee);
+  const extraPersonTotal = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
 
-  // Service fee on accommodation + cleaning
+  // Service fee on accommodation + cleaning + extra person
   const serviceFee = Math.round(
-    (accommodation + cleaningFee) * fees.serviceFeeRate * 100
+    (accommodation + cleaningFee + extraPersonTotal) * fees.serviceFeeRate * 100
   ) / 100;
 
-  // Taxes on accommodation + cleaning + service
+  // Taxes on accommodation + cleaning + extra person + service
   const taxes = Math.round(
-    (accommodation + cleaningFee + serviceFee) * fees.taxRate * 100
+    (accommodation + cleaningFee + extraPersonTotal + serviceFee) * fees.taxRate * 100
   ) / 100;
 
   // Total
   const total = Math.round(
-    (accommodation + cleaningFee + serviceFee + taxes) * 100
+    (accommodation + cleaningFee + extraPersonTotal + serviceFee + taxes) * 100
   ) / 100;
 
-  console.log(`Pricing [${listingId}]: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
+  console.log(`Pricing [${listingId}] ${guestCount} guests: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + extraPerson=$${extraPersonTotal} (${extraGuests} extra @ $${extraPersonFee}/night) + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
 
   return {
     nightlyAvg,
     nights,
     accommodation,
     cleaningFee,
+    extraPersonFee:  extraPersonTotal,
+    extraGuests,
     serviceFee,
     taxes,
-    additionalFees: 0,
     total,
     ratePlanId,
     feeSource: 'be_api_days'
@@ -257,7 +270,8 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       });
     }
 
-    const pricing = await extractPricingFromQuote(quoteData, nights, listingId);
+    // Extract pricing — passes guests for extra person fee calculation
+    const pricing = await extractPricingFromQuote(quoteData, nights, listingId, guests);
 
     const result = {
       available: true,
@@ -402,7 +416,7 @@ app.get('/api/website/fee-config', async (req, res) => {
     res.json({
       success: true,
       ...fees,
-      note: 'Accommodation from BE-API day prices, cleaning fee from Open API'
+      note: 'Accommodation from BE-API day prices, cleaning + extra person from Open API'
     });
   } catch(e) {
     res.status(500).json({ success: false, error: e.message });
@@ -536,7 +550,7 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
 
     const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-    const pricing    = await extractPricingFromQuote(quoteData, nights, listingId);
+    const pricing    = await extractPricingFromQuote(quoteData, nights, listingId, guests);
     const quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
     console.log('Quote created:', quoteId, 'Total:', pricing.total);
@@ -636,7 +650,7 @@ app.get('/', (req, res) => res.json({
   cache: {
     listings:     cache['listings_all'] ? `cached until ${new Date(cache['listings_all'].expiry).toISOString()}` : 'empty',
     reviews:      cache['reviews']      ? `cached until ${new Date(cache['reviews'].expiry).toISOString()}`      : 'empty',
-    cleaningFees: `${Object.keys(cleaningFeeCache).length} listings cached`
+    listingFees:  `${Object.keys(listingFeesCache).length} listings cached`
   }
 }));
 

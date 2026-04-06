@@ -18,6 +18,17 @@ app.use(cors({
 const supabase = createClient(process.env.SUPABASE_URL, process.env.SUPABASE_SERVICE_KEY);
 const stripe   = Stripe(process.env.STRIPE_SECRET_KEY);
 
+// ── Format phone to E.164 ──
+// Guesty requires E.164 format e.g. +12085551234
+function formatPhone(phone) {
+  if (!phone) return undefined;
+  const digits = phone.replace(/\D/g, '');
+  if (digits.length === 10) return `+1${digits}`;
+  if (digits.length === 11 && digits.startsWith('1')) return `+${digits}`;
+  if (digits.length > 11) return `+${digits}`;
+  return `+${digits}`;
+}
+
 // ── Open API Auth ──
 let openApiToken = null;
 let openApiTokenExpiry = 0;
@@ -79,8 +90,6 @@ function setCache(key, data, ttl) {
 }
 
 // ── Listing fees cache (Open API) ──
-// BE-API listings don't include cleaning fee or extra person fee
-// Fetched once from Open API and cached permanently per server instance
 const listingFeesCache = {};
 
 async function getListingFees(listingId) {
@@ -118,62 +127,42 @@ function getFeeRates() {
 }
 
 // ── Extract pricing from BE-API quote ──
-// BE-API quote returns: ratePlan, inquiryId, days only — no money/invoice items
-// Extra person fee baked into accommodation total — no separate line item
 async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const ratePlan   = quoteData.rates?.ratePlans?.[0];
   const days       = ratePlan?.days || [];
   const ratePlanId = ratePlan?.ratePlan?._id || 'default-rateplan-id';
   const fees       = getFeeRates();
 
-  // Get listing fees from Open API (cached per listing)
   const listingFees = await getListingFees(listingId);
   const { cleaningFee, extraPersonFee, guestsIncludedInRegularFee } = listingFees;
 
-  // Base accommodation from day prices
   const baseAccommodation = Math.round(
     days.reduce((sum, d) => sum + (d.price || 0), 0) * 100
   ) / 100;
 
-  // Extra person fee baked into accommodation
   const guestCount       = parseInt(guests) || 1;
   const extraGuests      = Math.max(0, guestCount - guestsIncludedInRegularFee);
   const extraPersonTotal = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
 
-  // Accommodation includes extra person fees — shows as higher nightly rate
   const accommodation = Math.round((baseAccommodation + extraPersonTotal) * 100) / 100;
   const nightlyAvg    = nights > 0 && accommodation > 0
-    ? Math.round((accommodation / nights) * 100) / 100
-    : 0;
+    ? Math.round((accommodation / nights) * 100) / 100 : 0;
 
-  // Service fee on accommodation + cleaning
   const serviceFee = Math.round(
     (accommodation + cleaningFee) * fees.serviceFeeRate * 100
   ) / 100;
 
-  // Taxes on accommodation + cleaning + service
   const taxes = Math.round(
     (accommodation + cleaningFee + serviceFee) * fees.taxRate * 100
   ) / 100;
 
-  // Total
   const total = Math.round(
     (accommodation + cleaningFee + serviceFee + taxes) * 100
   ) / 100;
 
-  console.log(`Pricing [${listingId}] ${guestCount} guests (${extraGuests} extra @ $${extraPersonFee}/night): nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
+  console.log(`Pricing [${listingId}] ${guestCount} guests: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
 
-  return {
-    nightlyAvg,
-    nights,
-    accommodation,
-    cleaningFee,
-    serviceFee,
-    taxes,
-    total,
-    ratePlanId,
-    feeSource: 'be_api_days'
-  };
+  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, feeSource: 'be_api_days' };
 }
 
 // ── Pricing sync ──
@@ -223,7 +212,7 @@ app.get('/api/website/listings', async (req, res) => {
   }
 });
 
-// ── Route 2: Availability + pricing (BE-API quote) ──
+// ── Route 2: Availability + pricing ──
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -239,11 +228,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
 
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
-      headers: {
-        Authorization:  `Bearer ${token}`,
-        'Content-Type': 'application/json',
-        accept:         'application/json'
-      },
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({
         listingId,
         checkInDateLocalized:  checkIn,
@@ -260,21 +245,13 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
 
     if (quoteRes.status !== 200 || !quoteData._id) {
       return res.json({
-        success:   true,
-        available: false,
-        error:     quoteData.message || quoteData.error || 'Not available for these dates'
+        success: true, available: false,
+        error: quoteData.message || quoteData.error || 'Not available for these dates'
       });
     }
 
     const pricing = await extractPricingFromQuote(quoteData, nights, listingId, guests);
-
-    const result = {
-      available: true,
-      quoteId:   quoteData._id,
-      days:      quoteData.rates?.ratePlans?.[0]?.days || [],
-      ...pricing
-    };
-
+    const result  = { available: true, quoteId: quoteData._id, days: quoteData.rates?.ratePlans?.[0]?.days || [], ...pricing };
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result });
 
@@ -303,30 +280,22 @@ app.get('/api/website/calendar/:listingId', async (req, res) => {
     const days = await response.json();
     if (!Array.isArray(days)) throw new Error('Invalid calendar response');
 
-    const blockedDates      = [];
-    const checkoutOnlyDates = [];
-    const dayData           = {};
-
+    const blockedDates = [], checkoutOnlyDates = [], dayData = {};
     days.forEach((day, index) => {
-      const isAvailable    = day.status === 'available';
-      const isReserved     = day.status === 'reserved' || day.status === 'booked';
-      const isBlocked      = day.status === 'unavailable';
+      const isAvailable = day.status === 'available';
+      const isReserved  = day.status === 'reserved' || day.status === 'booked';
+      const isBlocked   = day.status === 'unavailable';
       if (day.minNights) dayData[day.date] = { minNights: day.minNights };
       if (!isAvailable) {
-        const prevDay        = index > 0 ? days[index - 1] : null;
-        const prevAvailable  = prevDay ? prevDay.status === 'available' : true;
+        const prevDay       = index > 0 ? days[index - 1] : null;
+        const prevAvailable = prevDay ? prevDay.status === 'available' : true;
         const isCheckoutOnly = !day.ctd && prevAvailable && (isReserved || isBlocked);
         if (isCheckoutOnly) checkoutOnlyDates.push(day.date);
         else blockedDates.push(day.date);
       }
     });
 
-    const result = {
-      blockedDates:      blockedDates.sort(),
-      checkoutOnlyDates: checkoutOnlyDates.sort(),
-      dayData,
-      totalDays: days.length
-    };
+    const result = { blockedDates: blockedDates.sort(), checkoutOnlyDates: checkoutOnlyDates.sort(), dayData, totalDays: days.length };
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result, cached: false });
 
@@ -342,9 +311,7 @@ app.get('/api/website/pricing', async (req, res) => {
     const { data, error } = await supabase.from('listing_pricing').select('*');
     if (error) throw error;
     res.json({ success: true, count: data.length, pricing: data });
-  } catch(e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Route 5: Sync pricing ──
@@ -373,9 +340,7 @@ app.get('/api/website/reviews', async (req, res) => {
     const fiveStars  = allReviews.filter(r => r.rating >= 5 && r.publicReview?.trim().length > 20);
     setCache('reviews', fiveStars, 60 * 60 * 1000);
     res.json({ success: true, count: fiveStars.length, reviews: fiveStars });
-  } catch(e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Route 7: Contact ──
@@ -386,9 +351,7 @@ app.post('/api/website/contact', async (req, res) => {
       .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
     if (error) throw error;
     res.json({ success: true });
-  } catch(e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Route 8: Newsletter ──
@@ -399,23 +362,15 @@ app.post('/api/website/newsletter', async (req, res) => {
       .upsert([{ email, subscribed_at: new Date() }], { onConflict: 'email' });
     if (error) throw error;
     res.json({ success: true });
-  } catch(e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Route 9: Fee config ──
 app.get('/api/website/fee-config', async (req, res) => {
   try {
     const fees = getFeeRates();
-    res.json({
-      success: true,
-      ...fees,
-      note: 'Accommodation from BE-API day prices + extra person fee, cleaning from Open API'
-    });
-  } catch(e) {
-    res.status(500).json({ success: false, error: e.message });
-  }
+    res.json({ success: true, ...fees, note: 'Accommodation from BE-API day prices, cleaning + extra person from Open API' });
+  } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
 // ── Route 10: Create SetupIntent ──
@@ -458,11 +413,14 @@ app.post('/api/website/reserve', async (req, res) => {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
+    // Format phone to E.164 for Guesty
+    const formattedPhone = formatPhone(phone);
+    console.log(`Creating reservation for ${firstName} ${lastName} (${email}) phone: ${formattedPhone}`);
+
     const openToken = await getOpenApiToken();
     const beToken   = await getBeApiToken();
 
     // ── Step 1: Find or create guest (Open API) ──
-    console.log(`Creating reservation for ${firstName} ${lastName} (${email})`);
     let guestId = null;
     const guestSearchRes  = await fetch(
       `https://open-api.guesty.com/v1/guests?email=${encodeURIComponent(email)}`,
@@ -477,7 +435,12 @@ app.post('/api/website/reserve', async (req, res) => {
       const guestCreateRes  = await fetch('https://open-api.guesty.com/v1/guests', {
         method: 'POST',
         headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ firstName, lastName, email, phone })
+        body: JSON.stringify({
+          firstName,
+          lastName,
+          email,
+          phone: formattedPhone  // ← E.164 formatted
+        })
       });
       const guestCreateData = await guestCreateRes.json();
       if (!guestCreateData._id) throw new Error('Failed to create guest: ' + JSON.stringify(guestCreateData));
@@ -491,7 +454,9 @@ app.post('/api/website/reserve', async (req, res) => {
       let customer = customers.data[0];
       if (!customer) {
         customer = await stripe.customers.create({
-          email, name: `${firstName} ${lastName}`, phone: phone || undefined
+          email,
+          name:  `${firstName} ${lastName}`,
+          phone: formattedPhone || undefined
         });
       }
       try {
@@ -525,11 +490,7 @@ app.post('/api/website/reserve', async (req, res) => {
     console.log('Creating fresh quote...');
     const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
       method: 'POST',
-      headers: {
-        Authorization:  `Bearer ${beToken}`,
-        'Content-Type': 'application/json',
-        accept:         'application/json'
-      },
+      headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json', accept: 'application/json' },
       body: JSON.stringify({
         listingId,
         checkInDateLocalized:  checkIn,
@@ -558,11 +519,7 @@ app.post('/api/website/reserve', async (req, res) => {
       `https://booking.guesty.com/api/reservations/quotes/${quoteId}/instant`,
       {
         method: 'POST',
-        headers: {
-          Authorization:  `Bearer ${beToken}`,
-          'Content-Type': 'application/json',
-          accept:         'application/json'
-        },
+        headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({
           ratePlanId,
           ccToken: stripePaymentMethodId,
@@ -570,7 +527,7 @@ app.post('/api/website/reserve', async (req, res) => {
             firstName,
             lastName,
             email,
-            phone: phone || undefined
+            phone: formattedPhone || undefined  // ← E.164 formatted
           }
         })
       }
@@ -626,12 +583,7 @@ app.post('/api/website/reserve', async (req, res) => {
       message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount} | Guesty ID: ${reservationId}`
     }]);
 
-    res.json({
-      success:          true,
-      reservationId,
-      confirmationCode,
-      amount:           pricing.total || totalAmount
-    });
+    res.json({ success: true, reservationId, confirmationCode, amount: pricing.total || totalAmount });
 
   } catch(e) {
     console.error('Reserve error:', e.message);

@@ -67,8 +67,10 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .status-step.done .status-dot{background:var(--gold);color:#fff}
 .status-step.error .status-dot{background:#c0392b;color:#fff}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.5}}
-#podium-website-widget{z-index:149!important}
-@media(max-width:900px){#podium-website-widget{bottom:20px!important}}
+/* Hide Podium on mobile during booking flow — prevents overlap with form elements */
+@media(max-width:900px){
+  #podium-website-widget{display:none!important}
+}
 @media(max-width:860px){.wrap{grid-template-columns:1fr}.summary-card{position:relative;top:0}.billing-row{grid-template-columns:1fr}}
 @media(max-width:480px){.progress-step .step-label{display:none}}
 </style>
@@ -143,7 +145,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
         🔒 Your payment is processed securely via Stripe. Premium Rentals never stores your card details.<br><br>
         By completing this booking you agree to our <a href="cancellation.html" style="color:var(--gold)" target="_blank">cancellation policy</a>
         (<strong style="color:var(--dark)">50% refund if cancelled 30+ days before check-in. No refund within 30 days.</strong>)
-        Your card will be charged <strong id="charge-amount" style="color:var(--dark)">the total amount</strong> per our payment schedule upon confirmation.
+        Your card will be charged per our payment schedule upon confirmation.
       </div>
     </div>
 
@@ -237,7 +239,7 @@ function showStatus() {
 function setStep(step, state) {
   const el  = document.getElementById(`status-${step}`);
   const dot = document.getElementById(`dot-${step}`);
-  el.className  = `status-step ${state}`;
+  el.className    = `status-step ${state}`;
   dot.textContent = state === 'done' ? '✓' : state === 'error' ? '✗' : step;
 }
 function resetStatus() {
@@ -255,7 +257,7 @@ async function loadSummary() {
     const listing = data.listings?.find(l => l._id === listingId);
     if (listing) {
       const city  = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
-      const photo = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
+      const photo = listing.picture?.regular || listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
       document.getElementById('summary-img').src              = photo;
       document.getElementById('summary-location').textContent = '📍 ' + (city || 'Idaho');
       document.getElementById('summary-name').textContent     = listing.title || listing.nickname || 'Luxury Property';
@@ -267,24 +269,22 @@ async function loadSummary() {
   document.getElementById('summary-checkout').textContent    = fmtDate(checkOut);
   document.getElementById('summary-guests').textContent      = `${guests} guest${parseInt(guests)!==1?'s':''}`;
   document.getElementById('guest-email-display').textContent = email || '';
-  document.getElementById('charge-amount').textContent       = total ? `$${total.toLocaleString()}` : 'the total amount';
 
   if (total) {
     document.getElementById('price-breakdown').innerHTML = `
       <div class="price-row"><span>$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${accommodation.toLocaleString()}</span></div>
       <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee?'$'+cleaningFee.toLocaleString():'Included'}</span></div>
-      <div class="price-row"><span>Service fee</span><span>$${serviceFee.toLocaleString()}</span></div>
-      <div class="price-row"><span>Taxes</span><span>$${taxes.toLocaleString()}</span></div>
+      <div class="price-row"><span>Service fee</span><span>${serviceFee?'$'+serviceFee.toLocaleString():'Included'}</span></div>
+      <div class="price-row"><span>Taxes</span><span>${taxes?'$'+taxes.toLocaleString():'Included'}</span></div>
       <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
   }
 }
 
 // ── Submit payment ──
 // Flow:
-// 1. Create SetupIntent on backend → validate card is real ($0 auth)
-// 2. If SetupIntent fails → show error, STOP — no reservation created
-// 3. If SetupIntent passes → proceed with reservation
-// 4. Everything in Guesty stays identical
+// 1. Create SetupIntent ($0 pre-auth) — validates card is real and chargeable
+// 2. If fails → show error, STOP — no reservation created
+// 3. If passes → call reserve endpoint with confirmed pm_...
 async function submitPayment() {
   const cardName = document.getElementById('card-name').value.trim();
   const btn      = document.getElementById('submit-btn');
@@ -298,12 +298,8 @@ async function submitPayment() {
   showStatus();
 
   try {
-    // ── Step 1: Pre-auth via SetupIntent ──
-    // Creates $0 authorization to validate card is real and chargeable
-    // If this fails — card is invalid/declined — we STOP here
+    // ── Step 1: SetupIntent pre-auth ──
     setStep(1, 'active');
-
-    // Get SetupIntent client secret from backend
     const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -312,7 +308,6 @@ async function submitPayment() {
     const siData = await siRes.json();
     if (!siData.success) throw new Error(siData.error || 'Could not initialize payment.');
 
-    // Confirm SetupIntent with card — this validates the card
     const { setupIntent, error: setupError } = await stripe.confirmCardSetup(
       siData.clientSecret,
       {
@@ -335,16 +330,14 @@ async function submitPayment() {
     );
 
     if (setupError) {
-      // Card is invalid or declined — STOP, no reservation created
       setStep(1, 'error');
       throw new Error(setupError.message);
     }
 
-    // Card validated ✅ — get the confirmed payment method ID
     const confirmedPaymentMethodId = setupIntent.payment_method;
     setStep(1, 'done');
 
-    // ── Step 2: Create reservation in Guesty ──
+    // ── Step 2: Create reservation ──
     setStep(2, 'active');
     const res  = await fetch(`${API_BASE}/api/website/reserve`, {
       method: 'POST',
@@ -365,10 +358,9 @@ async function submitPayment() {
 
     // ── Step 3: Confirming ──
     setStep(3, 'active');
-    await new Promise(r => setTimeout(r, 800)); // brief pause for UX
+    await new Promise(r => setTimeout(r, 800));
     setStep(3, 'done');
 
-    // Redirect to confirmation
     window.location.href = `confirmation.html?code=${encodeURIComponent(data.confirmationCode)}&checkIn=${checkIn}&checkOut=${checkOut}&guests=${guests}&total=${total}&name=${encodeURIComponent(firstName)}`;
 
   } catch(e) {

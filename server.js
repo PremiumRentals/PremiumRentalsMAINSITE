@@ -331,7 +331,7 @@ app.get('/api/website/listings', async (req, res) => {
   }
 });
 
-// ── Route 2: Availability + pricing (BE-API quote) ──
+// ── Route 2: Availability + pricing (Open API V3 quote) ──
 app.get('/api/website/availability/:listingId', async (req, res) => {
   try {
     const { listingId } = req.params;
@@ -342,35 +342,25 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     const cached   = getCache(cacheKey);
     if (cached) return res.json({ success: true, ...cached, cached: true });
 
-    const token  = await getBeApiToken();
-    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    const openToken = await getOpenApiToken();
+    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
 
-    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({
-        listingId,
-        checkInDateLocalized:  checkIn,
-        checkOutDateLocalized: checkOut,
-        guestsCount: parseInt(guests) || 1
-      })
-    });
-
-    const quoteText = await quoteRes.text();
-    let quoteData;
-    try { quoteData = JSON.parse(quoteText); } catch(e) {
-      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
-    }
-
-    if (quoteRes.status !== 200 || !quoteData._id) {
+    if (qStatus !== 200 || !quoteData._id) {
       return res.json({
         success: true, available: false,
-        error: quoteData.message || quoteData.error || 'Not available for these dates'
+        error: quoteData?.message || quoteData?.error || 'Not available for these dates'
       });
     }
 
-    const pricing = await extractPricingFromQuote(quoteData, nights, listingId, guests);
-    const result  = { available: true, quoteId: quoteData._id, days: quoteData.rates?.ratePlans?.[0]?.days || [], ...pricing };
+    // Check if the applicable rate plan is actually available
+    const rp = getApplicableRatePlan(quoteData);
+    if (!rp) {
+      return res.json({ success: true, available: false, error: 'No available rate plan for these dates' });
+    }
+
+    const pricing = extractV3Pricing(quoteData);
+    const days    = rp.days || [];
+    const result  = { available: true, quoteId: quoteData._id, days, ...pricing };
     setCache(cacheKey, result, 30 * 1000);
     res.json({ success: true, ...result });
 

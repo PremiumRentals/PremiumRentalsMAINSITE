@@ -821,38 +821,36 @@ app.get('/api/debug/reviews', async (req, res) => {
 // ── Debug: coupon test — hit /api/debug/coupon?code=TRAVELLIKETIFF
 app.get('/api/debug/coupon', async (req, res) => {
   try {
-    const d1 = new Date(); d1.setDate(d1.getDate()+14);
-    const d2 = new Date(); d2.setDate(d2.getDate()+18);
+    const d1 = new Date(); d1.setDate(d1.getDate()+21);
+    const d2 = new Date(); d2.setDate(d2.getDate()+25);
     const defaultIn  = d1.toISOString().split('T')[0];
     const defaultOut = d2.toISOString().split('T')[0];
     const { code, checkIn = defaultIn, checkOut = defaultOut } = req.query;
     if (!code) return res.status(400).json({ error: 'code param required' });
     const token = await getBeApiToken();
 
-    // Auto-grab first listing if none supplied
-    let { listingId } = req.query;
-    if (!listingId) {
-      const cached = getCache('listings_all');
-      if (cached?.length) { listingId = cached[0]._id; }
-      else {
-        const lr = await fetch('https://booking.guesty.com/api/listings?limit=1', { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } });
-        const ld = await lr.json();
-        listingId = (ld.results||[])[0]?._id;
-      }
-      if (!listingId) return res.status(500).json({ error: 'Could not find a listing ID' });
+    // Get all listings and try each until a quote succeeds
+    const cached = getCache('listings_all');
+    let listings = cached?.length ? cached : [];
+    if (!listings.length) {
+      const lr = await fetch('https://booking.guesty.com/api/listings?limit=50', { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } });
+      const ld = await lr.json();
+      listings = ld.results || [];
     }
 
-    // Step 1: create a quote
-    const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
-    });
-    const qData = await qRes.json();
-    const quoteId = qData._id;
-    if (!quoteId) return res.json({ step: 'quote_creation', status: qRes.status, response: qData });
+    let quoteId = null, usedListingId = null;
+    for (const l of listings) {
+      const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ listingId: l._id, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
+      });
+      const qData = await qRes.json();
+      if (qData._id) { quoteId = qData._id; usedListingId = l._id; break; }
+    }
+    if (!quoteId) return res.json({ error: 'Could not create a quote on any listing for these dates — try different dates', checkIn, checkOut });
 
-    // Step 2: try POST /coupon with { couponCode }
+    // Try POST /coupon with { couponCode }
     const c1 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}/coupon`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
@@ -860,7 +858,7 @@ app.get('/api/debug/coupon', async (req, res) => {
     });
     const c1Data = await c1.json();
 
-    // Step 3: try POST /coupon with { code }
+    // Try POST /coupon with { code }
     const c2 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}/coupon`, {
       method: 'POST',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
@@ -868,7 +866,7 @@ app.get('/api/debug/coupon', async (req, res) => {
     });
     const c2Data = await c2.json();
 
-    // Step 4: try PUT on the quote itself with couponCode
+    // Try PUT on the quote itself with couponCode
     const c3 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}`, {
       method: 'PUT',
       headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
@@ -878,8 +876,8 @@ app.get('/api/debug/coupon', async (req, res) => {
 
     res.json({
       quoteId,
-      quoteStatus: qRes.status,
-      quoteMoney: qData.money,
+      usedListingId,
+      checkIn, checkOut,
       coupon_post_couponCode: { status: c1.status, body: c1Data },
       coupon_post_code:       { status: c2.status, body: c2Data },
       quote_put_couponCode:   { status: c3.status, body: c3Data }

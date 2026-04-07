@@ -119,7 +119,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .cal-day.blocked{color:#ccc;text-decoration:line-through;cursor:not-allowed;background:#fafafa}
 .cal-day.past{color:#ddd;cursor:not-allowed}
 .cal-day.min-nights-blocked{color:#ddd;cursor:not-allowed;background:#fafafa}
-.cal-day.today{font-weight:700}
+.cal-day.today{font-weight:700}.cal-day.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:currentColor;margin:1px auto 0;opacity:.5}
 .cal-day.empty{cursor:default}
 .cal-legend{display:flex;gap:20px;margin-top:16px;flex-wrap:wrap}
 .cal-legend-item{display:flex;align-items:center;gap:6px;font-size:11px;color:var(--mid)}
@@ -154,8 +154,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .sb-cal-day.blocked{color:#ddd;cursor:not-allowed;text-decoration:line-through}
 .sb-cal-day.past{color:#e0e0e0;cursor:not-allowed}
 .sb-cal-day.min-nights-blocked{color:#e0e0e0;cursor:not-allowed}
-.sb-cal-day.today{font-weight:800;color:var(--accent)}
-.sb-cal-day.today.available:not(.selected){text-decoration:underline}
+.sb-cal-day.today{font-weight:800}.sb-cal-day.today.available:not(.selected){color:var(--accent);text-decoration:underline}.sb-cal-day.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:currentColor;margin:1px auto 0;opacity:.5}
 .sb-cal-day.empty{cursor:default}
 .guests-row{padding:10px 0;border-top:1px solid #f0ede8;margin-bottom:12px}
 .guests-row-top{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
@@ -236,7 +235,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .mob-cal-d.ci,.mob-cal-d.co{background:var(--accent)!important;color:#fff!important;font-weight:700;border-radius:4px}
 .mob-cal-d.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
 .mob-cal-d.checkout-only{color:var(--mid)}
-.mob-cal-d.today{font-weight:800;text-decoration:underline}
+.mob-cal-d.today{font-weight:800}.mob-cal-d.today.avail{text-decoration:underline}.mob-cal-d.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:currentColor;margin:1px auto 0;opacity:.5}
 #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;backdrop-filter:blur(2px)}
 #mob-overlay.open{display:block}
 #mob-sheet{position:fixed;bottom:0;left:0;right:0;z-index:501;background:#fff;border-radius:16px 16px 0 0;padding:0 0 env(safe-area-inset-bottom,16px);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,0,.67,0);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -918,7 +917,8 @@ function sbCalNav(dir){ sbMonth+=dir; if(sbMonth>11){sbMonth=0;sbYear++;} if(sbM
 // ── Day class helper ──
 function getDayClass(dateStr, today, prefix) {
   const date           = new Date(dateStr+'T12:00:00');
-  const isPast         = date < today;
+  const todayStr       = today.toISOString().split('T')[0];
+  const isPast         = dateStr <= todayStr;
   const isBlocked      = blockedDates.has(dateStr);
   const isCoOnly       = checkoutOnlyDates.has(dateStr);
   const isSel          = dateStr===selectedCheckIn || dateStr===selectedCheckOut;
@@ -952,7 +952,8 @@ function renderMonthGrid(year, month, today) {
     const dateStr    = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isCoOnly   = checkoutOnlyDates.has(dateStr);
     const isBlocked  = blockedDates.has(dateStr);
-    const isPast     = new Date(dateStr+'T12:00:00') < today;
+    const todayStr   = today.toISOString().split('T')[0];
+    const isPast     = dateStr <= todayStr;
     const cls        = getDayClass(dateStr, today, '');
     const canClick   = (!isPast && !isBlocked) || (!isPast && isCoOnly && calMode==='checkout');
     html += `<div class="${cls}"${canClick ? ` onclick="selectDate('${dateStr}',${isCoOnly})"` : ''}>${d}</div>`;
@@ -970,7 +971,8 @@ function renderSbMonthGrid(year, month, today) {
     const dateStr   = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isCoOnly  = checkoutOnlyDates.has(dateStr);
     const isBlocked = blockedDates.has(dateStr);
-    const isPast    = new Date(dateStr+'T12:00:00') < today;
+    const todayStr  = today.toISOString().split('T')[0];
+    const isPast    = dateStr <= todayStr;
     const cls       = getDayClass(dateStr, today, 'sb-');
     const canClick  = (!isPast && !isBlocked) || (!isPast && isCoOnly && calMode==='checkout');
     html += `<div class="${cls}"${canClick ? ` onclick="selectDate('${dateStr}',${isCoOnly})"` : ''}>${d}</div>`;
@@ -1148,8 +1150,9 @@ function renderMobMonthGrid(year, month, today) {
   for(let d=1;d<=total;d++) {
     const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isBlocked = blockedDates.has(ds), isCoOnly = checkoutOnlyDates.has(ds);
-    const isPast = new Date(ds+'T12:00:00') < today;
-    const isToday = ds === today.toISOString().split('T')[0];
+    const todayStr = today.toISOString().split('T')[0];
+    const isPast = ds <= todayStr;
+    const isToday = ds === todayStr;
     const inRange = mobCI && mobCO && ds > mobCI && ds < mobCO;
     let cls = 'mob-cal-d';
     if (isPast) cls += ' past';

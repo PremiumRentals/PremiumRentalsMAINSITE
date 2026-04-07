@@ -115,30 +115,6 @@ const listingFeesCache = {};
 // ── Listing coordinates (Open API) ──
 // BE-API listings don't include lat/lng for the map
 // Fetched from Open API once per hour and merged into listings response
-// ── Google Geocoding (per city) ──
-// Guesty Open API doesn't reliably expose lat/lng on listings.
-// We geocode each unique city once, cache per city permanently per server instance.
-const geocodeCache = {};
-async function geocodeCity(city, state) {
-  const key = `${city},${state}`;
-  if (geocodeCache[key] !== undefined) return geocodeCache[key];
-  try {
-    const q   = encodeURIComponent(`${city}, ${state}, USA`);
-    const url = `https://maps.googleapis.com/maps/api/geocode/json?address=${q}&key=${process.env.GOOGLE_MAPS_API_KEY}`;
-    const res  = await fetch(url);
-    const data = await res.json();
-    const loc  = data.results?.[0]?.geometry?.location;
-    const result = loc ? { lat: loc.lat, lng: loc.lng } : null;
-    geocodeCache[key] = result;
-    console.log(`Geocoded "${key}": ${result ? `${result.lat},${result.lng}` : 'not found'}`);
-    return result;
-  } catch(e) {
-    console.warn(`Geocode failed for "${city},${state}":`, e.message);
-    geocodeCache[`${city},${state}`] = null;
-    return null;
-  }
-}
-
 // ── Open API listing enrichment (full publicDescription) ──
 // Fetched without fields filter so we get all sub-fields (space, access, neighborhood)
 async function getOpenApiListingData() {
@@ -288,33 +264,6 @@ app.get('/api/website/listings', async (req, res) => {
       console.log(`Description enrichment: ${descCount} listings updated`);
     } catch(e) { console.warn('Description merge failed:', e.message); }
 
-    // ── Geocode city coordinates for map pins ──
-    // Guesty Open API doesn't store lat/lng reliably; geocode by unique city instead
-    try {
-      const cities = {};
-      results.forEach(l => {
-        const city = l.address?.city, state = l.address?.state;
-        if (city && state) cities[`${city}||${state}`] = { city, state };
-      });
-      // Geocode each unique city (with 200ms delay between calls to avoid rate limits)
-      for (const { city, state } of Object.values(cities)) {
-        if (!geocodeCache[`${city},${state}`]) await new Promise(r => setTimeout(r, 200));
-        await geocodeCity(city, state);
-      }
-      // Apply geocoded coords to all listings
-      let coordCount = 0;
-      results.forEach(l => {
-        const city = l.address?.city, state = l.address?.state;
-        if (!city || !state) return;
-        const coords = geocodeCache[`${city},${state}`];
-        if (coords && !l.address?.lat) {
-          l.address.lat = coords.lat;
-          l.address.lng = coords.lng;
-          coordCount++;
-        }
-      });
-      console.log(`Coord enrichment: ${coordCount} listings geocoded from ${Object.keys(cities).length} cities`);
-    } catch(e) { console.warn('Geocoding failed:', e.message); }
     setCache('listings_all', results, 5 * 60 * 1000);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch(e) {
@@ -724,33 +673,23 @@ app.post('/api/website/reserve', async (req, res) => {
 });
 
 // ── Debug: coords ──
-app.get('/api/debug/coords', async (req, res) => {
+app.get('/api/debug/listings', async (req, res) => {
   try {
-    // Force-refresh listings cache to rerun enrichment
     delete cache['listings_all'];
     delete cache['openapi_listing_data'];
-    Object.keys(geocodeCache).forEach(k => delete geocodeCache[k]);
+    // Force fresh fetch and enrichment
     const token    = await getBeApiToken();
     const response = await fetch('https://booking.guesty.com/api/listings?limit=100', {
       headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
     });
     const data    = await response.json();
     const results = data.results || [];
-    const cities  = [...new Set(results.map(l => l.address?.city).filter(Boolean))];
-    // Geocode first 3 cities as a test
-    const testCities = cities.slice(0, 3);
-    const geocoded = {};
-    for (const city of testCities) {
-      const state = results.find(l => l.address?.city === city)?.address?.state || 'ID';
-      geocoded[city] = await geocodeCity(city, state);
-      await new Promise(r => setTimeout(r, 300));
-    }
-    res.json({
-      totalListings: results.length,
-      uniqueCities: cities,
-      geocodeTest: geocoded,
-      geoApiKeySet: !!process.env.GOOGLE_MAPS_API_KEY
-    });
+    const openData = await getOpenApiListingData();
+    const cities = [...new Set(results.map(l => l.address?.city).filter(Boolean))];
+    const descSample = Object.entries(openData).slice(0, 3).map(([id, v]) => ({
+      id, descFields: Object.keys(v.publicDescription || {})
+    }));
+    res.json({ totalListings: results.length, uniqueCities: cities, descSample, openApiCount: Object.keys(openData).length });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

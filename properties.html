@@ -202,10 +202,69 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
   </div>
 </footer>
 
-<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3CGYvlL9Cj3Q7XjaB2Ft4HubqFlVvRUc&callback=initMap" async defer></script>
+<script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyB3CGYvlL9Cj3Q7XjaB2Ft4HubqFlVvRUc&libraries=places&callback=initMap" async defer></script>
 <script>
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
 let allListings = [], filteredListings = [], map = null, markers = [], infoWindow = null;
+let geocoder = null;
+
+// Hardcoded coords for known cities — instant, no API calls needed
+const CITY_COORDS = {
+  'Meridian,ID':         { lat: 43.6121, lng: -116.3915 },
+  'Nampa,ID':            { lat: 43.5407, lng: -116.5635 },
+  'Boise,ID':            { lat: 43.6150, lng: -116.2023 },
+  'Eagle,ID':            { lat: 43.6952, lng: -116.3533 },
+  'McCall,ID':           { lat: 44.9074, lng: -116.1138 },
+  'Cascade,ID':          { lat: 44.5182, lng: -116.0434 },
+  'Garden Valley,ID':    { lat: 44.0885, lng: -115.9724 },
+  'Driggs,ID':           { lat: 43.7235, lng: -111.1118 },
+  'Rexburg,ID':          { lat: 43.8262, lng: -111.7897 },
+  'Chubbuck,ID':         { lat: 42.9197, lng: -112.4672 },
+  'Heyburn,ID':          { lat: 42.5580, lng: -113.7533 },
+  'St. George,UT':       { lat: 37.1041, lng: -113.5841 },
+  'Hurricane,UT':        { lat: 37.1749, lng: -113.2891 },
+  'Saratoga Springs,UT': { lat: 40.3486, lng: -111.9063 },
+  'American Fork,UT':    { lat: 40.3769, lng: -111.7996 },
+  'Orem,UT':             { lat: 40.2969, lng: -111.6946 },
+  'Layton,UT':           { lat: 41.0602, lng: -111.9711 },
+  'Syracuse,UT':         { lat: 41.0888, lng: -112.0652 },
+  'Grantsville,UT':      { lat: 40.5993, lng: -112.4649 },
+  'Madison,UT':          { lat: 41.6404, lng: -111.9519 },
+  'Harvest,AL':          { lat: 34.8573, lng: -86.7697 },
+  'Sevierville,TN':      { lat: 35.8679, lng: -83.5618 },
+  'Crystal River,FL':    { lat: 28.9025, lng: -82.5932 },
+  'Princeville,HI':      { lat: 22.2185, lng: -159.4863 },
+  'Hauula,HI':           { lat: 21.6099, lng: -157.9083 },
+  'Saint Thomas,VI':     { lat: 18.3381, lng: -64.8941 }
+};
+
+function getCityCoords(city, state) {
+  if (!city || !state) return null;
+  // Try exact match first
+  const key = `${city},${state}`;
+  if (CITY_COORDS[key]) return CITY_COORDS[key];
+  // Try case-insensitive
+  const found = Object.entries(CITY_COORDS).find(([k]) => k.toLowerCase() === key.toLowerCase());
+  return found ? found[1] : null;
+}
+
+const pendingGeocodes = {};
+async function geocodeCityAsync(city, state) {
+  const key = `${city},${state}`;
+  if (CITY_COORDS[key]) return CITY_COORDS[key];
+  if (pendingGeocodes[key] !== undefined) return pendingGeocodes[key];
+  if (!geocoder) return null;
+  return new Promise(resolve => {
+    geocoder.geocode({ address: `${city}, ${state}, USA` }, (results, status) => {
+      const result = (status === 'OK' && results[0])
+        ? { lat: results[0].geometry.location.lat(), lng: results[0].geometry.location.lng() }
+        : null;
+      CITY_COORDS[key] = result;
+      pendingGeocodes[key] = result;
+      resolve(result);
+    });
+  });
+}
 
 function initMap() {
   map = new google.maps.Map(document.getElementById('map'), {
@@ -221,6 +280,7 @@ function initMap() {
     mapTypeControl:false, streetViewControl:false, fullscreenControl:true
   });
   infoWindow = new google.maps.InfoWindow();
+  geocoder  = new google.maps.Geocoder();
   loadListings();
 }
 
@@ -369,36 +429,59 @@ function renderCards(listings) {
   }).join('');
 }
 
-function renderMapPins(listings) {
+function placeMarker(l, lat, lng, bounds) {
+  const name = l.title || l.nickname || 'Luxury Property';
+  const city = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
+  const marker = new google.maps.Marker({
+    position:{lat,lng}, map, title: name,
+    icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#C9A96E',fillOpacity:1,strokeColor:'#ffffff',strokeWeight:2}
+  });
+  marker.addListener('click', () => {
+    infoWindow.setContent(`
+      <div class="map-info">
+        <div class="map-info-name">${name}</div>
+        <div class="map-info-city">📍 ${city}</div>
+        <a class="map-info-btn" href="property.html?id=${l._id}">View Property →</a>
+      </div>`);
+    infoWindow.open(map, marker);
+    highlightCard(l._id);
+  });
+  bounds.extend({lat,lng});
+  markers.push(marker);
+}
+
+async function renderMapPins(listings) {
   markers.forEach(m => m.setMap(null)); markers = [];
   if (!map) return;
   const bounds = new google.maps.LatLngBounds();
-  let validCoords = 0;
+  const needsGeocode = [];
+
   listings.forEach(l => {
-    const lat = l.address?.lat, lng = l.address?.lng;
-    if (!lat || !lng) return;
-    validCoords++;
-    const name = l.title || l.nickname || 'Luxury Property';
-    const city = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
-    const marker = new google.maps.Marker({
-      position:{lat,lng}, map, title: name,
-      icon:{path:google.maps.SymbolPath.CIRCLE,scale:10,fillColor:'#C9A96E',fillOpacity:1,strokeColor:'#ffffff',strokeWeight:2}
-    });
-    marker.addListener('click', () => {
-      infoWindow.setContent(`
-        <div class="map-info">
-          <div class="map-info-name">${name}</div>
-          <div class="map-info-city">📍 ${city}</div>
-          <a class="map-info-btn" href="property.html?id=${l._id}">View Property →</a>
-        </div>`);
-      infoWindow.open(map, marker);
-      highlightCard(l._id);
-    });
-    bounds.extend({lat,lng});
-    markers.push(marker);
+    // Use lat/lng from API if available
+    let lat = l.address?.lat ? parseFloat(l.address.lat) : null;
+    let lng = l.address?.lng ? parseFloat(l.address.lng) : null;
+    // Fall back to hardcoded city lookup
+    if (!lat || !lng) {
+      const cityCoords = getCityCoords(l.address?.city, l.address?.state);
+      if (cityCoords) { lat = cityCoords.lat; lng = cityCoords.lng; }
+    }
+    if (lat && lng) { placeMarker(l, lat, lng, bounds); }
+    else if (l.address?.city && l.address?.state) { needsGeocode.push(l); }
   });
-  if (validCoords > 1) map.fitBounds(bounds, {padding:60});
-  else if (validCoords === 1) { map.setCenter(bounds.getCenter()); map.setZoom(13); }
+
+  // Geocode any remaining cities not in the hardcoded table (async, progressive)
+  if (needsGeocode.length && geocoder) {
+    const uniqueCities = [...new Map(needsGeocode.map(l => [`${l.address.city},${l.address.state}`, l])).values()];
+    for (const l of uniqueCities) {
+      const coords = await geocodeCityAsync(l.address.city, l.address.state);
+      if (coords) {
+        needsGeocode.filter(x => x.address.city === l.address.city).forEach(x => placeMarker(x, coords.lat, coords.lng, bounds));
+      }
+    }
+  }
+
+  if (markers.length > 1) map.fitBounds(bounds, {padding:60});
+  else if (markers.length === 1) { map.setCenter(bounds.getCenter()); map.setZoom(13); }
 }
 
 function highlightCard(id) {

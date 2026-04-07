@@ -176,6 +176,9 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <div class="nav-item" onclick="showPage('quotes')" id="nav-quotes">
         <span class="nav-icon">≡</span> All Quotes
       </div>
+      <div class="nav-item" onclick="showPage('settings')" id="nav-settings">
+        <span class="nav-icon">⚙</span> Settings
+      </div>
     </nav>
     <div class="sidebar-logout">
       <button class="logout-btn" onclick="doLogout()">Sign Out</button>
@@ -339,6 +342,43 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <div class="page-sub">Manage and track your sent quotes</div>
       <div id="quotes-list">
         <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Loading quotes...</div></div>
+      </div>
+    </div>
+
+    <!-- ── Settings Page ── -->
+    <div id="page-settings" style="display:none">
+      <div class="page-title">Settings</div>
+      <div class="page-sub">Configure payment methods and other options</div>
+
+      <div class="panel">
+        <div class="panel-title">Payment Methods — Admin Quote Links</div>
+        <p style="font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:24px">Choose which payment methods guests can use when booking through an admin quote link. Both are enabled by default. ACH bank transfer requires check-in at least 4 days in the future to allow funds to clear.</p>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-top:1px solid var(--border)">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--dark);margin-bottom:3px">Credit / Debit Card</div>
+            <div style="font-size:12px;color:var(--mid)">Visa, Mastercard, Amex, Discover — charges immediately</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" id="set-cards" style="opacity:0;width:0;height:0" onchange="savePaymentSettings()">
+            <span id="set-cards-track" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s"></span>
+            <span id="set-cards-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s"></span>
+          </label>
+        </div>
+
+        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-top:1px solid var(--border)">
+          <div>
+            <div style="font-size:14px;font-weight:600;color:var(--dark);margin-bottom:3px">ACH Bank Transfer</div>
+            <div style="font-size:12px;color:var(--mid)">US bank accounts only · 4+ days before check-in required · no additional fees</div>
+          </div>
+          <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
+            <input type="checkbox" id="set-ach" style="opacity:0;width:0;height:0" onchange="savePaymentSettings()">
+            <span id="set-ach-track" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s"></span>
+            <span id="set-ach-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s"></span>
+          </label>
+        </div>
+
+        <div id="settings-msg" style="font-size:13px;margin-top:12px;min-height:18px"></div>
       </div>
     </div>
 
@@ -537,9 +577,54 @@ async function loadListings() {
 function showPage(page) {
   document.getElementById('page-new-quote').style.display = page === 'new-quote' ? 'block' : 'none';
   document.getElementById('page-quotes').style.display    = page === 'quotes'    ? 'block' : 'none';
+  document.getElementById('page-settings').style.display  = page === 'settings'  ? 'block' : 'none';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById(`nav-${page}`).classList.add('active');
-  if (page === 'quotes') loadQuotes();
+  if (page === 'quotes')   loadQuotes();
+  if (page === 'settings') loadPaymentSettings();
+}
+
+// ── Payment settings toggle helpers ──
+function applyToggle(id, checked) {
+  const track = document.getElementById(id + '-track');
+  const thumb = document.getElementById(id + '-thumb');
+  if (!track || !thumb) return;
+  track.style.background = checked ? 'var(--gold)' : '#ccc';
+  thumb.style.left = checked ? '23px' : '3px';
+  document.getElementById(id).checked = checked;
+}
+
+async function loadPaymentSettings() {
+  try {
+    const r = await fetch(`${API}/api/admin/payment-settings`, { headers: authHeaders() });
+    const d = await r.json();
+    applyToggle('set-cards', d.acceptCards !== false);
+    applyToggle('set-ach',   d.acceptAch   !== false);
+  } catch(e) { console.error('Could not load payment settings:', e); }
+}
+
+async function savePaymentSettings() {
+  const acceptCards = document.getElementById('set-cards').checked;
+  const acceptAch   = document.getElementById('set-ach').checked;
+  applyToggle('set-cards', acceptCards);
+  applyToggle('set-ach',   acceptAch);
+  const msg = document.getElementById('settings-msg');
+  if (!acceptCards && !acceptAch) {
+    msg.style.color = '#e57373'; msg.textContent = 'At least one payment method must be enabled.';
+    applyToggle(acceptCards ? 'set-ach' : 'set-cards', true); return;
+  }
+  try {
+    const r = await fetch(`${API}/api/admin/payment-settings`, {
+      method: 'PUT', headers: authHeaders(),
+      body: JSON.stringify({ acceptCards, acceptAch })
+    });
+    const d = await r.json();
+    if (d.error) throw new Error(d.error);
+    msg.style.color = '#4caf50'; msg.textContent = 'Settings saved.';
+    setTimeout(() => msg.textContent = '', 2500);
+  } catch(e) {
+    msg.style.color = '#e57373'; msg.textContent = 'Could not save: ' + e.message;
+  }
 }
 
 // ── Form Logic ──

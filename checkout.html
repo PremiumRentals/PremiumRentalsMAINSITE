@@ -77,6 +77,17 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .guests-input::-webkit-outer-spin-button,.guests-input::-webkit-inner-spin-button{-webkit-appearance:none;margin:0}
 .reprice-note{font-size:11px;color:var(--accent);margin-top:8px;min-height:16px;font-weight:500}
 .billing-row{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+/* ACH payment method tabs */
+.pm-tabs{display:flex;border:1px solid #e0ddd8;border-radius:6px;overflow:hidden;margin-bottom:0}
+.pm-tab{flex:1;padding:12px 8px;text-align:center;font-size:13px;font-weight:600;cursor:pointer;background:#fff;border:none;font-family:'Inter',sans-serif;color:var(--mid);transition:all .2s;letter-spacing:.2px}
+.pm-tab.active{background:var(--dark);color:#fff}
+.pm-tab:first-child{border-right:1px solid #e0ddd8}
+.ach-warning{background:#fff8e7;border:1px solid #ffc107;border-radius:6px;padding:12px 16px;font-size:13px;color:#856404;margin-bottom:16px;display:none}
+.ach-link-btn{width:100%;padding:14px;background:var(--dark);color:#fff;border:none;border-radius:6px;font-size:14px;font-weight:600;cursor:pointer;transition:opacity .2s;font-family:'Inter',sans-serif;margin-bottom:12px}
+.ach-link-btn:hover:not(:disabled){opacity:.82}
+.ach-link-btn:disabled{opacity:.4;cursor:not-allowed}
+.ach-linked{background:#f0f9f4;border:1px solid #a5d6b7;border-radius:6px;padding:12px 16px;font-size:14px;color:#1a6b3c;margin-bottom:12px;display:none}
+.ach-mandate{font-size:11px;color:var(--mid);line-height:1.65;padding:12px 0 0;display:none}
 #stripe-card-element{border:1px solid #e0ddd8;padding:14px;border-radius:4px;background:#fff;transition:border-color .2s}
 #stripe-card-element.focused{border-color:var(--gold)}
 .card-errors{color:#c0392b;font-size:13px;margin-top:8px;min-height:18px}
@@ -243,6 +254,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
     </div>
 
     <!-- 3. PAYMENT -->
+    <!-- Payment method tabs (admin quote only, shown when both methods available) -->
+    <div id="pm-tab-wrap" style="display:none">
+      <div class="pm-tabs">
+        <button class="pm-tab active" id="tab-card" onclick="selectPaymentTab('card')">💳 Credit / Debit Card</button>
+        <button class="pm-tab" id="tab-ach"  onclick="selectPaymentTab('ach')">🏦 ACH Bank Transfer</button>
+      </div>
+    </div>
+
     <div class="form-card" id="card-form-wrap">
       <div class="form-card-title"><span>3</span>Payment Details</div>
       <div class="fg">
@@ -262,6 +281,20 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
         <div class="fg"><label>State</label><input type="text" id="billing-state" placeholder="ID" autocomplete="address-level1" maxlength="2" style="text-transform:uppercase"></div>
       </div>
       <div class="fg" style="margin-bottom:0"><label>ZIP Code</label><input type="text" id="billing-zip" placeholder="83702" autocomplete="postal-code"></div>
+    </div>
+
+    <!-- ACH form (admin quote only) -->
+    <div class="form-card" id="ach-form-wrap" style="display:none">
+      <div class="form-card-title"><span>3</span>Bank Account — ACH Transfer</div>
+      <div class="ach-warning" id="ach-warning">
+        ⚠ ACH bank transfers require check-in at least 4 days from today to allow funds to clear. Your check-in date is too soon — please use a credit/debit card instead.
+      </div>
+      <p style="font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:16px" id="ach-intro">Securely link your US bank account via Stripe Financial Connections. Your bank credentials are never shared with us. No fees for ACH.</p>
+      <button class="ach-link-btn" id="ach-link-btn" onclick="linkBankAccount()">🏦 Link Bank Account</button>
+      <div class="ach-linked" id="ach-linked"></div>
+      <div class="ach-mandate" id="ach-mandate">
+        By clicking "Confirm &amp; Pay" you authorize Premium Rentals to electronically debit your bank account for the total amount shown. This authorization remains in effect until cancelled in writing with 30 days notice. ACH transfers typically settle in 3–5 business days.
+      </div>
     </div>
 
     <!-- POLICY + SUBMIT -->
@@ -363,6 +396,93 @@ card.on('focus', () => document.getElementById('stripe-card-element').classList.
 card.on('blur',  () => document.getElementById('stripe-card-element').classList.remove('focused'));
 card.on('change', e => { document.getElementById('card-errors').textContent = e.error?.message || ''; });
 document.getElementById('billing-state').addEventListener('input', function(){ this.value = this.value.toUpperCase(); });
+
+// ── ACH payment state ──
+let paymentTab       = 'card';
+let achClientSecret  = null;
+let achPaymentMethId = null;
+
+async function initPaymentTabs() {
+  if (!pricing.quoteId) return;
+  try {
+    const r = await fetch(`${API_BASE}/api/payment-settings`);
+    const d = await r.json();
+    const showCards = d.acceptCards !== false;
+    const showAch   = d.acceptAch   !== false;
+    if (showCards && showAch) {
+      document.getElementById('pm-tab-wrap').style.display = 'block';
+    } else if (!showCards && showAch) {
+      document.getElementById('pm-tab-wrap').style.display = 'block';
+      selectPaymentTab('ach');
+    }
+    // If only cards (or default), no tabs needed — card form stays visible
+  } catch(e) { /* default card-only */ }
+}
+
+function selectPaymentTab(tab) {
+  paymentTab = tab;
+  const cardWrap = document.getElementById('card-form-wrap');
+  const achWrap  = document.getElementById('ach-form-wrap');
+  document.getElementById('tab-card').classList.toggle('active', tab === 'card');
+  document.getElementById('tab-ach').classList.toggle('active',  tab === 'ach');
+  cardWrap.style.display = tab === 'card' ? 'block' : 'none';
+  achWrap.style.display  = tab === 'ach'  ? 'block' : 'none';
+  if (tab === 'ach') {
+    const checkInDate = new Date((checkIn || '') + 'T12:00:00');
+    const minDate = new Date(); minDate.setDate(minDate.getDate() + 4); minDate.setHours(0,0,0,0);
+    const tooSoon = checkInDate < minDate;
+    document.getElementById('ach-warning').style.display  = tooSoon ? 'block' : 'none';
+    document.getElementById('ach-intro').style.display    = tooSoon ? 'none'  : 'block';
+    document.getElementById('ach-link-btn').disabled      = tooSoon;
+  }
+}
+
+async function linkBankAccount() {
+  const btn   = document.getElementById('ach-link-btn');
+  const first = document.getElementById('g-first').value.trim();
+  const last  = document.getElementById('g-last').value.trim();
+  const email = document.getElementById('g-email').value.trim();
+  if (!first || !last)              return showError('Please enter your full name before linking your bank account.');
+  if (!email || !email.includes('@')) return showError('Please enter your email before linking your bank account.');
+  btn.disabled = true; btn.textContent = 'Opening…';
+  try {
+    const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`, {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ email, name:`${first} ${last}`, paymentType:'ach' })
+    });
+    const siData = await siRes.json();
+    if (!siData.success) throw new Error(siData.error || 'Could not initialize bank linking.');
+    achClientSecret = siData.clientSecret;
+
+    const { setupIntent, error } = await stripe.collectBankAccountForSetup({
+      clientSecret: achClientSecret,
+      params: {
+        payment_method_type: 'us_bank_account',
+        payment_method_data: { billing_details: { name:`${first} ${last}`, email } }
+      }
+    });
+    if (error) throw new Error(error.message);
+
+    if (setupIntent.status === 'requires_confirmation') {
+      const ba   = setupIntent.payment_method?.us_bank_account;
+      const name = ba?.bank_name || 'Bank';
+      const last4 = ba?.last4 || '****';
+      achPaymentMethId = typeof setupIntent.payment_method === 'string'
+        ? setupIntent.payment_method : setupIntent.payment_method?.id;
+      const linked = document.getElementById('ach-linked');
+      linked.innerHTML = `✓ <strong>${name}</strong> ···· ${last4} linked`;
+      linked.style.display = 'block';
+      document.getElementById('ach-mandate').style.display = 'block';
+      btn.textContent = '✓ Bank Linked — Change Account';
+      btn.disabled = false;
+    } else {
+      throw new Error('Bank account setup did not complete. Please try again.');
+    }
+  } catch(e) {
+    showError(e.message || 'Could not link bank account. Please try again.');
+    btn.disabled = false; btn.textContent = '🏦 Link Bank Account';
+  }
+}
 
 // ── Date formatter ──
 function fmtDate(str, short) {
@@ -540,6 +660,7 @@ function showStatus() {
   document.getElementById('status-steps').style.display    = 'block';
   document.getElementById('guest-form-wrap').style.opacity = '.4';
   document.getElementById('card-form-wrap').style.opacity  = '.4';
+  document.getElementById('ach-form-wrap').style.opacity   = '.4';
   window.scrollTo({top:0,behavior:'smooth'});
 }
 function setStep(step, state) {
@@ -552,6 +673,7 @@ function resetStatus() {
   document.getElementById('status-steps').style.display    = 'none';
   document.getElementById('guest-form-wrap').style.opacity = '1';
   document.getElementById('card-form-wrap').style.opacity  = '1';
+  document.getElementById('ach-form-wrap').style.opacity   = '1';
   [1,2,3].forEach(i=>setStep(i,''));
 }
 
@@ -561,15 +683,21 @@ async function submitBooking() {
   const last     = document.getElementById('g-last').value.trim();
   const email    = document.getElementById('g-email').value.trim();
   const phone    = document.getElementById('g-phone').value.trim();
-  const cardName = document.getElementById('card-name').value.trim();
   const terms    = document.getElementById('terms-check').checked;
 
   if (!first||!last)              return showError('Please enter your first and last name.');
   if (!email||!email.includes('@')) return showError('Please enter a valid email address.');
   if (!phone)                     return showError('Please enter your phone number.');
-  if (!cardName)                  return showError('Please enter the name on your card.');
   if (!terms)                     return showError('Please agree to the Terms & Conditions to continue.');
   if (!pricing.total)             return showError('Unable to calculate total. Please go back and select dates again.');
+
+  // ACH-specific validation
+  if (paymentTab === 'ach') {
+    if (!achPaymentMethId) return showError('Please link your bank account before proceeding.');
+  } else {
+    const cardName = document.getElementById('card-name').value.trim();
+    if (!cardName) return showError('Please enter the name on your card.');
+  }
 
   document.getElementById('form-error').classList.remove('show');
   const btn = document.getElementById('submit-btn');
@@ -578,34 +706,47 @@ async function submitBooking() {
   showStatus();
 
   try {
-    // Step 1: SetupIntent pre-auth
-    setStep(1,'active');
-    const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({email,name:`${first} ${last}`})
-    });
-    const siData = await siRes.json();
-    if (!siData.success) throw new Error(siData.error||'Could not initialize payment.');
+    let confirmedPmId;
 
-    const {setupIntent,error:setupError} = await stripe.confirmCardSetup(siData.clientSecret,{
-      payment_method:{
-        card,
-        billing_details:{
-          name:cardName,email,phone:phone||undefined,
-          address:{
-            line1:document.getElementById('billing-address').value.trim(),
-            city:document.getElementById('billing-city').value.trim(),
-            state:document.getElementById('billing-state').value.trim(),
-            postal_code:document.getElementById('billing-zip').value.trim(),
-            country:'US'
+    if (paymentTab === 'ach') {
+      // ── ACH path: confirm SetupIntent (accepts mandate) ──
+      setStep(1,'active');
+      const { setupIntent, error: achError } = await stripe.confirmUsBankAccountSetup(achClientSecret);
+      if (achError) { setStep(1,'error'); throw new Error(achError.message); }
+      confirmedPmId = typeof setupIntent.payment_method === 'string'
+        ? setupIntent.payment_method : setupIntent.payment_method?.id;
+      if (!confirmedPmId) { setStep(1,'error'); throw new Error('Bank account confirmation failed.'); }
+      setStep(1,'done');
+    } else {
+      // ── Card path: create + confirm SetupIntent ──
+      const cardName = document.getElementById('card-name').value.trim();
+      setStep(1,'active');
+      const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({email,name:`${first} ${last}`})
+      });
+      const siData = await siRes.json();
+      if (!siData.success) throw new Error(siData.error||'Could not initialize payment.');
+
+      const {setupIntent,error:setupError} = await stripe.confirmCardSetup(siData.clientSecret,{
+        payment_method:{
+          card,
+          billing_details:{
+            name:cardName,email,phone:phone||undefined,
+            address:{
+              line1:document.getElementById('billing-address').value.trim(),
+              city:document.getElementById('billing-city').value.trim(),
+              state:document.getElementById('billing-state').value.trim(),
+              postal_code:document.getElementById('billing-zip').value.trim(),
+              country:'US'
+            }
           }
         }
-      }
-    });
-
-    if (setupError){setStep(1,'error');throw new Error(setupError.message);}
-    const confirmedPmId = setupIntent.payment_method;
-    setStep(1,'done');
+      });
+      if (setupError){setStep(1,'error');throw new Error(setupError.message);}
+      confirmedPmId = setupIntent.payment_method;
+      setStep(1,'done');
+    }
 
     // Step 2: Create reservation
     setStep(2,'active');
@@ -659,6 +800,7 @@ function showError(msg) {
 
 populateStatic();
 loadListing();
+initPaymentTabs();
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

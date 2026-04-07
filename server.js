@@ -658,7 +658,7 @@ app.get('/api/website/fee-config', async (req, res) => {
 // ── Route 10: Create SetupIntent ──
 app.post('/api/website/create-setup-intent', async (req, res) => {
   try {
-    const { email, name } = req.body;
+    const { email, name, paymentType } = req.body; // paymentType: 'ach' | 'card' (default)
     if (!email) return res.status(400).json({ success: false, error: 'Email required' });
     const customers = await stripe.customers.list({ email, limit: 1 });
     let customer = customers.data[0];
@@ -668,13 +668,14 @@ app.post('/api/website/create-setup-intent', async (req, res) => {
     } else {
       console.log('Found Stripe customer:', customer.id);
     }
+    const paymentMethodTypes = paymentType === 'ach' ? ['us_bank_account'] : ['card'];
     const setupIntent = await stripe.setupIntents.create({
       customer:             customer.id,
-      payment_method_types: ['card'],
+      payment_method_types: paymentMethodTypes,
       usage:                'off_session',
-      metadata:             { email, name: name || '' }
+      metadata:             { email, name: name || '', paymentType: paymentType || 'card' }
     });
-    console.log('Created SetupIntent:', setupIntent.id);
+    console.log('Created SetupIntent:', setupIntent.id, '- type:', paymentType || 'card');
     res.json({ success: true, clientSecret: setupIntent.client_secret });
   } catch(e) {
     console.error('SetupIntent error:', e.message);
@@ -1097,6 +1098,43 @@ app.get('/api/admin/me', requireAdmin, (req, res) => {
   res.json({ success: true, loggedIn: true });
 });
 
+// ── Payment settings helper ──
+async function getPaymentSettings() {
+  try {
+    const { data } = await supabase.from('payment_settings').select('key, value');
+    const s = { acceptCards: true, acceptAch: true };
+    (data || []).forEach(r => {
+      if (r.key === 'accept_cards') s.acceptCards = r.value !== 'false';
+      if (r.key === 'accept_ach')   s.acceptAch   = r.value !== 'false';
+    });
+    return s;
+  } catch { return { acceptCards: true, acceptAch: true }; }
+}
+
+// ── Admin: Get payment settings ──
+app.get('/api/admin/payment-settings', requireAdmin, async (req, res) => {
+  res.json({ success: true, ...(await getPaymentSettings()) });
+});
+
+// ── Admin: Update payment settings ──
+app.put('/api/admin/payment-settings', requireAdmin, async (req, res) => {
+  const { acceptCards, acceptAch } = req.body;
+  if (!acceptCards && !acceptAch)
+    return res.status(400).json({ error: 'At least one payment method must be enabled' });
+  try {
+    await supabase.from('payment_settings').upsert([
+      { key: 'accept_cards', value: String(Boolean(acceptCards)), updated_at: new Date().toISOString() },
+      { key: 'accept_ach',   value: String(Boolean(acceptAch)),   updated_at: new Date().toISOString() }
+    ], { onConflict: 'key' });
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public: Get payment settings (for checkout) ──
+app.get('/api/payment-settings', async (req, res) => {
+  res.json({ success: true, ...(await getPaymentSettings()) });
+});
+
 // ── Admin: Init DB (creates quotes table in Supabase if not exists) ──
 app.post('/api/admin/init-db', requireAdmin, async (req, res) => {
   try {
@@ -1340,6 +1378,20 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       customerId = customer.id;
       await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: stripePaymentMethodId } });
     } catch(e) { console.warn('Stripe customer warning:', e.message); }
+
+    // Step 1b: ACH 4-day validation
+    try {
+      const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
+      if (pm.type === 'us_bank_account') {
+        const checkInDate = new Date(checkIn + 'T12:00:00');
+        const minDate     = new Date();
+        minDate.setDate(minDate.getDate() + 4);
+        minDate.setHours(0, 0, 0, 0);
+        if (checkInDate < minDate) {
+          return res.status(400).json({ error: 'ACH bank transfers require check-in at least 4 days from today to allow funds to clear. Please use a credit/debit card or contact us.' });
+        }
+      }
+    } catch(e) { console.warn('Could not validate ACH timing:', e.message); }
 
     // Step 2: Get payment provider
     let paymentProviderId = null;

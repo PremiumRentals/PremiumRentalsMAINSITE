@@ -339,6 +339,8 @@ function render(q) {
   if (q.taxes)               params.set('taxes',         q.taxes);
   if (q.total)               params.set('total',         q.total);
   if (q.nights)              params.set('nights',        q.nights);
+  params.set('acceptCards', q.accept_cards !== false ? '1' : '0');
+  params.set('acceptAch',   q.accept_ach   === true  ? '1' : '0');
   document.getElementById('reserve-btn').href = `${SITE}/checkout.html?${params.toString()}`;
 
   // Show

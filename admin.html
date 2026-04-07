@@ -176,9 +176,6 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <div class="nav-item" onclick="showPage('quotes')" id="nav-quotes">
         <span class="nav-icon">≡</span> All Quotes
       </div>
-      <div class="nav-item" onclick="showPage('settings')" id="nav-settings">
-        <span class="nav-icon">⚙</span> Settings
-      </div>
     </nav>
     <div class="sidebar-logout">
       <button class="logout-btn" onclick="doLogout()">Sign Out</button>
@@ -329,6 +326,27 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
         </div>
       </div>
 
+      <!-- Payment Methods -->
+      <div class="panel">
+        <div class="panel-title">Payment Methods for This Quote</div>
+        <div style="display:flex;flex-direction:column;gap:14px">
+          <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
+            <input type="checkbox" id="q-accept-cards" checked style="width:16px;height:16px;margin-top:2px;cursor:pointer;accent-color:var(--gold)">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--dark)">Credit / Debit Card</div>
+              <div style="font-size:12px;color:var(--mid);margin-top:2px">Visa, Mastercard, Amex, Discover</div>
+            </div>
+          </label>
+          <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
+            <input type="checkbox" id="q-accept-ach" style="width:16px;height:16px;margin-top:2px;cursor:pointer;accent-color:var(--gold)">
+            <div>
+              <div style="font-size:14px;font-weight:600;color:var(--dark)">ACH Bank Transfer</div>
+              <div style="font-size:12px;color:var(--mid);margin-top:2px">US bank accounts · requires 4+ days before check-in · no extra fees</div>
+            </div>
+          </label>
+        </div>
+      </div>
+
       <div class="action-row">
         <span class="form-msg" id="q-msg"></span>
         <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
@@ -342,43 +360,6 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <div class="page-sub">Manage and track your sent quotes</div>
       <div id="quotes-list">
         <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Loading quotes...</div></div>
-      </div>
-    </div>
-
-    <!-- ── Settings Page ── -->
-    <div id="page-settings" style="display:none">
-      <div class="page-title">Settings</div>
-      <div class="page-sub">Configure payment methods and other options</div>
-
-      <div class="panel">
-        <div class="panel-title">Payment Methods — Admin Quote Links</div>
-        <p style="font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:24px">Choose which payment methods guests can use when booking through an admin quote link. Both are enabled by default. ACH bank transfer requires check-in at least 4 days in the future to allow funds to clear.</p>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-top:1px solid var(--border)">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:var(--dark);margin-bottom:3px">Credit / Debit Card</div>
-            <div style="font-size:12px;color:var(--mid)">Visa, Mastercard, Amex, Discover — charges immediately</div>
-          </div>
-          <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
-            <input type="checkbox" id="set-cards" style="opacity:0;width:0;height:0" onchange="savePaymentSettings()">
-            <span id="set-cards-track" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s"></span>
-            <span id="set-cards-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s"></span>
-          </label>
-        </div>
-
-        <div style="display:flex;align-items:center;justify-content:space-between;padding:16px 0;border-top:1px solid var(--border)">
-          <div>
-            <div style="font-size:14px;font-weight:600;color:var(--dark);margin-bottom:3px">ACH Bank Transfer</div>
-            <div style="font-size:12px;color:var(--mid)">US bank accounts only · 4+ days before check-in required · no additional fees</div>
-          </div>
-          <label style="position:relative;display:inline-block;width:44px;height:24px;flex-shrink:0">
-            <input type="checkbox" id="set-ach" style="opacity:0;width:0;height:0" onchange="savePaymentSettings()">
-            <span id="set-ach-track" style="position:absolute;cursor:pointer;inset:0;background:#ccc;border-radius:24px;transition:.2s"></span>
-            <span id="set-ach-thumb" style="position:absolute;left:3px;top:3px;width:18px;height:18px;background:#fff;border-radius:50%;transition:.2s"></span>
-          </label>
-        </div>
-
-        <div id="settings-msg" style="font-size:13px;margin-top:12px;min-height:18px"></div>
       </div>
     </div>
 
@@ -414,12 +395,13 @@ const DAYS_S = ['Su','Mo','Tu','We','Th','Fr','Sa'];
 let admCalYear, admCalMonth, admCalMode = 'checkin';
 let admCI = null, admCO = null;
 let admBlockedDates = new Set();
+let admCheckoutOnlyDates = new Set();
 
 function admCalInit() {
   const now = new Date();
   admCalYear = now.getFullYear(); admCalMonth = now.getMonth();
   admCI = null; admCO = null; admCalMode = 'checkin';
-  admBlockedDates = new Set();
+  admBlockedDates = new Set(); admCheckoutOnlyDates = new Set();
   admRenderCal();
 }
 
@@ -464,36 +446,44 @@ function admRenderMonth(year, month, today) {
   let html = DAYS_S.map(d => `<div class="adm-cal-dn">${d}</div>`).join('');
   for (let i = 0; i < first; i++) html += `<div class="adm-cal-d empty"></div>`;
   for (let d = 1; d <= total; d++) {
-    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
-    const isPast    = new Date(ds+'T12:00:00') < today;
-    const isBlocked = admBlockedDates.has(ds);
-    const isToday   = ds === todayStr;
-    const inRange   = admCI && admCO && ds > admCI && ds < admCO;
+    const ds       = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast   = new Date(ds+'T12:00:00') < today;
+    const isBlocked= admBlockedDates.has(ds);
+    const isCoOnly = admCheckoutOnlyDates.has(ds);
+    const isCI     = ds === admCI;
+    const isCO     = ds === admCO;
+    const inRange  = admCI && admCO && ds > admCI && ds < admCO;
+    const isToday  = ds === todayStr;
     let cls = 'adm-cal-d';
-    if      (isPast || isBlocked) cls += isPast ? ' past' : ' blocked';
-    else                          cls += ' avail';
-    if (ds === admCI) cls += ' ci';
-    else if (ds === admCO) cls += ' co';
+    if (isPast || isBlocked) cls += isPast ? ' past' : ' blocked';
+    else if (isCoOnly && admCalMode !== 'checkout') cls += ' blocked';
+    else cls += ' avail';
+    if (isCI) cls += ' ci';
+    else if (isCO) cls += ' co';
     else if (inRange) cls += ' in-range';
     if (isToday) cls += ' today';
-    const clickable = !isPast && !isBlocked;
-    html += `<div class="${cls}"${clickable ? ` onclick="admSelectDate('${ds}')"` : ''}>${d}</div>`;
+    const canClick = (!isPast && !isBlocked) || (!isPast && isCoOnly && admCalMode === 'checkout');
+    html += `<div class="${cls}"${canClick ? ` onclick="admSelectDate('${ds}',${isCoOnly})"` : ''}>${d}</div>`;
   }
   return html;
 }
 
-function admSelectDate(ds) {
+function admSelectDate(ds, isCoOnly) {
   const today = new Date(); today.setHours(0,0,0,0);
   if (new Date(ds+'T12:00:00') < today) return;
   if (admCalMode === 'checkin' || !admCI || (admCI && admCO)) {
+    if (isCoOnly) return; // checkout-only dates can't be check-in
     admCI = ds; admCO = null; admCalMode = 'checkout';
   } else {
-    if (ds <= admCI) { admCI = ds; admCO = null; admCalMode = 'checkout'; }
-    else { admCO = ds; admCalMode = 'checkin'; }
+    if (ds <= admCI) {
+      if (isCoOnly) return;
+      admCI = ds; admCO = null; admCalMode = 'checkout';
+    } else {
+      admCO = ds; admCalMode = 'checkin';
+    }
   }
   admRenderCal();
   if (admCI && admCO) {
-    // Update nights field and fetch pricing
     const nights = Math.ceil((new Date(admCO) - new Date(admCI)) / 86400000);
     document.getElementById('q-nights').value = nights > 0 ? nights : '';
     calcTotal();
@@ -577,59 +567,14 @@ async function loadListings() {
 function showPage(page) {
   document.getElementById('page-new-quote').style.display = page === 'new-quote' ? 'block' : 'none';
   document.getElementById('page-quotes').style.display    = page === 'quotes'    ? 'block' : 'none';
-  document.getElementById('page-settings').style.display  = page === 'settings'  ? 'block' : 'none';
   document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
   document.getElementById(`nav-${page}`).classList.add('active');
-  if (page === 'quotes')   loadQuotes();
-  if (page === 'settings') loadPaymentSettings();
-}
-
-// ── Payment settings toggle helpers ──
-function applyToggle(id, checked) {
-  const track = document.getElementById(id + '-track');
-  const thumb = document.getElementById(id + '-thumb');
-  if (!track || !thumb) return;
-  track.style.background = checked ? 'var(--gold)' : '#ccc';
-  thumb.style.left = checked ? '23px' : '3px';
-  document.getElementById(id).checked = checked;
-}
-
-async function loadPaymentSettings() {
-  try {
-    const r = await fetch(`${API}/api/admin/payment-settings`, { headers: authHeaders() });
-    const d = await r.json();
-    applyToggle('set-cards', d.acceptCards !== false);
-    applyToggle('set-ach',   d.acceptAch   !== false);
-  } catch(e) { console.error('Could not load payment settings:', e); }
-}
-
-async function savePaymentSettings() {
-  const acceptCards = document.getElementById('set-cards').checked;
-  const acceptAch   = document.getElementById('set-ach').checked;
-  applyToggle('set-cards', acceptCards);
-  applyToggle('set-ach',   acceptAch);
-  const msg = document.getElementById('settings-msg');
-  if (!acceptCards && !acceptAch) {
-    msg.style.color = '#e57373'; msg.textContent = 'At least one payment method must be enabled.';
-    applyToggle(acceptCards ? 'set-ach' : 'set-cards', true); return;
-  }
-  try {
-    const r = await fetch(`${API}/api/admin/payment-settings`, {
-      method: 'PUT', headers: authHeaders(),
-      body: JSON.stringify({ acceptCards, acceptAch })
-    });
-    const d = await r.json();
-    if (d.error) throw new Error(d.error);
-    msg.style.color = '#4caf50'; msg.textContent = 'Settings saved.';
-    setTimeout(() => msg.textContent = '', 2500);
-  } catch(e) {
-    msg.style.color = '#e57373'; msg.textContent = 'Could not save: ' + e.message;
-  }
+  if (page === 'quotes') loadQuotes();
 }
 
 // ── Form Logic ──
 function onListingChange() {
-  admBlockedDates = new Set();
+  admBlockedDates = new Set(); admCheckoutOnlyDates = new Set();
   admRenderCal();
   if (admCI && admCO) fetchStandardPricing();
   const listingId = document.getElementById('q-listing').value;
@@ -651,8 +596,9 @@ async function loadAvailabilityForCal(listingId) {
     const d = await r.json();
     if (!r.ok || d.success === false) throw new Error(d.error || `HTTP ${r.status}`);
     admBlockedDates = new Set();
+    admCheckoutOnlyDates = new Set();
     if (d.blockedDates)      d.blockedDates.forEach(dt => admBlockedDates.add(dt));
-    if (d.checkoutOnlyDates) d.checkoutOnlyDates.forEach(dt => admBlockedDates.add(dt));
+    if (d.checkoutOnlyDates) d.checkoutOnlyDates.forEach(dt => admCheckoutOnlyDates.add(dt));
     if (statusEl) statusEl.style.display = 'none';
     admRenderCal();
   } catch(e) {
@@ -730,6 +676,8 @@ function resetForm() {
   document.getElementById('q-total').textContent = '—';
   document.getElementById('q-msg').textContent   = '';
   document.getElementById('q-rate-hint').textContent = 'Auto-filled from Guesty when dates set';
+  document.getElementById('q-accept-cards').checked = true;
+  document.getElementById('q-accept-ach').checked   = false;
   admCalInit();
 }
 
@@ -770,7 +718,9 @@ async function createQuote() {
         couponCode:   coupon,
         holdType:     selectedHoldType,
         holdHours:    selectedHoldHours,
-        notes: document.getElementById('q-notes').value
+        notes: document.getElementById('q-notes').value,
+        acceptCards: document.getElementById('q-accept-cards').checked,
+        acceptAch:   document.getElementById('q-accept-ach').checked
       })
     });
     const d = await r.json();

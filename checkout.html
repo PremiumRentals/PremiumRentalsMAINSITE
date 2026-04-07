@@ -402,21 +402,17 @@ let paymentTab       = 'card';
 let achClientSecret  = null;
 let achPaymentMethId = null;
 
-async function initPaymentTabs() {
+function initPaymentTabs() {
   if (!pricing.quoteId) return;
-  try {
-    const r = await fetch(`${API_BASE}/api/payment-settings`);
-    const d = await r.json();
-    const showCards = d.acceptCards !== false;
-    const showAch   = d.acceptAch   !== false;
-    if (showCards && showAch) {
-      document.getElementById('pm-tab-wrap').style.display = 'block';
-    } else if (!showCards && showAch) {
-      document.getElementById('pm-tab-wrap').style.display = 'block';
-      selectPaymentTab('ach');
-    }
-    // If only cards (or default), no tabs needed — card form stays visible
-  } catch(e) { /* default card-only */ }
+  const showCards = params.get('acceptCards') !== '0';
+  const showAch   = params.get('acceptAch')   === '1';
+  if (showCards && showAch) {
+    document.getElementById('pm-tab-wrap').style.display = 'block';
+  } else if (!showCards && showAch) {
+    document.getElementById('pm-tab-wrap').style.display = 'block';
+    selectPaymentTab('ach');
+  }
+  // cards-only or default: no tabs, card form stays visible
 }
 
 function selectPaymentTab(tab) {

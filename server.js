@@ -1215,7 +1215,8 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
       checkIn, checkOut,
       customNightlyRate, cleaningFee, serviceFee, taxes, couponCode,
       holdType, holdHours,
-      notes
+      notes,
+      acceptCards, acceptAch
     } = req.body;
 
     if (!listingId || !checkIn || !checkOut) {
@@ -1290,7 +1291,9 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
       hold_hours:       holdHours || 24,
       status:           'pending',
       notes:            notes || null,
-      expires_at:       expiresAt
+      expires_at:       expiresAt,
+      accept_cards:     acceptCards !== false,
+      accept_ach:       acceptAch === true
     }]).select().single();
 
     if (error) throw error;

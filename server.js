@@ -350,7 +350,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     const openToken = await getOpenApiToken();
     const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
 
-    if (qStatus !== 200 || !quoteData._id) {
+    if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
       return res.json({
         success: true, available: false,
         error: quoteData?.message || quoteData?.error || 'Not available for these dates'
@@ -452,7 +452,7 @@ app.post('/api/website/apply-coupon', async (req, res) => {
 
     // Create V3 quote to get base price
     const { data: quote, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
-    if (qStatus !== 200 || !quote._id) {
+    if (qStatus < 200 || qStatus > 299 || !quote._id) {
       return res.status(400).json({ success: false, error: 'Could not create quote for these dates' });
     }
     const basePricing = extractV3Pricing(quote);
@@ -655,7 +655,7 @@ app.post('/api/website/reserve', async (req, res) => {
     // ── Step 3: Create Open API V3 quote (strict — enforce all calendar/term rules) ──
     console.log('Creating V3 quote...');
     const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests }, { strict: true });
-    if (qStatus !== 200 || !quoteData._id) {
+    if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
       throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
     }
     const pricing    = extractV3Pricing(quoteData);

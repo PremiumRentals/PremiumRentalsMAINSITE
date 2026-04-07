@@ -26,6 +26,7 @@
     { "source": "/home",       "destination": "/", "permanent": true }
   ],
   "rewrites": [
-    { "source": "/property/:id", "destination": "/api/og/:id" }
+    { "source": "/property/:id", "destination": "/api/og/:id" },
+    { "source": "/quote/:id",    "destination": "/quote.html" }
   ]
 }

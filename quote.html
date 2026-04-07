@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Your Quote — Premium Rentals</title>
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<meta name="robots" content="noindex">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="Premium Rentals">
+<meta id="og-title" property="og:title" content="Your Premium Rentals Quote">
+<meta id="og-desc" property="og:description" content="A custom quote prepared just for you.">
+<meta id="og-image" property="og:image" content="">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;500;600&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--dark:#1a1a1a;--gold:#C9A96E;--green:#2C4A3E;--light:#f8f6f2;--mid:#888;--border:#e8e5e0}
+body{font-family:'Inter',sans-serif;background:var(--light);color:var(--dark);min-height:100vh}
+
+/* ── Hero ── */
+.hero{position:relative;height:60vh;min-height:380px;overflow:hidden;background:var(--dark)}
+.hero-img{width:100%;height:100%;object-fit:cover;display:block}
+.hero-overlay{position:absolute;inset:0;background:linear-gradient(to bottom, rgba(0,0,0,.2) 0%, rgba(0,0,0,.55) 100%)}
+.hero-brand{position:absolute;top:28px;left:50%;transform:translateX(-50%);font-family:'Playfair Display',serif;font-size:18px;color:rgba(255,255,255,.9);letter-spacing:3px}
+.hero-content{position:absolute;bottom:40px;left:0;right:0;text-align:center;color:#fff;padding:0 24px}
+.hero-label{font-size:11px;letter-spacing:4px;text-transform:uppercase;color:rgba(255,255,255,.7);margin-bottom:10px}
+.hero-title{font-family:'Playfair Display',serif;font-size:clamp(26px,5vw,42px);font-weight:500;line-height:1.2;margin-bottom:8px}
+.hero-sub{font-size:15px;color:rgba(255,255,255,.8)}
+
+/* ── Content ── */
+.content{max-width:640px;margin:0 auto;padding:0 20px 80px}
+
+/* ── Greeting ── */
+.greeting{text-align:center;padding:40px 0 32px}
+.greeting-name{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark);margin-bottom:8px}
+.greeting-text{font-size:15px;color:var(--mid);line-height:1.6;max-width:460px;margin:0 auto}
+
+/* ── Quote Card ── */
+.quote-card{background:#fff;border-radius:12px;border:1px solid var(--border);overflow:hidden;margin-bottom:20px}
+.card-header{background:var(--dark);padding:20px 24px;display:flex;justify-content:space-between;align-items:center}
+.card-header-label{font-size:11px;letter-spacing:2px;text-transform:uppercase;color:rgba(255,255,255,.6)}
+.card-header-value{font-family:'Playfair Display',serif;font-size:18px;color:#fff}
+.card-body{padding:24px}
+
+/* ── Dates ── */
+.dates-row{display:flex;align-items:center;gap:0;margin-bottom:24px;border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.date-block{flex:1;padding:16px 20px;text-align:center}
+.date-block+.date-block{border-left:1px solid var(--border)}
+.date-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mid);margin-bottom:4px}
+.date-val{font-family:'Playfair Display',serif;font-size:18px;color:var(--dark)}
+.date-day{font-size:12px;color:var(--mid);margin-top:2px}
+.dates-nights{padding:16px 20px;text-align:center;background:var(--light);flex-shrink:0;min-width:80px}
+.nights-num{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark)}
+.nights-label{font-size:10px;letter-spacing:1px;text-transform:uppercase;color:var(--mid)}
+
+/* ── Pricing ── */
+.price-line{display:flex;justify-content:space-between;align-items:center;padding:12px 0;border-bottom:1px solid var(--light)}
+.price-line:last-of-type{border-bottom:none}
+.price-line-label{font-size:14px;color:var(--mid)}
+.price-line-val{font-size:14px;color:var(--dark);font-weight:500}
+.price-total{display:flex;justify-content:space-between;align-items:center;padding:16px 0 0;border-top:2px solid var(--dark);margin-top:8px}
+.price-total-label{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase}
+.price-total-val{font-family:'Playfair Display',serif;font-size:28px;color:var(--dark)}
+
+/* ── Expiry ── */
+.expiry-bar{background:#fef9ec;border:1px solid #fde68a;border-radius:8px;padding:14px 18px;display:flex;align-items:center;gap:12px;margin-bottom:20px}
+.expiry-icon{font-size:20px;flex-shrink:0}
+.expiry-text{font-size:13px;color:#92400e;line-height:1.4}
+.expiry-countdown{font-weight:700}
+
+/* ── CTA ── */
+.cta-section{text-align:center;padding:8px 0 0}
+.cta-btn{display:block;width:100%;padding:18px;background:var(--gold);color:var(--dark);border:none;border-radius:8px;font-family:'Inter',sans-serif;font-size:16px;font-weight:700;letter-spacing:.5px;cursor:pointer;transition:all .2s;text-decoration:none;margin-bottom:12px}
+.cta-btn:hover{background:#b8934a;transform:translateY(-1px);box-shadow:0 4px 16px rgba(201,169,110,.4)}
+.cta-sub{font-size:12px;color:var(--mid)}
+.cta-sub a{color:var(--mid);text-decoration:underline}
+
+/* ── Property ── */
+.prop-section{background:#fff;border-radius:12px;border:1px solid var(--border);padding:20px 24px;display:flex;gap:16px;margin-bottom:20px}
+.prop-thumb{width:80px;height:60px;border-radius:6px;object-fit:cover;background:#f0ede8;flex-shrink:0}
+.prop-info{}
+.prop-name{font-size:15px;font-weight:600;color:var(--dark);margin-bottom:4px}
+.prop-addr{font-size:13px;color:var(--mid)}
+.prop-link{font-size:12px;color:var(--gold);text-decoration:none;margin-top:6px;display:inline-block}
+.prop-link:hover{text-decoration:underline}
+
+/* ── Footer ── */
+.quote-footer{text-align:center;padding:32px 0 0;font-size:12px;color:var(--mid)}
+.quote-footer a{color:var(--mid);text-decoration:underline}
+
+/* ── States ── */
+#loading{text-align:center;padding:80px 20px;color:var(--mid)}
+.spinner{width:32px;height:32px;border:2px solid #e8e5e0;border-top-color:var(--gold);border-radius:50%;animation:spin 1s linear infinite;margin:0 auto 16px}
+@keyframes spin{to{transform:rotate(360deg)}}
+#error-state{text-align:center;padding:80px 20px;display:none}
+.error-icon{font-size:48px;margin-bottom:16px}
+.error-title{font-family:'Playfair Display',serif;font-size:24px;margin-bottom:8px}
+.error-sub{font-size:14px;color:var(--mid);margin-bottom:24px}
+
+@media(max-width:480px){
+  .hero{height:55vw;min-height:280px}
+  .dates-row{flex-direction:column}
+  .date-block+.date-block{border-left:none;border-top:1px solid var(--border)}
+  .dates-nights{min-width:unset;width:100%;border-top:1px solid var(--border)}
+  .section-grid{grid-template-columns:1fr}
+}
+</style>
+</head>
+<body>
+
+<div id="loading">
+  <div style="padding:80px 20px">
+    <div class="spinner"></div>
+    <div style="font-size:14px">Loading your quote...</div>
+  </div>
+</div>
+
+<div id="error-state">
+  <div class="error-icon">🔑</div>
+  <div class="error-title">Quote not found</div>
+  <div class="error-sub">This quote may have expired or the link is incorrect.</div>
+  <a href="/" style="color:var(--gold);font-size:14px">Back to Premium Rentals</a>
+</div>
+
+<div id="quote-content" style="display:none">
+  <!-- Hero -->
+  <div class="hero">
+    <img id="hero-img" class="hero-img" src="" alt="">
+    <div class="hero-overlay"></div>
+    <div class="hero-brand">Premium Rentals</div>
+    <div class="hero-content">
+      <div class="hero-label">Your Custom Quote</div>
+      <div class="hero-title" id="hero-title">Exclusive Rate Prepared for You</div>
+      <div class="hero-sub" id="hero-sub"></div>
+    </div>
+  </div>
+
+  <!-- Content -->
+  <div class="content">
+
+    <!-- Greeting -->
+    <div class="greeting">
+      <div class="greeting-name" id="greeting-name"></div>
+      <div class="greeting-text">We've prepared a custom quote for your stay. Review the details below and reserve your dates before this offer expires.</div>
+    </div>
+
+    <!-- Expiry bar -->
+    <div class="expiry-bar" id="expiry-bar" style="display:none">
+      <div class="expiry-icon">⏱</div>
+      <div class="expiry-text">This quote expires in <span class="expiry-countdown" id="expiry-countdown"></span>. Reserve now to lock in your dates.</div>
+    </div>
+
+    <!-- Property -->
+    <div class="prop-section">
+      <img id="prop-thumb" class="prop-thumb" src="" alt="">
+      <div class="prop-info">
+        <div class="prop-name" id="prop-name"></div>
+        <div class="prop-addr" id="prop-addr"></div>
+        <a id="prop-link" class="prop-link" href="#">View property →</a>
+      </div>
+    </div>
+
+    <!-- Dates + Pricing -->
+    <div class="quote-card">
+      <div class="card-header">
+        <div>
+          <div class="card-header-label">Quote Reference</div>
+          <div class="card-header-value" id="quote-ref" style="font-size:13px;font-family:'Inter',sans-serif;letter-spacing:1px"></div>
+        </div>
+        <div style="text-align:right">
+          <div class="card-header-label">Hold Type</div>
+          <div class="card-header-value" id="hold-type-label" style="font-size:14px"></div>
+        </div>
+      </div>
+      <div class="card-body">
+        <!-- Dates -->
+        <div class="dates-row">
+          <div class="date-block">
+            <div class="date-label">Check-In</div>
+            <div class="date-val" id="ci-date"></div>
+            <div class="date-day" id="ci-day"></div>
+          </div>
+          <div class="dates-nights">
+            <div class="nights-num" id="nights-num"></div>
+            <div class="nights-label">nights</div>
+          </div>
+          <div class="date-block">
+            <div class="date-label">Check-Out</div>
+            <div class="date-val" id="co-date"></div>
+            <div class="date-day" id="co-day"></div>
+          </div>
+        </div>
+
+        <!-- Pricing -->
+        <div id="price-lines"></div>
+        <div class="price-total">
+          <div class="price-total-label">Total</div>
+          <div class="price-total-val" id="price-total"></div>
+        </div>
+      </div>
+    </div>
+
+    <!-- CTA -->
+    <div class="cta-section">
+      <a id="reserve-btn" class="cta-btn" href="#">Reserve Now</a>
+      <div class="cta-sub">Questions? <a href="/contact.html">Contact us</a> or reply to this message.</div>
+    </div>
+
+    <!-- Footer -->
+    <div class="quote-footer">
+      <p>© 2025 Premium Rentals · <a href="/privacy.html">Privacy</a> · <a href="/terms.html">Terms</a></p>
+      <p style="margin-top:6px">This quote was prepared exclusively for the recipient. Pricing subject to availability.</p>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const API = 'https://premiumrentalsmainsite-production.up.railway.app';
+const SITE = 'https://premiumrentals.com';
+
+const quoteId = new URLSearchParams(window.location.search).get('id')
+  || location.pathname.split('/').pop();
+
+const FMT_DATE = d => new Date(d+'T12:00:00').toLocaleDateString('en-US', { month:'long', day:'numeric', year:'numeric' });
+const FMT_DAY  = d => new Date(d+'T12:00:00').toLocaleDateString('en-US', { weekday:'long' });
+const FMT_SHORT = d => new Date(d+'T12:00:00').toLocaleDateString('en-US', { month:'short', day:'numeric' });
+const FMT_MONEY = n => '$' + parseFloat(n).toLocaleString('en-US', { minimumFractionDigits:0, maximumFractionDigits:0 });
+
+async function loadQuote() {
+  if (!quoteId) { showError(); return; }
+  try {
+    const r = await fetch(`${API}/api/quote/${quoteId}`);
+    if (!r.ok) { showError(); return; }
+    const d = await r.json();
+    if (!d.success || !d.quote) { showError(); return; }
+    render(d.quote);
+  } catch(e) { showError(); }
+}
+
+function showError() {
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('error-state').style.display = 'block';
+}
+
+function render(q) {
+  // OG tags (for when shared again from this page)
+  if (q.listing_photo) {
+    document.getElementById('og-image').setAttribute('content', q.listing_photo);
+    document.getElementById('og-title').setAttribute('content', `Custom Quote — ${q.listing_name || 'Premium Rentals'}`);
+    document.getElementById('og-desc').setAttribute('content', `${q.guest_first_name ? q.guest_first_name + '\'s ' : ''}exclusive rate for ${FMT_SHORT(q.check_in)} – ${FMT_SHORT(q.check_out)}`);
+  }
+  document.title = `Your Quote — ${q.listing_name || 'Premium Rentals'}`;
+
+  // Hero
+  if (q.listing_photo) {
+    document.getElementById('hero-img').src = q.listing_photo;
+  } else {
+    document.querySelector('.hero').style.background = 'linear-gradient(135deg, #1a1a1a, #2C4A3E)';
+  }
+  document.getElementById('hero-title').textContent = q.listing_name || 'Premium Stay';
+  document.getElementById('hero-sub').textContent = q.check_in && q.check_out
+    ? `${FMT_SHORT(q.check_in)} – ${FMT_SHORT(q.check_out)}`  : '';
+
+  // Greeting
+  if (q.guest_first_name) {
+    document.getElementById('greeting-name').textContent = `Welcome, ${q.guest_first_name}.`;
+  }
+
+  // Expiry countdown
+  if (q.expires_at && q.status === 'pending') {
+    const diff = new Date(q.expires_at) - Date.now();
+    if (diff > 0) {
+      document.getElementById('expiry-bar').style.display = 'flex';
+      startCountdown(new Date(q.expires_at));
+    }
+  }
+
+  // Property
+  if (q.listing_photo) document.getElementById('prop-thumb').src = q.listing_photo;
+  document.getElementById('prop-name').textContent = q.listing_name || 'Property';
+  document.getElementById('prop-link').href = `${SITE}/property.html?id=${q.listing_id}`;
+
+  // Load listing address from API for display
+  fetch(`${API}/api/website/listings`).then(r=>r.json()).then(d => {
+    const listing = (d.listings||[]).find(l => l._id === q.listing_id);
+    if (listing?.address) {
+      const a = listing.address;
+      document.getElementById('prop-addr').textContent =
+        [a.street, a.city, a.state].filter(Boolean).join(', ');
+    }
+  }).catch(()=>{});
+
+  // Quote ref + hold type
+  document.getElementById('quote-ref').textContent = q.id?.slice(-8).toUpperCase() || '';
+  const holdLabels = { inquiry: 'Inquiry Hold', reserved: 'Reserved (Dates Held)' };
+  document.getElementById('hold-type-label').textContent = holdLabels[q.hold_type] || q.hold_type || 'Inquiry';
+
+  // Dates
+  document.getElementById('ci-date').textContent = FMT_DATE(q.check_in).split(',')[0] + FMT_DATE(q.check_in).split(',').slice(1).join(',');
+  document.getElementById('ci-date').textContent = new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
+  document.getElementById('ci-day').textContent  = FMT_DAY(q.check_in);
+  document.getElementById('co-date').textContent = new Date(q.check_out+'T12:00:00').toLocaleDateString('en-US',{month:'long',day:'numeric'});
+  document.getElementById('co-day').textContent  = FMT_DAY(q.check_out);
+  document.getElementById('nights-num').textContent = q.nights || '—';
+
+  // Pricing
+  const lines = [];
+  if (q.custom_nightly_rate && q.nights) {
+    lines.push({ label: `${FMT_MONEY(q.custom_nightly_rate)} × ${q.nights} nights`, val: FMT_MONEY(q.custom_nightly_rate * q.nights) });
+  } else if (q.accommodation_total) {
+    lines.push({ label: 'Accommodation', val: FMT_MONEY(q.accommodation_total) });
+  }
+  if (q.cleaning_fee) lines.push({ label: 'Cleaning fee', val: FMT_MONEY(q.cleaning_fee) });
+  if (q.taxes) lines.push({ label: 'Taxes & fees', val: FMT_MONEY(q.taxes) });
+
+  document.getElementById('price-lines').innerHTML = lines.map(l =>
+    `<div class="price-line"><span class="price-line-label">${l.label}</span><span class="price-line-val">${l.val}</span></div>`
+  ).join('');
+
+  if (q.total) {
+    document.getElementById('price-total').textContent = FMT_MONEY(q.total);
+  } else {
+    document.getElementById('price-total').textContent = 'Contact for total';
+  }
+
+  // Reserve button — links to property page with dates pre-filled
+  const reserveUrl = `${SITE}/property.html?id=${q.listing_id}` +
+    (q.check_in  ? `&checkIn=${q.check_in}`   : '') +
+    (q.check_out ? `&checkOut=${q.check_out}` : '');
+  document.getElementById('reserve-btn').href = reserveUrl;
+
+  // Show
+  document.getElementById('loading').style.display = 'none';
+  document.getElementById('quote-content').style.display = 'block';
+}
+
+function startCountdown(expiresAt) {
+  function update() {
+    const diff = expiresAt - Date.now();
+    if (diff <= 0) { document.getElementById('expiry-countdown').textContent = 'expired'; return; }
+    const h = Math.floor(diff / 3600000);
+    const m = Math.floor((diff % 3600000) / 60000);
+    document.getElementById('expiry-countdown').textContent =
+      h > 0 ? `${h}h ${m}m` : `${m} minutes`;
+    setTimeout(update, 60000);
+  }
+  update();
+}
+
+loadQuote();
+</script>
+</body>
+</html>

@@ -441,8 +441,11 @@ app.get('/api/website/reviews', async (req, res) => {
       if (fourPlus.length > 0) setCache('reviews_all', fourPlus, 60 * 60 * 1000);
     }
 
-    const filtered = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
-    console.log(`Reviews for listing ${listingId||'all'}: ${filtered.length}`);
+    // Match by listingId OR nested listing._id (Guesty sometimes puts it in either place)
+    const filtered = listingId
+      ? fourPlus.filter(r => r.listingId === listingId || r.listing?._id === listingId)
+      : fourPlus;
+    console.log(`Reviews for listing ${listingId||'all'}: ${filtered.length} (of ${fourPlus.length} total qualifying)`);
     if (filtered.length > 0) setCache(cacheKey, filtered, 60 * 60 * 1000);
     res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
@@ -708,28 +711,54 @@ app.post('/api/website/reserve', async (req, res) => {
   }
 });
 
-// ── Debug: coords ──
-// ── Debug: try multiple review endpoints to find the right one ──
+// ── Debug: full review diagnostic ──
 app.get('/api/debug/reviews', async (req, res) => {
   try {
-    const token    = await getOpenApiToken();
-    const headers  = { Authorization: `Bearer ${token}` };
-    const endpoints = [
-      'https://open-api.guesty.com/v1/reviews?limit=10',
-      'https://open-api.guesty.com/v1/guest-reviews?limit=10',
-      'https://open-api.guesty.com/v1/reviews-requests?limit=10',
-      'https://open-api.guesty.com/v2/reviews?limit=10',
-    ];
-    const results = {};
-    for (const url of endpoints) {
-      try {
-        const r    = await fetch(url, { headers });
-        const data = await r.json();
-        const count = (data.results||data.data||[]).length;
-        results[url] = { status: r.status, count, sample: (data.results||data.data||[]).slice(0,2) };
-      } catch(e) { results[url] = { error: e.message }; }
-    }
-    res.json({ results });
+    // Clear reviews cache so we always get fresh data here
+    Object.keys(cache).filter(k => k.startsWith('reviews')).forEach(k => delete cache[k]);
+    const token = await getOpenApiToken();
+    const response = await fetch('https://open-api.guesty.com/v1/reviews?limit=200', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data = await response.json();
+    const all = data.results || data.data || [];
+
+    // Show raw field structure of first review
+    const rawSample = all[0] || null;
+
+    // Filter the same way the main route does
+    const qualifying = all.filter(r => {
+      const rating = r.rawReview?.overall_rating ?? r.rating;
+      const text   = r.rawReview?.public_review  ?? r.publicReview ?? '';
+      return rating >= 4 && text.trim().length > 20;
+    });
+
+    // Show unique listingIds from qualifying reviews
+    const listingIds = [...new Set(qualifying.map(r => r.listingId).filter(Boolean))];
+
+    // Cross-check: do these listingIds appear in the BE-API listings?
+    const listings = getCache('listings_all') || [];
+    const beIds    = new Set(listings.map(l => l._id));
+    const matched  = listingIds.filter(id => beIds.has(id));
+    const unmatched = listingIds.filter(id => !beIds.has(id));
+
+    res.json({
+      rawTotal: all.length,
+      qualifying: qualifying.length,
+      topLevelFields: rawSample ? Object.keys(rawSample) : [],
+      rawReviewFields: rawSample?.rawReview ? Object.keys(rawSample.rawReview) : [],
+      sampleRating: rawSample?.rawReview?.overall_rating ?? rawSample?.rating,
+      sampleText: (rawSample?.rawReview?.public_review ?? rawSample?.publicReview ?? '').slice(0,100),
+      sampleListingId: rawSample?.listingId,
+      uniqueListingIds: listingIds.length,
+      matchedToBEApi: matched.length,
+      unmatchedIds: unmatched.slice(0,5),
+      qualifyingSample: qualifying.slice(0,3).map(r => ({
+        listingId: r.listingId,
+        rating: r.rawReview?.overall_rating ?? r.rating,
+        textPreview: (r.rawReview?.public_review ?? r.publicReview ?? '').slice(0,60)
+      }))
+    });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
@@ -750,6 +779,250 @@ app.get('/api/debug/listings', async (req, res) => {
       id, descFields: Object.keys(v.publicDescription || {})
     }));
     res.json({ totalListings: results.length, uniqueCities: cities, descSample, openApiCount: Object.keys(openData).length });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ════════════════════════════════════════════════════════════
+// ADMIN PORTAL — quote management
+// ════════════════════════════════════════════════════════════
+const crypto = require('crypto');
+
+// Simple in-memory session store (clears on server restart — fine for internal tool)
+const adminSessions = new Map(); // token → expiry timestamp
+
+function requireAdmin(req, res, next) {
+  const auth  = req.headers.authorization || '';
+  const token = auth.replace('Bearer ', '').trim();
+  const expiry = adminSessions.get(token);
+  if (!token || !expiry || Date.now() > expiry) {
+    return res.status(401).json({ error: 'Unauthorized' });
+  }
+  next();
+}
+
+// ── Admin Login ──
+app.post('/api/admin/login', (req, res) => {
+  const { password } = req.body;
+  const adminPw = process.env.ADMIN_PASSWORD;
+  if (!adminPw) return res.status(500).json({ error: 'ADMIN_PASSWORD env var not set' });
+  if (password !== adminPw) return res.status(401).json({ error: 'Invalid password' });
+  const token = crypto.randomBytes(32).toString('hex');
+  adminSessions.set(token, Date.now() + 24 * 60 * 60 * 1000); // 24h session
+  res.json({ success: true, token });
+});
+
+// ── Admin: verify session ──
+app.get('/api/admin/me', requireAdmin, (req, res) => {
+  res.json({ success: true, loggedIn: true });
+});
+
+// ── Admin: Init DB (creates quotes table in Supabase if not exists) ──
+app.post('/api/admin/init-db', requireAdmin, async (req, res) => {
+  try {
+    const { error } = await supabase.rpc('exec_sql', {
+      sql: `
+        CREATE TABLE IF NOT EXISTS admin_quotes (
+          id UUID DEFAULT gen_random_uuid() PRIMARY KEY,
+          guesty_reservation_id TEXT,
+          listing_id TEXT NOT NULL,
+          listing_name TEXT,
+          listing_photo TEXT,
+          guest_first_name TEXT NOT NULL,
+          guest_last_name TEXT NOT NULL,
+          guest_email TEXT NOT NULL,
+          guest_phone TEXT,
+          check_in DATE NOT NULL,
+          check_out DATE NOT NULL,
+          nights INT NOT NULL,
+          custom_nightly_rate DECIMAL,
+          accommodation_total DECIMAL,
+          cleaning_fee DECIMAL,
+          taxes DECIMAL,
+          total DECIMAL,
+          hold_type TEXT DEFAULT 'inquiry',
+          hold_hours INT DEFAULT 24,
+          status TEXT DEFAULT 'pending',
+          notes TEXT,
+          created_at TIMESTAMPTZ DEFAULT NOW(),
+          expires_at TIMESTAMPTZ
+        );
+      `
+    });
+    if (error) throw error;
+    res.json({ success: true });
+  } catch(e) {
+    // Table might already exist or rpc not available — try a test insert instead
+    res.json({ note: 'Run SQL manually in Supabase if needed', error: e.message });
+  }
+});
+
+// ── Admin: Get listings (for dropdown) ──
+app.get('/api/admin/listings', requireAdmin, async (req, res) => {
+  try {
+    const listings = getCache('listings_all') || [];
+    if (listings.length) return res.json({ success: true, listings: listings.map(l => ({
+      _id: l._id, title: l.title, address: l.address, picture: l.picture
+    }))});
+    // Trigger a fresh fetch if cache empty
+    const token = await getBeApiToken();
+    const r = await fetch('https://booking.guesty.com/api/listings?limit=100&fields=_id,title,address,picture', {
+      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
+    });
+    const data = await r.json();
+    res.json({ success: true, listings: (data.results || []).map(l => ({
+      _id: l._id, title: l.title, address: l.address, picture: l.picture
+    }))});
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin: List quotes ──
+app.get('/api/admin/quotes', requireAdmin, async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('admin_quotes')
+      .select('*')
+      .order('created_at', { ascending: false });
+    if (error) throw error;
+    res.json({ success: true, quotes: data || [] });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin: Create quote ──
+app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
+  try {
+    const {
+      listingId, listingName, listingPhoto,
+      guestFirstName, guestLastName, guestEmail, guestPhone,
+      checkIn, checkOut,
+      customNightlyRate, cleaningFee, taxes,
+      holdType, holdHours,
+      notes
+    } = req.body;
+
+    if (!listingId || !guestEmail || !checkIn || !checkOut) {
+      return res.status(400).json({ error: 'listingId, guestEmail, checkIn, checkOut required' });
+    }
+
+    const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
+    const accommodationTotal = customNightlyRate ? customNightlyRate * nights : null;
+    const total = accommodationTotal != null
+      ? accommodationTotal + (cleaningFee || 0) + (taxes || 0)
+      : null;
+
+    const expiresAt = holdHours
+      ? new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString()
+      : null;
+
+    // Try to create reservation in Guesty (Open API) for holds
+    let guestyReservationId = null;
+    if (holdType === 'reserved' || holdType === 'inquiry') {
+      try {
+        const token = await getOpenApiToken();
+        const guestBody = {
+          listingId,
+          checkInDateLocalized:  checkIn,
+          checkOutDateLocalized: checkOut,
+          status: holdType,
+          guestsCount: 1,
+          guest: {
+            firstName: guestFirstName || 'Guest',
+            lastName:  guestLastName  || '',
+            email:     guestEmail,
+            ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
+          }
+        };
+        if (accommodationTotal) {
+          guestBody.money = { fareAccommodation: accommodationTotal, currency: 'USD' };
+        }
+        const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify(guestBody)
+        });
+        const gData = await gRes.json();
+        if (gData._id) guestyReservationId = gData._id;
+        else console.warn('Guesty reservation creation:', JSON.stringify(gData).slice(0, 200));
+      } catch(e) {
+        console.warn('Could not create Guesty reservation:', e.message);
+        // Don't fail — we still save the quote locally
+      }
+    }
+
+    const { data, error } = await supabase.from('admin_quotes').insert([{
+      guesty_reservation_id: guestyReservationId,
+      listing_id:       listingId,
+      listing_name:     listingName,
+      listing_photo:    listingPhoto,
+      guest_first_name: guestFirstName,
+      guest_last_name:  guestLastName,
+      guest_email:      guestEmail,
+      guest_phone:      guestPhone,
+      check_in:         checkIn,
+      check_out:        checkOut,
+      nights,
+      custom_nightly_rate:  customNightlyRate || null,
+      accommodation_total:  accommodationTotal,
+      cleaning_fee:     cleaningFee || null,
+      taxes:            taxes || null,
+      total,
+      hold_type:        holdType || 'inquiry',
+      hold_hours:       holdHours || 24,
+      status:           'pending',
+      notes:            notes || null,
+      expires_at:       expiresAt
+    }]).select().single();
+
+    if (error) throw error;
+    res.json({ success: true, quote: data, guestyReservationId });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin: Update quote ──
+app.put('/api/admin/quotes/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const allowed = ['status', 'notes', 'custom_nightly_rate', 'accommodation_total', 'cleaning_fee', 'taxes', 'total'];
+    const updates = {};
+    allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    const { data, error } = await supabase.from('admin_quotes').update(updates).eq('id', id).select().single();
+    if (error) throw error;
+    res.json({ success: true, quote: data });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Admin: Cancel quote ──
+app.delete('/api/admin/quotes/:id', requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { data: quote } = await supabase.from('admin_quotes').select('guesty_reservation_id').eq('id', id).single();
+    // Cancel Guesty reservation if exists
+    if (quote?.guesty_reservation_id) {
+      try {
+        const token = await getOpenApiToken();
+        await fetch(`https://open-api.guesty.com/v1/reservations/${quote.guesty_reservation_id}`, {
+          method: 'PUT',
+          headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'cancelled' })
+        });
+      } catch(e) { console.warn('Could not cancel Guesty reservation:', e.message); }
+    }
+    await supabase.from('admin_quotes').update({ status: 'cancelled' }).eq('id', id);
+    res.json({ success: true });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public: Get quote by ID (for guest quote page) ──
+app.get('/api/quote/:id', async (req, res) => {
+  try {
+    const { data, error } = await supabase
+      .from('admin_quotes')
+      .select('*')
+      .eq('id', req.params.id)
+      .single();
+    if (error || !data) return res.status(404).json({ error: 'Quote not found' });
+    // Don't expose internal fields
+    const { guesty_reservation_id, ...pub } = data;
+    res.json({ success: true, quote: pub });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Premium Rentals — Admin</title>
+<link rel="icon" type="image/svg+xml" href="favicon.svg">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:wght@400;600&family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+:root{--dark:#1a1a1a;--gold:#C9A96E;--green:#2C4A3E;--light:#f8f6f2;--mid:#888;--border:#e8e5e0}
+body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height:100vh}
+
+/* ── Login Screen ── */
+#login-screen{display:flex;align-items:center;justify-content:center;min-height:100vh;background:var(--dark)}
+.login-box{background:#222;border:1px solid #333;border-radius:12px;padding:48px 40px;width:100%;max-width:380px;text-align:center}
+.login-logo{font-family:'Playfair Display',serif;font-size:28px;color:var(--gold);margin-bottom:8px;letter-spacing:2px}
+.login-sub{font-size:12px;letter-spacing:3px;text-transform:uppercase;color:var(--mid);margin-bottom:36px}
+.login-box input{width:100%;padding:14px 16px;background:#2a2a2a;border:1px solid #444;border-radius:6px;color:#fff;font-family:'Inter',sans-serif;font-size:15px;margin-bottom:12px;outline:none;transition:border-color .2s}
+.login-box input:focus{border-color:var(--gold)}
+.login-btn{width:100%;padding:14px;background:var(--gold);color:var(--dark);border:none;border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;font-weight:700;letter-spacing:1px;text-transform:uppercase;cursor:pointer;transition:opacity .2s}
+.login-btn:hover{opacity:.9}
+.login-err{color:#e57373;font-size:13px;margin-top:8px;min-height:18px}
+
+/* ── App Shell ── */
+#app{display:none;min-height:100vh;background:#f8f6f2}
+.sidebar{position:fixed;top:0;left:0;width:220px;height:100vh;background:var(--dark);padding:24px 0;z-index:100;display:flex;flex-direction:column}
+.sidebar-logo{padding:0 24px 24px;border-bottom:1px solid #333}
+.sidebar-logo-mark{font-family:'Playfair Display',serif;font-size:20px;color:var(--gold);letter-spacing:2px}
+.sidebar-logo-sub{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--mid);margin-top:2px}
+.sidebar-nav{padding:20px 0;flex:1}
+.nav-item{display:flex;align-items:center;gap:10px;padding:11px 24px;font-size:13px;font-weight:500;color:#aaa;cursor:pointer;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{color:#fff;background:rgba(255,255,255,.04)}
+.nav-item.active{color:#fff;border-left-color:var(--gold);background:rgba(201,169,110,.06)}
+.nav-icon{font-size:16px;width:20px;text-align:center}
+.sidebar-logout{padding:20px 24px;border-top:1px solid #333}
+.logout-btn{font-size:12px;color:var(--mid);cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif;text-align:left;padding:0}
+.logout-btn:hover{color:#fff}
+.main{margin-left:220px;padding:40px;min-height:100vh}
+.page-title{font-family:'Playfair Display',serif;font-size:28px;color:var(--dark);margin-bottom:6px}
+.page-sub{font-size:13px;color:var(--mid);margin-bottom:32px}
+
+/* ── Panels ── */
+.panel{background:#fff;border-radius:10px;border:1px solid var(--border);padding:32px}
+.panel+.panel{margin-top:24px}
+.panel-title{font-size:11px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:var(--mid);margin-bottom:20px}
+.section-grid{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.section-grid.three{grid-template-columns:1fr 1fr 1fr}
+.field{display:flex;flex-direction:column;gap:6px}
+.field label{font-size:11px;font-weight:600;letter-spacing:1px;text-transform:uppercase;color:var(--mid)}
+.field input,.field select,.field textarea{padding:11px 14px;border:1px solid var(--border);border-radius:6px;font-family:'Inter',sans-serif;font-size:14px;color:var(--dark);outline:none;transition:border-color .2s;background:#fff}
+.field input:focus,.field select:focus,.field textarea:focus{border-color:var(--gold)}
+.field textarea{resize:vertical;min-height:80px}
+.field.full{grid-column:1/-1}
+.price-hint{font-size:12px;color:var(--mid);margin-top:4px}
+.total-row{display:flex;justify-content:space-between;align-items:center;padding:14px 0;border-top:2px solid var(--dark);margin-top:8px}
+.total-label{font-size:13px;font-weight:700;text-transform:uppercase;letter-spacing:1px;color:var(--dark)}
+.total-amount{font-family:'Playfair Display',serif;font-size:24px;color:var(--dark)}
+.hold-pills{display:flex;gap:8px;flex-wrap:wrap}
+.hold-pill{padding:8px 16px;border:1px solid var(--border);border-radius:20px;font-size:13px;font-weight:500;color:var(--mid);cursor:pointer;transition:all .2s;background:#fff}
+.hold-pill.active{border-color:var(--gold);color:var(--gold);background:rgba(201,169,110,.08)}
+.action-row{display:flex;gap:12px;justify-content:flex-end;margin-top:24px;align-items:center}
+.btn{padding:13px 28px;border-radius:6px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;letter-spacing:.5px;cursor:pointer;transition:all .2s;border:none}
+.btn-primary{background:var(--gold);color:var(--dark)}
+.btn-primary:hover{background:#b8934a}
+.btn-secondary{background:transparent;color:var(--mid);border:1px solid var(--border)}
+.btn-secondary:hover{border-color:var(--dark);color:var(--dark)}
+.btn-danger{background:transparent;color:#e57373;border:1px solid #fca5a5;font-size:12px;padding:8px 16px}
+.btn-danger:hover{background:#fef2f2}
+.form-msg{font-size:13px;color:var(--mid)}
+.form-err{color:#e57373}
+.form-ok{color:#4caf50}
+
+/* ── Quotes List ── */
+.quote-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px 24px;display:flex;align-items:center;gap:20px;transition:box-shadow .2s}
+.quote-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
+.quote-card+.quote-card{margin-top:10px}
+.quote-thumb{width:72px;height:54px;border-radius:6px;object-fit:cover;background:#f0ede8;flex-shrink:0}
+.quote-info{flex:1;min-width:0}
+.quote-prop{font-size:14px;font-weight:600;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.quote-guest{font-size:13px;color:var(--mid);margin-top:2px}
+.quote-dates{font-size:12px;color:var(--mid);margin-top:4px}
+.quote-meta{text-align:right;flex-shrink:0}
+.quote-total{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark)}
+.quote-status{display:inline-block;padding:3px 10px;border-radius:20px;font-size:11px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;margin-top:4px}
+.status-pending{background:#fef9ec;color:#b8860b}
+.status-accepted{background:#f0faf4;color:#2e7d32}
+.status-cancelled{background:#fef2f2;color:#c62828}
+.status-expired{background:#f5f5f5;color:#888}
+.quote-actions{display:flex;gap:8px;align-items:center}
+.icon-btn{background:none;border:none;cursor:pointer;color:var(--mid);font-size:16px;padding:6px;border-radius:4px;transition:all .15s}
+.icon-btn:hover{background:#f0ede8;color:var(--dark)}
+.empty-state{text-align:center;padding:60px 20px;color:var(--mid)}
+.empty-icon{font-size:40px;margin-bottom:12px}
+.empty-text{font-size:14px}
+
+/* ── Share Link ── */
+.share-box{background:var(--light);border-radius:6px;padding:12px 16px;display:flex;align-items:center;gap:10px;margin-top:16px}
+.share-link{flex:1;font-size:13px;color:var(--dark);font-family:'Inter',sans-serif;word-break:break-all}
+.copy-btn{padding:6px 14px;background:var(--gold);color:var(--dark);border:none;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap;flex-shrink:0}
+.copy-btn:hover{background:#b8934a}
+
+/* ── Success Modal ── */
+#success-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.6);z-index:1000;align-items:center;justify-content:center}
+#success-modal.open{display:flex}
+.modal-box{background:#fff;border-radius:12px;padding:40px;max-width:440px;width:100%;margin:20px;text-align:center}
+.modal-icon{font-size:48px;margin-bottom:16px}
+.modal-title{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark);margin-bottom:8px}
+.modal-sub{font-size:14px;color:var(--mid);margin-bottom:24px}
+.modal-link-box{background:var(--light);border-radius:6px;padding:12px 16px;font-size:13px;color:var(--dark);word-break:break-all;margin-bottom:20px}
+.modal-actions{display:flex;gap:10px;justify-content:center}
+
+@media(max-width:768px){
+  .sidebar{width:100%;height:auto;position:relative}
+  .main{margin-left:0;padding:20px}
+  .section-grid{grid-template-columns:1fr}
+  .section-grid.three{grid-template-columns:1fr 1fr}
+}
+</style>
+</head>
+<body>
+
+<!-- Login Screen -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">PR</div>
+    <div class="login-sub">Admin Portal</div>
+    <input type="password" id="pw-input" placeholder="Password" onkeydown="if(event.key==='Enter')doLogin()">
+    <button class="login-btn" onclick="doLogin()">Sign In</button>
+    <div class="login-err" id="login-err"></div>
+  </div>
+</div>
+
+<!-- App -->
+<div id="app">
+  <!-- Sidebar -->
+  <div class="sidebar">
+    <div class="sidebar-logo">
+      <div class="sidebar-logo-mark">PR</div>
+      <div class="sidebar-logo-sub">Admin Portal</div>
+    </div>
+    <nav class="sidebar-nav">
+      <div class="nav-item active" onclick="showPage('new-quote')" id="nav-new-quote">
+        <span class="nav-icon">✦</span> New Quote
+      </div>
+      <div class="nav-item" onclick="showPage('quotes')" id="nav-quotes">
+        <span class="nav-icon">≡</span> All Quotes
+      </div>
+    </nav>
+    <div class="sidebar-logout">
+      <button class="logout-btn" onclick="doLogout()">Sign Out</button>
+    </div>
+  </div>
+
+  <!-- Main Content -->
+  <div class="main">
+
+    <!-- ── New Quote Page ── -->
+    <div id="page-new-quote">
+      <div class="page-title">New Quote</div>
+      <div class="page-sub">Build a custom quote to send to your guest</div>
+
+      <!-- Property + Dates -->
+      <div class="panel">
+        <div class="panel-title">Property & Dates</div>
+        <div class="section-grid">
+          <div class="field full">
+            <label>Property</label>
+            <select id="q-listing" onchange="onListingChange()">
+              <option value="">Loading properties...</option>
+            </select>
+          </div>
+          <div class="field">
+            <label>Check-In</label>
+            <input type="date" id="q-checkin" onchange="calcNights()">
+          </div>
+          <div class="field">
+            <label>Check-Out</label>
+            <input type="date" id="q-checkout" onchange="calcNights()">
+          </div>
+          <div class="field">
+            <label>Nights</label>
+            <input type="number" id="q-nights" readonly placeholder="—" style="background:#f8f6f2;color:var(--mid)">
+          </div>
+          <div class="field">
+            <label>Guests</label>
+            <input type="number" id="q-guests" value="2" min="1" max="20">
+          </div>
+        </div>
+      </div>
+
+      <!-- Guest Info -->
+      <div class="panel">
+        <div class="panel-title">Guest Information</div>
+        <div class="section-grid">
+          <div class="field">
+            <label>First Name</label>
+            <input type="text" id="q-fname" placeholder="John">
+          </div>
+          <div class="field">
+            <label>Last Name</label>
+            <input type="text" id="q-lname" placeholder="Doe">
+          </div>
+          <div class="field">
+            <label>Email</label>
+            <input type="email" id="q-email" placeholder="john@example.com">
+          </div>
+          <div class="field">
+            <label>Phone</label>
+            <input type="tel" id="q-phone" placeholder="(208) 555-0100">
+          </div>
+        </div>
+      </div>
+
+      <!-- Pricing -->
+      <div class="panel">
+        <div class="panel-title">Pricing</div>
+        <div class="section-grid three">
+          <div class="field">
+            <label>Nightly Rate (custom)</label>
+            <input type="number" id="q-rate" placeholder="e.g. 250" min="0" oninput="calcTotal()">
+            <div class="price-hint" id="q-rate-hint">Enter a custom rate or leave blank to use standard Guesty pricing</div>
+          </div>
+          <div class="field">
+            <label>Cleaning Fee</label>
+            <input type="number" id="q-cleaning" placeholder="e.g. 150" min="0" oninput="calcTotal()">
+          </div>
+          <div class="field">
+            <label>Taxes & Fees</label>
+            <input type="number" id="q-taxes" placeholder="e.g. 80" min="0" oninput="calcTotal()">
+          </div>
+        </div>
+        <div class="total-row">
+          <div class="total-label">Estimated Total</div>
+          <div class="total-amount" id="q-total">—</div>
+        </div>
+      </div>
+
+      <!-- Hold Settings -->
+      <div class="panel">
+        <div class="panel-title">Reservation Hold</div>
+        <div class="field" style="margin-bottom:16px">
+          <label>Hold Type</label>
+          <div class="hold-pills">
+            <div class="hold-pill active" onclick="setHoldType('inquiry')" id="hold-inquiry">Inquiry (soft hold)</div>
+            <div class="hold-pill" onclick="setHoldType('reserved')" id="hold-reserved">Reserved (blocks calendar)</div>
+          </div>
+          <div class="price-hint" style="margin-top:8px" id="hold-desc">Soft hold — dates stay available until guest confirms</div>
+        </div>
+        <div class="field">
+          <label>Expires After</label>
+          <div class="hold-pills">
+            <div class="hold-pill" onclick="setHoldHours(12)" id="hold-12">12 hours</div>
+            <div class="hold-pill active" onclick="setHoldHours(24)" id="hold-24">24 hours</div>
+            <div class="hold-pill" onclick="setHoldHours(36)" id="hold-36">36 hours</div>
+            <div class="hold-pill" onclick="setHoldHours(48)" id="hold-48">48 hours</div>
+          </div>
+        </div>
+        <div class="field" style="margin-top:16px">
+          <label>Internal Notes</label>
+          <textarea id="q-notes" placeholder="Notes visible only to you (not sent to guest)..."></textarea>
+        </div>
+      </div>
+
+      <div class="action-row">
+        <span class="form-msg" id="q-msg"></span>
+        <button class="btn btn-secondary" onclick="resetForm()">Clear</button>
+        <button class="btn btn-primary" onclick="createQuote()">Create Quote & Get Link</button>
+      </div>
+    </div>
+
+    <!-- ── All Quotes Page ── -->
+    <div id="page-quotes" style="display:none">
+      <div class="page-title">All Quotes</div>
+      <div class="page-sub">Manage and track your sent quotes</div>
+      <div id="quotes-list">
+        <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Loading quotes...</div></div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<!-- Success Modal -->
+<div id="success-modal">
+  <div class="modal-box">
+    <div class="modal-icon">✓</div>
+    <div class="modal-title">Quote Created</div>
+    <div class="modal-sub">Share this link with your guest. The quote page includes the property photo and full pricing breakdown.</div>
+    <div class="modal-link-box" id="modal-link"></div>
+    <div class="modal-actions">
+      <button class="btn btn-primary" onclick="copyModalLink()">Copy Link</button>
+      <button class="btn btn-secondary" onclick="closeModal()">Done</button>
+    </div>
+  </div>
+</div>
+
+<script>
+const API = 'https://premiumrentalsmainsite-production.up.railway.app';
+const SITE = 'https://premiumrentals.com';
+let token = localStorage.getItem('pr_admin_token');
+let listings = [];
+let selectedHoldType = 'inquiry';
+let selectedHoldHours = 24;
+let modalLink = '';
+
+// ── Auth ──
+async function doLogin() {
+  const pw = document.getElementById('pw-input').value;
+  const errEl = document.getElementById('login-err');
+  errEl.textContent = '';
+  if (!pw) return;
+  try {
+    const r = await fetch(`${API}/api/admin/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ password: pw })
+    });
+    const d = await r.json();
+    if (!d.success) { errEl.textContent = 'Incorrect password'; return; }
+    token = d.token;
+    localStorage.setItem('pr_admin_token', token);
+    initApp();
+  } catch(e) { errEl.textContent = 'Connection error'; }
+}
+
+function doLogout() {
+  localStorage.removeItem('pr_admin_token');
+  token = null;
+  document.getElementById('app').style.display = 'none';
+  document.getElementById('login-screen').style.display = 'flex';
+}
+
+function authHeaders() {
+  return { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` };
+}
+
+async function checkAuth() {
+  if (!token) return false;
+  try {
+    const r = await fetch(`${API}/api/admin/me`, { headers: { Authorization: `Bearer ${token}` } });
+    return r.ok;
+  } catch { return false; }
+}
+
+// ── Init ──
+async function initApp() {
+  const ok = await checkAuth();
+  if (!ok) { doLogout(); return; }
+  document.getElementById('login-screen').style.display = 'none';
+  document.getElementById('app').style.display = 'block';
+  loadListings();
+}
+
+async function loadListings() {
+  try {
+    const r = await fetch(`${API}/api/admin/listings`, { headers: authHeaders() });
+    const d = await r.json();
+    listings = d.listings || [];
+    const sel = document.getElementById('q-listing');
+    sel.innerHTML = '<option value="">Select property...</option>' +
+      listings.map(l => `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${(l.title||'').replace(/"/g,'&quot;')}">${l.title || 'Untitled'} — ${l.address?.city || ''}</option>`).join('');
+  } catch(e) { console.error('Could not load listings', e); }
+}
+
+// ── Navigation ──
+function showPage(page) {
+  document.getElementById('page-new-quote').style.display = page === 'new-quote' ? 'block' : 'none';
+  document.getElementById('page-quotes').style.display    = page === 'quotes'    ? 'block' : 'none';
+  document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+  document.getElementById(`nav-${page}`).classList.add('active');
+  if (page === 'quotes') loadQuotes();
+}
+
+// ── Form Logic ──
+function onListingChange() {
+  const sel = document.getElementById('q-listing');
+  const opt = sel.options[sel.selectedIndex];
+  // Auto-fetch standard pricing if dates are set
+  if (document.getElementById('q-checkin').value && document.getElementById('q-checkout').value) {
+    fetchStandardPricing();
+  }
+}
+
+function calcNights() {
+  const ci = document.getElementById('q-checkin').value;
+  const co = document.getElementById('q-checkout').value;
+  if (!ci || !co) { document.getElementById('q-nights').value = ''; calcTotal(); return; }
+  const nights = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
+  document.getElementById('q-nights').value = nights > 0 ? nights : '';
+  calcTotal();
+  if (document.getElementById('q-listing').value) fetchStandardPricing();
+}
+
+async function fetchStandardPricing() {
+  const listingId = document.getElementById('q-listing').value;
+  const ci = document.getElementById('q-checkin').value;
+  const co = document.getElementById('q-checkout').value;
+  const guests = document.getElementById('q-guests').value || 1;
+  if (!listingId || !ci || !co) return;
+  try {
+    const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${guests}`);
+    const d = await r.json();
+    if (d.available && d.nightlyAvg) {
+      const nights = document.getElementById('q-nights').value;
+      document.getElementById('q-rate-hint').textContent =
+        `Standard pricing: $${d.nightlyAvg}/night avg · Cleaning: $${d.cleaningFee||0} · Taxes: $${d.taxes||0}`;
+      // Only pre-fill if fields are empty
+      if (!document.getElementById('q-rate').value)     document.getElementById('q-rate').value     = d.nightlyAvg;
+      if (!document.getElementById('q-cleaning').value) document.getElementById('q-cleaning').value = d.cleaningFee || 0;
+      if (!document.getElementById('q-taxes').value)    document.getElementById('q-taxes').value    = d.taxes || 0;
+      calcTotal();
+    } else if (!d.available) {
+      document.getElementById('q-rate-hint').textContent = '⚠ Property not available for these dates';
+    }
+  } catch(e) {}
+}
+
+function calcTotal() {
+  const nights   = parseFloat(document.getElementById('q-nights').value) || 0;
+  const rate     = parseFloat(document.getElementById('q-rate').value)   || 0;
+  const cleaning = parseFloat(document.getElementById('q-cleaning').value) || 0;
+  const taxes    = parseFloat(document.getElementById('q-taxes').value) || 0;
+  const el = document.getElementById('q-total');
+  if (!nights || !rate) { el.textContent = '—'; return; }
+  const total = (rate * nights) + cleaning + taxes;
+  el.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+}
+
+function setHoldType(type) {
+  selectedHoldType = type;
+  ['inquiry','reserved'].forEach(t => {
+    document.getElementById(`hold-${t}`).classList.toggle('active', t === type);
+  });
+  const desc = {
+    inquiry: 'Soft hold — dates stay available until guest confirms',
+    reserved: 'Hard hold — dates blocked immediately, released if guest doesn\'t confirm in time'
+  };
+  document.getElementById('hold-desc').textContent = desc[type];
+}
+
+function setHoldHours(h) {
+  selectedHoldHours = h;
+  [12,24,36,48].forEach(n => {
+    document.getElementById(`hold-${n}`).classList.toggle('active', n === h);
+  });
+}
+
+function resetForm() {
+  ['q-listing','q-checkin','q-checkout','q-fname','q-lname','q-email','q-phone','q-rate','q-cleaning','q-taxes','q-notes'].forEach(id => {
+    document.getElementById(id).value = '';
+  });
+  document.getElementById('q-guests').value = 2;
+  document.getElementById('q-nights').value = '';
+  document.getElementById('q-total').textContent = '—';
+  document.getElementById('q-msg').textContent = '';
+  document.getElementById('q-rate-hint').textContent = 'Enter a custom rate or leave blank to use standard Guesty pricing';
+}
+
+async function createQuote() {
+  const listingId  = document.getElementById('q-listing').value;
+  const checkIn    = document.getElementById('q-checkin').value;
+  const checkOut   = document.getElementById('q-checkout').value;
+  const guestEmail = document.getElementById('q-email').value;
+  const msgEl = document.getElementById('q-msg');
+  msgEl.className = 'form-msg';
+  if (!listingId)  { msgEl.textContent = 'Select a property'; msgEl.className='form-msg form-err'; return; }
+  if (!checkIn || !checkOut) { msgEl.textContent = 'Select dates'; msgEl.className='form-msg form-err'; return; }
+  if (!guestEmail) { msgEl.textContent = 'Guest email required'; msgEl.className='form-msg form-err'; return; }
+
+  const sel = document.getElementById('q-listing');
+  const opt = sel.options[sel.selectedIndex];
+  const listingName  = opt.dataset.name  || opt.textContent;
+  const listingPhoto = opt.dataset.photo || '';
+
+  const nights   = parseFloat(document.getElementById('q-nights').value) || 0;
+  const rate     = parseFloat(document.getElementById('q-rate').value)   || null;
+  const cleaning = parseFloat(document.getElementById('q-cleaning').value) || null;
+  const taxes    = parseFloat(document.getElementById('q-taxes').value) || null;
+
+  msgEl.textContent = 'Creating quote...';
+  try {
+    const r = await fetch(`${API}/api/admin/quotes`, {
+      method: 'POST',
+      headers: authHeaders(),
+      body: JSON.stringify({
+        listingId, listingName, listingPhoto,
+        guestFirstName: document.getElementById('q-fname').value,
+        guestLastName:  document.getElementById('q-lname').value,
+        guestEmail,
+        guestPhone: document.getElementById('q-phone').value,
+        checkIn, checkOut,
+        customNightlyRate: rate,
+        cleaningFee:  cleaning,
+        taxes,
+        holdType:  selectedHoldType,
+        holdHours: selectedHoldHours,
+        notes: document.getElementById('q-notes').value
+      })
+    });
+    const d = await r.json();
+    if (!d.success) { msgEl.textContent = d.error || 'Error creating quote'; msgEl.className='form-msg form-err'; return; }
+    msgEl.textContent = '';
+    const quoteUrl = `${SITE}/quote/${d.quote.id}`;
+    showSuccessModal(quoteUrl);
+    resetForm();
+  } catch(e) { msgEl.textContent = 'Network error'; msgEl.className='form-msg form-err'; }
+}
+
+function showSuccessModal(url) {
+  modalLink = url;
+  document.getElementById('modal-link').textContent = url;
+  document.getElementById('success-modal').classList.add('open');
+}
+function closeModal() {
+  document.getElementById('success-modal').classList.remove('open');
+}
+function copyModalLink() {
+  navigator.clipboard.writeText(modalLink).then(() => {
+    const btn = document.querySelector('.modal-actions .btn-primary');
+    btn.textContent = 'Copied!';
+    setTimeout(() => { btn.textContent = 'Copy Link'; }, 2000);
+  });
+}
+
+// ── Quotes List ──
+async function loadQuotes() {
+  const el = document.getElementById('quotes-list');
+  el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Loading...</div></div>';
+  try {
+    const r = await fetch(`${API}/api/admin/quotes`, { headers: authHeaders() });
+    const d = await r.json();
+    const quotes = d.quotes || [];
+    if (!quotes.length) {
+      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No quotes yet. Create your first one.</div></div>';
+      return;
+    }
+    el.innerHTML = quotes.map(q => {
+      const url = `${SITE}/quote/${q.id}`;
+      const statusClass = { pending:'status-pending', accepted:'status-accepted', cancelled:'status-cancelled', expired:'status-expired' }[q.status] || 'status-pending';
+      const nights = q.nights || '?';
+      const ci = q.check_in ? new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+      const co = q.check_out ? new Date(q.check_out+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+      const total = q.total ? '$' + parseFloat(q.total).toLocaleString('en-US',{minimumFractionDigits:0}) : '—';
+      return `<div class="quote-card">
+        <img class="quote-thumb" src="${q.listing_photo || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22><rect fill=%22%23f0ede8%22 width=%221%22 height=%221%22/></svg>'}" alt="">
+        <div class="quote-info">
+          <div class="quote-prop">${q.listing_name || 'Property'}</div>
+          <div class="quote-guest">${q.guest_first_name || ''} ${q.guest_last_name || ''} · ${q.guest_email || ''}</div>
+          <div class="quote-dates">${ci} → ${co} · ${nights} nights${q.hold_type ? ' · ' + q.hold_type : ''}</div>
+        </div>
+        <div class="quote-meta">
+          <div class="quote-total">${total}</div>
+          <div class="quote-status ${statusClass}">${q.status}</div>
+        </div>
+        <div class="quote-actions">
+          <button class="icon-btn" title="Copy link" onclick="copyLink('${url}', this)">⧉</button>
+          <button class="icon-btn" title="Cancel" onclick="cancelQuote('${q.id}', this)" style="color:#e57373">✕</button>
+        </div>
+      </div>`;
+    }).join('');
+  } catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠</div><div class="empty-text">Error loading quotes</div></div>'; }
+}
+
+async function copyLink(url, btn) {
+  await navigator.clipboard.writeText(url);
+  const orig = btn.textContent;
+  btn.textContent = '✓';
+  setTimeout(() => { btn.textContent = orig; }, 1500);
+}
+
+async function cancelQuote(id, btn) {
+  if (!confirm('Cancel this quote? This cannot be undone.')) return;
+  try {
+    await fetch(`${API}/api/admin/quotes/${id}`, { method: 'DELETE', headers: authHeaders() });
+    loadQuotes();
+  } catch(e) { alert('Error cancelling quote'); }
+}
+
+// ── Startup ──
+if (token) {
+  initApp();
+}
+</script>
+</body>
+</html>

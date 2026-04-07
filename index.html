@@ -510,7 +510,7 @@ function renderListings(listings) {
   const grid = document.getElementById('properties-grid');
   if (!listings.length) { renderPlaceholders(); return; }
   grid.innerHTML = listings.map((l, i) => {
-    const photo = l.pictures?.[0]?.thumbnail || l.pictures?.[0]?.original || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
+    const photo = l.pictures?.[0]?.original || l.pictures?.[0]?.thumbnail || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=600&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
     const badge = i === 0 ? 'Featured' : '';

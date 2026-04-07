@@ -338,8 +338,12 @@ let pricing = {
   cleaningFee:   parseFloat(params.get('cleaningFee')   || '0'),
   serviceFee:    parseFloat(params.get('serviceFee')    || '0'),
   taxes:         parseFloat(params.get('taxes')         || '0'),
-  total:         parseFloat(params.get('total')         || '0')
+  total:         parseFloat(params.get('total')         || '0'),
+  quoteId:       params.get('quoteId') || null
 };
+const preAppliedCoupon = params.get('coupon') || null;
+const preAppliedDiscount = parseFloat(params.get('discount') || '0');
+let appliedCoupon = preAppliedCoupon ? { code: preAppliedCoupon, discount: preAppliedDiscount } : null;
 let coGuests = parseInt(params.get('guests') || '2');
 
 // ── Stripe with Link enabled ──
@@ -394,17 +398,52 @@ function renderPricing() {
     document.getElementById('mobile-total-display').textContent = '—';
     return;
   }
+  const couponRow = appliedCoupon
+    ? `<div class="price-row" style="color:#2e7d32"><span>Coupon (${appliedCoupon.code})</span><span>${appliedCoupon.discount ? '-$'+appliedCoupon.discount.toLocaleString() : 'Applied'}</span></div>` : '';
+  const couponWidget = !appliedCoupon ? `
+    <div style="margin-top:10px">
+      <button onclick="document.getElementById('co-coupon-wrap').style.display='block';this.style.display='none'" style="background:none;border:none;font-size:12px;color:var(--mid);cursor:pointer;font-family:'Inter',sans-serif;text-decoration:underline;padding:0">Have a coupon code?</button>
+    </div>
+    <div id="co-coupon-wrap" style="display:none;margin-top:8px">
+      <div style="display:flex;gap:6px">
+        <input id="co-coupon-input" type="text" placeholder="Enter code" style="flex:1;padding:8px 10px;border:1px solid #e0ddd8;border-radius:3px;font-family:'Inter',sans-serif;font-size:13px;outline:none;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+        <button onclick="applyCheckoutCoupon()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer">Apply</button>
+      </div>
+      <div id="co-coupon-msg" style="font-size:12px;margin-top:4px;min-height:16px"></div>
+    </div>` : `<div style="font-size:12px;color:#2e7d32;margin-top:6px">✓ Coupon ${appliedCoupon.code} applied</div>`;
+
   const html = `
     <div class="price-row"><span>$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}</span><span>$${accommodation.toLocaleString()}</span></div>
     <div class="price-row"><span>Cleaning fee</span><span>${cleaningFee?'$'+cleaningFee.toLocaleString():'Included'}</span></div>
     <div class="price-row"><span>Service fee</span><span>${serviceFee?'$'+serviceFee.toLocaleString():'Included'}</span></div>
     <div class="price-row"><span>Taxes</span><span>${taxes?'$'+taxes.toLocaleString():'Included'}</span></div>
-    <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>`;
+    ${couponRow}
+    <div class="price-row total"><span>Total</span><span>$${total.toLocaleString()}</span></div>
+    ${couponWidget}`;
   document.getElementById('price-breakdown').innerHTML        = html;
   document.getElementById('mobile-price-breakdown').innerHTML = html;
   document.getElementById('mpb-total').textContent            = `$${total.toLocaleString()} total`;
   document.getElementById('mpb-sub').textContent              = `$${nightlyAvg.toLocaleString()}/night · ${nights} nights`;
   document.getElementById('mobile-total-display').textContent = `$${total.toLocaleString()}`;
+}
+
+async function applyCheckoutCoupon() {
+  const code = document.getElementById('co-coupon-input')?.value?.trim();
+  const msgEl = document.getElementById('co-coupon-msg');
+  if (!code || !msgEl) return;
+  msgEl.style.color = '#888'; msgEl.textContent = 'Applying…';
+  try {
+    const r = await fetch(`${API_BASE}/api/website/apply-coupon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listingId, checkIn, checkOut, guests: coGuests, couponCode: code, quoteId: pricing.quoteId })
+    });
+    const d = await r.json();
+    if (!d.success) { msgEl.style.color='#e57373'; msgEl.textContent = d.error || 'Invalid coupon'; return; }
+    appliedCoupon = { code: d.couponCode, discount: d.discount || 0 };
+    pricing = { ...pricing, total: d.total || (pricing.total - (d.discount||0)), quoteId: d.quoteId || pricing.quoteId };
+    renderPricing();
+  } catch(e) { msgEl.style.color='#e57373'; msgEl.textContent = 'Could not apply coupon'; }
 }
 
 // ── Guest counter ──

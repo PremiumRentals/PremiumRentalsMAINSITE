@@ -400,6 +400,62 @@ app.post('/api/website/sync-pricing', async (req, res) => {
   } catch(e) { console.error('Sync error:', e.message); }
 });
 
+// ── Route 5b: Apply Coupon ──
+app.post('/api/website/apply-coupon', async (req, res) => {
+  try {
+    const { listingId, checkIn, checkOut, guests, couponCode, quoteId } = req.body;
+    if (!couponCode?.trim()) return res.status(400).json({ success: false, error: 'Coupon code required' });
+
+    const token = await getBeApiToken();
+
+    // If we already have a quoteId, try applying coupon to it directly
+    let targetQuoteId = quoteId;
+
+    // If no quoteId provided, create a fresh quote first
+    if (!targetQuoteId) {
+      if (!listingId || !checkIn || !checkOut) {
+        return res.status(400).json({ success: false, error: 'listingId, checkIn, checkOut required' });
+      }
+      const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+        body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: parseInt(guests) || 1 })
+      });
+      const qData = await qRes.json();
+      if (!qData._id) return res.status(400).json({ success: false, error: 'Could not create quote to validate coupon' });
+      targetQuoteId = qData._id;
+    }
+
+    // Apply coupon to the quote
+    const couponRes = await fetch(`https://booking.guesty.com/api/reservations/quotes/${targetQuoteId}/coupon`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ couponCode: couponCode.trim().toUpperCase() })
+    });
+    const couponData = await couponRes.json();
+
+    if (couponRes.status !== 200 || couponData.error || couponData.message?.toLowerCase().includes('invalid')) {
+      return res.json({ success: false, error: 'Invalid or expired coupon code' });
+    }
+
+    // Re-fetch the updated quote to get new pricing
+    const updatedRes = await fetch(`https://booking.guesty.com/api/reservations/quotes/${targetQuoteId}`, {
+      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
+    });
+    const updatedQuote = await updatedRes.json();
+    const nights = Math.ceil((new Date(checkOut || updatedQuote.checkOutDateLocalized) - new Date(checkIn || updatedQuote.checkInDateLocalized)) / 86400000);
+    const pricing = await extractPricingFromQuote(updatedQuote, nights, listingId || updatedQuote.listingId, guests);
+
+    // Try to find discount amount
+    const discount = couponData.discount || couponData.amount || updatedQuote.money?.couponDiscount || 0;
+
+    res.json({ success: true, quoteId: targetQuoteId, discount, ...pricing, couponCode: couponCode.trim().toUpperCase() });
+  } catch(e) {
+    console.error('Apply coupon error:', e.message);
+    res.status(500).json({ success: false, error: 'Could not apply coupon — please try again' });
+  }
+});
+
 // ── Route 6: Reviews (Open API) ──
 app.get('/api/website/reviews', async (req, res) => {
   try {

@@ -437,7 +437,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
         <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
         <div class="price-row"><span>Taxes</span><span id="sb-taxes"></span></div>
+        <div class="price-row coupon-discount-row" id="sb-coupon-row" style="display:none;color:#2e7d32"><span id="sb-coupon-lbl">Coupon</span><span id="sb-coupon-amt"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
+      </div>
+      <div class="coupon-section" id="sb-coupon-section" style="display:none;margin-bottom:10px">
+        <div style="display:flex;gap:6px">
+          <input id="sb-coupon-input" type="text" placeholder="Coupon code" style="flex:1;padding:8px 10px;border:1px solid #e0ddd8;border-radius:3px;font-family:'Inter',sans-serif;font-size:13px;outline:none;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+          <button onclick="applySbCoupon()" style="padding:8px 14px;background:var(--accent);color:#fff;border:none;border-radius:3px;font-size:12px;font-weight:600;cursor:pointer;white-space:nowrap">Apply</button>
+        </div>
+        <div id="sb-coupon-msg" style="font-size:12px;margin-top:5px;min-height:16px"></div>
+      </div>
+      <div style="margin-bottom:10px;display:none" id="sb-coupon-toggle-wrap">
+        <button onclick="document.getElementById('sb-coupon-section').style.display='block';this.parentElement.style.display='none'" style="background:none;border:none;font-size:12px;color:var(--mid);cursor:pointer;font-family:'Inter',sans-serif;text-decoration:underline;padding:0">Have a coupon code?</button>
       </div>
       <button class="reserve-btn" id="sb-reserve-btn" onclick="proceedBooking()">Reserve Now →</button>
       <div class="booking-note">You won't be charged yet · Secure booking</div>
@@ -519,7 +530,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
     <div class="mob-price-row"><span>Cleaning fee</span><span id="mob-clean">—</span></div>
     <div class="mob-price-row"><span>Service fee</span><span id="mob-svc">—</span></div>
     <div class="mob-price-row"><span>Taxes</span><span id="mob-taxes">—</span></div>
+    <div class="mob-price-row" id="mob-coupon-row" style="display:none;color:#2e7d32"><span id="mob-coupon-lbl">Coupon</span><span id="mob-coupon-amt">—</span></div>
     <div class="mob-price-row total"><span>Total</span><span id="mob-total">—</span></div>
+    <div style="margin-top:10px" id="mob-coupon-toggle-wrap">
+      <button onclick="document.getElementById('mob-coupon-section').style.display='block';this.parentElement.style.display='none'" style="background:none;border:none;font-size:12px;color:var(--mid);cursor:pointer;font-family:'Inter',sans-serif;text-decoration:underline;padding:0">Have a coupon code?</button>
+    </div>
+    <div class="mob-coupon-section" id="mob-coupon-section" style="display:none;margin-top:10px">
+      <div style="display:flex;gap:6px">
+        <input id="mob-coupon-input" type="text" placeholder="Coupon code" style="flex:1;padding:9px 10px;border:1px solid #e8e5e0;border-radius:4px;font-family:'Inter',sans-serif;font-size:13px;outline:none;text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+        <button onclick="applyMobCoupon()" style="padding:9px 14px;background:var(--accent);color:#fff;border:none;border-radius:4px;font-size:13px;font-weight:600;cursor:pointer;white-space:nowrap">Apply</button>
+      </div>
+      <div id="mob-coupon-msg" style="font-size:12px;margin-top:5px;min-height:16px"></div>
+    </div>
   </div>
 
   <button class="mob-reserve-btn" id="mob-reserve-btn" onclick="proceedBooking()" style="display:none">Reserve Now →</button>
@@ -565,6 +587,7 @@ let calYear, calMonth, sbYear, sbMonth;
 let guestCount = 2;
 let maxGuests = 99;
 let bookingData = { nightlyAvg:0, nights:0, accommodation:0, cleaningFee:0, serviceFee:0, taxes:0, total:0 };
+let appliedCoupon = null; // { code, discount, quoteId }
 
 // ── Load listing ──
 async function loadListing() {
@@ -1032,7 +1055,14 @@ async function checkAvailAndPrice(ci, co) {
       breakEl.style.display = 'block';
       document.getElementById('mobile-price').textContent     = `$${total.toLocaleString()} total`;
       document.getElementById('mobile-price-sub').textContent = `$${nightlyAvg.toLocaleString()}/night · ${nights} nights`;
-      bookingData = { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total };
+      bookingData = { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, quoteId: data.quoteId };
+      // Show coupon toggle now that pricing is visible
+      appliedCoupon = null;
+      document.getElementById('sb-coupon-row').style.display = 'none';
+      document.getElementById('sb-coupon-toggle-wrap').style.display = 'block';
+      document.getElementById('sb-coupon-section').style.display = 'none';
+      document.getElementById('sb-coupon-input').value = '';
+      document.getElementById('sb-coupon-msg').textContent = '';
     }
     resBtn.style.display = 'block';
 
@@ -1045,6 +1075,54 @@ async function checkAvailAndPrice(ci, co) {
   }
 }
 
+// ── Coupon code ──
+async function applyCoupon(code, msgId, rowId, lblId, amtId, toggleId) {
+  const msgEl = document.getElementById(msgId);
+  msgEl.style.color = '#888';
+  msgEl.textContent = 'Applying…';
+  try {
+    const r = await fetch(`${API_BASE}/api/website/apply-coupon`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        listingId, checkIn: selectedCheckIn, checkOut: selectedCheckOut,
+        guests: guestCount, couponCode: code,
+        quoteId: bookingData.quoteId || null
+      })
+    });
+    const d = await r.json();
+    if (!d.success) { msgEl.style.color='#e57373'; msgEl.textContent = d.error || 'Invalid coupon'; return; }
+    const discount = d.discount || 0;
+    const newTotal  = d.total || (bookingData.total - discount);
+    appliedCoupon = { code: d.couponCode, discount, quoteId: d.quoteId };
+    bookingData = { ...bookingData, total: newTotal, quoteId: d.quoteId };
+    // Update total display
+    document.getElementById('sb-total').textContent = `$${newTotal.toLocaleString()}`;
+    document.getElementById('mobile-price').textContent = `$${newTotal.toLocaleString()} total`;
+    // Show discount row
+    document.getElementById(rowId).style.display = 'flex';
+    document.getElementById(lblId).textContent = `Coupon (${d.couponCode})`;
+    document.getElementById(amtId).textContent = discount ? `-$${discount.toLocaleString()}` : 'Applied';
+    document.getElementById(toggleId).style.display = 'none';
+    msgEl.style.color = '#2e7d32';
+    msgEl.textContent = '✓ Coupon applied!';
+  } catch(e) { msgEl.style.color='#e57373'; msgEl.textContent = 'Could not apply coupon'; }
+}
+
+function applySbCoupon() {
+  const code = document.getElementById('sb-coupon-input').value.trim();
+  if (!code) return;
+  applyCoupon(code, 'sb-coupon-msg', 'sb-coupon-row', 'sb-coupon-lbl', 'sb-coupon-amt', 'sb-coupon-toggle-wrap');
+}
+
+function applyMobCoupon() {
+  const code = document.getElementById('mob-coupon-input').value.trim();
+  if (!code) return;
+  applyCoupon(code, 'mob-coupon-msg', 'mob-coupon-row', 'mob-coupon-lbl', 'mob-coupon-amt', 'mob-coupon-toggle-wrap');
+  // Sync to sidebar too
+  document.getElementById('sb-total').textContent = document.getElementById('mob-total').textContent;
+}
+
 function proceedBooking() {
   const ci = selectedCheckIn, co = selectedCheckOut;
   if (!ci || !co) { showToast('Please select check-in and check-out dates first.'); return; }
@@ -1053,7 +1131,9 @@ function proceedBooking() {
     maxGuests,
     nightlyAvg:bookingData.nightlyAvg, nights:bookingData.nights,
     accommodation:bookingData.accommodation, cleaningFee:bookingData.cleaningFee,
-    serviceFee:bookingData.serviceFee, taxes:bookingData.taxes, total:bookingData.total
+    serviceFee:bookingData.serviceFee, taxes:bookingData.taxes, total:bookingData.total,
+    ...(bookingData.quoteId ? { quoteId: bookingData.quoteId } : {}),
+    ...(appliedCoupon ? { coupon: appliedCoupon.code, discount: appliedCoupon.discount } : {})
   });
   window.location.href = `checkout.html?${p.toString()}`;
 }
@@ -1263,7 +1343,15 @@ function updateMobPricing(show) {
   document.getElementById('mob-svc').textContent    = `$${b.serviceFee?.toLocaleString()}`;
   document.getElementById('mob-taxes').textContent  = `$${b.taxes?.toLocaleString()}`;
   document.getElementById('mob-total').textContent  = `$${b.total?.toLocaleString()}`;
-  if (show) document.getElementById('mob-price-section').style.display = 'block';
+  if (show) {
+    document.getElementById('mob-price-section').style.display = 'block';
+    // Show coupon toggle (reset any previous coupon state)
+    if (!appliedCoupon) {
+      document.getElementById('mob-coupon-toggle-wrap').style.display = 'block';
+      document.getElementById('mob-coupon-section').style.display = 'none';
+      document.getElementById('mob-coupon-row').style.display = 'none';
+    }
+  }
 }
 
 // ── Map ──

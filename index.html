@@ -197,7 +197,20 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   .sf{border-right:none;border-bottom:1px solid #eeede9}
   .search-btn{width:100%;margin-left:0;padding:14px;margin-top:8px}
 }
-@media(max-width:600px){.properties-grid{grid-template-columns:1fr}}
+@media(max-width:600px){
+  .properties-grid{grid-template-columns:1fr}
+  /* Hero: switch from 100vh with absolute stats to natural flow */
+  .hero{height:auto;min-height:auto;padding:90px 5% 48px;display:block}
+  .hero-content{padding:0}
+  .hero h1{font-size:38px}
+  .hero-sub{font-size:15px;margin-bottom:28px}
+  .hero-btns .btn-outline{display:none}
+  .hero-stats{position:relative;bottom:auto;margin-top:36px;gap:16px 28px;flex-wrap:wrap}
+  .hero-stat-num{font-size:26px}
+  /* Search bar: remove upward float, sit naturally below hero */
+  .search-bar{transform:none;margin-top:0;border-radius:0;box-shadow:0 4px 20px rgba(0,0,0,.08)}
+  .search-section{padding:0}
+}
 </style>
 <script type="application/ld+json">
 {

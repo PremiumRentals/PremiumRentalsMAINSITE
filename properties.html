@@ -117,7 +117,19 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
 @media(max-width:900px){#podium-website-widget{bottom:80px!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.main-layout{grid-template-columns:1fr;height:auto}.map-col{position:relative;top:0;height:400px}.prop-card{grid-template-columns:160px 1fr}}
-@media(max-width:640px){.nav-links{display:none}.prop-card{grid-template-columns:1fr;grid-template-rows:180px 1fr}.prop-img-wrap{height:180px}.footer-grid{grid-template-columns:1fr 1fr}}
+@media(max-width:640px){
+  .nav-links{display:none}
+  .prop-card{grid-template-columns:1fr;grid-template-rows:160px 1fr}
+  .prop-img-wrap{height:160px}
+  .prop-desc{display:none}
+  .prop-body{padding:12px 14px}
+  .prop-name{font-size:15px;margin-bottom:4px}
+  .prop-meta{margin-bottom:6px;gap:8px}
+  .prop-footer{padding-top:8px}
+  .footer-grid{grid-template-columns:1fr 1fr}
+  .filters-bar{transition:max-height .25s ease, padding .25s ease, border-color .25s ease;max-height:300px;overflow:hidden}
+  .filters-bar.filter-collapsed{max-height:0;padding-top:0;padding-bottom:0;border-bottom-color:transparent}
+}
 </style>
 </head>
 <body class="has-mobile-bar">
@@ -586,6 +598,25 @@ function initFavButtons(){
   });
   updateSavedBtn();
 }
+
+// ── Mobile: collapse filter bar on scroll down, restore on scroll up ──
+(function() {
+  const bar = document.querySelector('.filters-bar');
+  let lastY = 0, ticking = false;
+  window.addEventListener('scroll', () => {
+    if (window.innerWidth > 640 || !bar) return;
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (y > lastY && y > 60) bar.classList.add('filter-collapsed');
+        else bar.classList.remove('filter-collapsed');
+        lastY = y;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

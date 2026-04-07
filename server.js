@@ -818,6 +818,58 @@ app.get('/api/debug/reviews', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Debug: coupon test — hit /api/debug/coupon?code=TRAVELLIKETIFF&listingId=XXX&checkIn=2025-05-01&checkOut=2025-05-05
+app.get('/api/debug/coupon', async (req, res) => {
+  try {
+    const { code, listingId, checkIn = '2025-06-01', checkOut = '2025-06-05' } = req.query;
+    if (!code || !listingId) return res.status(400).json({ error: 'code and listingId required' });
+    const token = await getBeApiToken();
+
+    // Step 1: create a quote
+    const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
+    });
+    const qData = await qRes.json();
+    const quoteId = qData._id;
+    if (!quoteId) return res.json({ step: 'quote_creation', status: qRes.status, response: qData });
+
+    // Step 2: try POST /coupon with { couponCode }
+    const c1 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}/coupon`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ couponCode: code })
+    });
+    const c1Data = await c1.json();
+
+    // Step 3: try POST /coupon with { code }
+    const c2 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}/coupon`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ code })
+    });
+    const c2Data = await c2.json();
+
+    // Step 4: try PUT on the quote itself with couponCode
+    const c3 = await fetch(`https://booking.guesty.com/api/reservations/quotes/${quoteId}`, {
+      method: 'PUT',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ couponCode: code })
+    });
+    const c3Data = await c3.json();
+
+    res.json({
+      quoteId,
+      quoteStatus: qRes.status,
+      quoteMoney: qData.money,
+      coupon_post_couponCode: { status: c1.status, body: c1Data },
+      coupon_post_code:       { status: c2.status, body: c2Data },
+      quote_put_couponCode:   { status: c3.status, body: c3Data }
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/debug/listings', async (req, res) => {
   try {
     delete cache['listings_all'];

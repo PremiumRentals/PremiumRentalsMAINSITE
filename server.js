@@ -400,59 +400,51 @@ app.post('/api/website/sync-pricing', async (req, res) => {
   } catch(e) { console.error('Sync error:', e.message); }
 });
 
-// ── Route 5b: Apply Coupon ──
+// ── Route 5b: Apply Coupon (Supabase-backed) ──
 app.post('/api/website/apply-coupon', async (req, res) => {
   try {
-    const { listingId, checkIn, checkOut, guests, couponCode, quoteId } = req.body;
-    if (!couponCode?.trim()) return res.status(400).json({ success: false, error: 'Coupon code required' });
+    const { couponCode, subtotal } = req.body;
+    const code = couponCode?.trim()?.toUpperCase();
+    if (!code) return res.status(400).json({ success: false, error: 'Coupon code required' });
 
-    const token = await getBeApiToken();
+    const { data: coupon, error } = await supabase
+      .from('coupons')
+      .select('*')
+      .eq('code', code)
+      .eq('active', true)
+      .single();
 
-    // If we already have a quoteId, try applying coupon to it directly
-    let targetQuoteId = quoteId;
-
-    // If no quoteId provided, create a fresh quote first
-    if (!targetQuoteId) {
-      if (!listingId || !checkIn || !checkOut) {
-        return res.status(400).json({ success: false, error: 'listingId, checkIn, checkOut required' });
-      }
-      const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: parseInt(guests) || 1 })
-      });
-      const qData = await qRes.json();
-      if (!qData._id) return res.status(400).json({ success: false, error: 'Could not create quote to validate coupon' });
-      targetQuoteId = qData._id;
-    }
-
-    // Apply coupon to the quote
-    const couponRes = await fetch(`https://booking.guesty.com/api/reservations/quotes/${targetQuoteId}/coupon`, {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ couponCode: couponCode.trim().toUpperCase() })
-    });
-    const couponData = await couponRes.json();
-
-    if (couponRes.status !== 200 || couponData.error || couponData.message?.toLowerCase().includes('invalid')) {
+    if (error || !coupon) {
       return res.json({ success: false, error: 'Invalid or expired coupon code' });
     }
+    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
+      return res.json({ success: false, error: 'This coupon has expired' });
+    }
+    if (coupon.max_uses != null && coupon.use_count >= coupon.max_uses) {
+      return res.json({ success: false, error: 'This coupon has reached its usage limit' });
+    }
 
-    // Re-fetch the updated quote to get new pricing
-    const updatedRes = await fetch(`https://booking.guesty.com/api/reservations/quotes/${targetQuoteId}`, {
-      headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
+    // Calculate discount amount
+    let discount = 0;
+    const base = parseFloat(subtotal) || 0;
+    if (base > 0) {
+      if (coupon.discount_type === 'percent') {
+        discount = Math.round(base * coupon.discount_value / 100 * 100) / 100;
+      } else {
+        discount = Math.min(coupon.discount_value, base);
+      }
+    }
+
+    res.json({
+      success: true,
+      couponCode: code,
+      discount,
+      discountType: coupon.discount_type,
+      discountValue: coupon.discount_value
     });
-    const updatedQuote = await updatedRes.json();
-    const nights = Math.ceil((new Date(checkOut || updatedQuote.checkOutDateLocalized) - new Date(checkIn || updatedQuote.checkInDateLocalized)) / 86400000);
-    const pricing = await extractPricingFromQuote(updatedQuote, nights, listingId || updatedQuote.listingId, guests);
-
-    // Try to find discount amount
-    const discount = couponData.discount || couponData.amount || updatedQuote.money?.couponDiscount || 0;
-
-    res.json({ success: true, quoteId: targetQuoteId, discount, ...pricing, couponCode: couponCode.trim().toUpperCase() });
   } catch(e) {
     console.error('Apply coupon error:', e.message);
-    res.status(500).json({ success: false, error: 'Could not apply coupon — please try again' });
+    res.status(500).json({ success: false, error: 'Could not validate coupon — please try again' });
   }
 });
 
@@ -582,7 +574,8 @@ app.post('/api/website/reserve', async (req, res) => {
     const {
       listingId, checkIn, checkOut, guests,
       firstName, lastName, email, phone,
-      stripePaymentMethodId, totalAmount
+      stripePaymentMethodId, totalAmount,
+      couponCode, couponDiscount
     } = req.body;
 
     if (!listingId || !checkIn || !checkOut || !firstName || !lastName || !email || !stripePaymentMethodId) {
@@ -750,13 +743,40 @@ app.post('/api/website/reserve', async (req, res) => {
       console.warn('Could not attach payment to guest:', e.message);
     }
 
-    // ── Step 7: Save to Supabase ──
+    // ── Step 7: Apply coupon as negative invoice item (Open API) ──
+    const discountAmt = parseFloat(couponDiscount) || 0;
+    if (couponCode && discountAmt > 0) {
+      try {
+        const invRes = await fetch(
+          `https://open-api.guesty.com/v1/reservations/${reservationId}/invoice-items`,
+          {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              title:  `Coupon: ${couponCode.toUpperCase()}`,
+              amount: -Math.abs(discountAmt),
+              type:   'ADJUSTMENT'
+            })
+          }
+        );
+        const invData = await invRes.json();
+        console.log('Coupon invoice item:', JSON.stringify(invData).slice(0, 200));
+
+        // Increment usage count in Supabase
+        await supabase.rpc('increment_coupon_use', { coupon_code: couponCode.toUpperCase() }).catch(() => {});
+      } catch(e) {
+        console.warn('Could not apply coupon invoice item:', e.message);
+      }
+    }
+
+    // ── Step 8: Save to Supabase ──
+    const couponNote = couponCode && discountAmt > 0 ? ` | Coupon: ${couponCode.toUpperCase()} -$${discountAmt}` : '';
     await supabase.from('website_contacts').insert([{
       first_name: firstName,
       last_name:  lastName,
       email,
       interest: 'booking',
-      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount} | Guesty ID: ${reservationId}`
+      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount}${couponNote} | Guesty ID: ${reservationId}`
     }]);
 
     res.json({ success: true, reservationId, confirmationCode, amount: pricing.total || totalAmount });

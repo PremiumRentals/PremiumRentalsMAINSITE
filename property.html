@@ -1156,18 +1156,14 @@ async function applyCoupon(code, msgId, rowId, lblId, amtId, toggleId) {
     const r = await fetch(`${API_BASE}/api/website/apply-coupon`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        listingId, checkIn: selectedCheckIn, checkOut: selectedCheckOut,
-        guests: guestCount, couponCode: code,
-        quoteId: bookingData.quoteId || null
-      })
+      body: JSON.stringify({ couponCode: code, subtotal: bookingData.total })
     });
     const d = await r.json();
     if (!d.success) { msgEl.style.color='#e57373'; msgEl.textContent = d.error || 'Invalid coupon'; return; }
     const discount = d.discount || 0;
-    const newTotal  = d.total || (bookingData.total - discount);
-    appliedCoupon = { code: d.couponCode, discount, quoteId: d.quoteId };
-    bookingData = { ...bookingData, total: newTotal, quoteId: d.quoteId };
+    const newTotal  = bookingData.total - discount;
+    appliedCoupon = { code: d.couponCode, discount };
+    bookingData = { ...bookingData, total: newTotal };
     // Update total display
     document.getElementById('sb-total').textContent = `$${newTotal.toLocaleString()}`;
     document.getElementById('mobile-price').textContent = `$${newTotal.toLocaleString()} total`;

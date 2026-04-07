@@ -10,6 +10,8 @@ app.use(cors({
   origin: [
     'https://premiumrentals.homes',
     'https://www.premiumrentals.homes',
+    'https://premiumrentals.com',
+    'https://www.premiumrentals.com',
     'https://premium-rentals-mainsite.vercel.app',
     'http://localhost:3000'
   ]

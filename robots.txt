@@ -1,0 +1,5 @@
+User-agent: *
+Allow: /
+Disallow: /checkout.html
+Disallow: /confirmation.html
+Sitemap: https://premiumrentals.com/sitemap.xml

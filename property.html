@@ -435,7 +435,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
       <div class="price-breakdown" id="sb-breakdown">
         <div class="price-row"><span id="sb-nights-lbl"></span><span id="sb-nights-amt"></span></div>
         <div class="price-row"><span>Cleaning fee</span><span id="sb-clean"></span></div>
-        <div class="price-row"><span>Service fee</span><span id="sb-svc"></span></div>
+        <div class="price-row" id="sb-svc-row"><span>Service fee</span><span id="sb-svc"></span></div>
         <div class="price-row"><span>Taxes</span><span id="sb-taxes"></span></div>
         <div class="price-row coupon-discount-row" id="sb-coupon-row" style="display:none;color:#2e7d32"><span id="sb-coupon-lbl">Coupon</span><span id="sb-coupon-amt"></span></div>
         <div class="price-row total"><span>Total</span><span id="sb-total"></span></div>
@@ -528,7 +528,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <div id="mob-price-section" class="mob-price-section" style="display:none">
     <div class="mob-price-row"><span id="mob-nights-lbl">Accommodation</span><span id="mob-accom">—</span></div>
     <div class="mob-price-row"><span>Cleaning fee</span><span id="mob-clean">—</span></div>
-    <div class="mob-price-row"><span>Service fee</span><span id="mob-svc">—</span></div>
+    <div class="mob-price-row" id="mob-svc-row"><span>Service fee</span><span id="mob-svc">—</span></div>
     <div class="mob-price-row"><span>Taxes</span><span id="mob-taxes">—</span></div>
     <div class="mob-price-row" id="mob-coupon-row" style="display:none;color:#2e7d32"><span id="mob-coupon-lbl">Coupon</span><span id="mob-coupon-amt">—</span></div>
     <div class="mob-price-row total"><span>Total</span><span id="mob-total">—</span></div>
@@ -1122,6 +1122,7 @@ async function checkAvailAndPrice(ci, co) {
       document.getElementById('sb-nights-amt').textContent = `$${accommodation.toLocaleString()}`;
       document.getElementById('sb-clean').textContent      = cleaningFee ? `$${cleaningFee.toLocaleString()}` : 'Included';
       document.getElementById('sb-svc').textContent        = `$${serviceFee.toLocaleString()}`;
+      document.getElementById('sb-svc-row').style.display  = serviceFee ? '' : 'none';
       document.getElementById('sb-taxes').textContent      = `$${taxes.toLocaleString()}`;
       document.getElementById('sb-total').textContent      = `$${total.toLocaleString()}`;
       breakEl.style.display = 'block';
@@ -1411,7 +1412,8 @@ function updateMobPricing(show) {
   document.getElementById('mob-nights-lbl').textContent = `$${b.nightlyAvg?.toLocaleString()} × ${b.nights} night${b.nights!==1?'s':''}`;
   document.getElementById('mob-accom').textContent  = `$${b.accommodation?.toLocaleString()}`;
   document.getElementById('mob-clean').textContent  = b.cleaningFee ? `$${b.cleaningFee.toLocaleString()}` : 'Included';
-  document.getElementById('mob-svc').textContent    = `$${b.serviceFee?.toLocaleString()}`;
+  document.getElementById('mob-svc').textContent        = `$${b.serviceFee?.toLocaleString()}`;
+  document.getElementById('mob-svc-row').style.display  = b.serviceFee ? '' : 'none';
   document.getElementById('mob-taxes').textContent  = `$${b.taxes?.toLocaleString()}`;
   document.getElementById('mob-total').textContent  = `$${b.total?.toLocaleString()}`;
   if (show) {

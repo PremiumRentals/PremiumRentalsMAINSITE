@@ -518,7 +518,11 @@ async function loadListings() {
   try {
     const r = await fetch(`${API}/api/admin/listings`, { headers: authHeaders() });
     const d = await r.json();
-    listings = d.listings || [];
+    listings = (d.listings || []).sort((a, b) => {
+      const na = (a.nickname || a.title || '').toLowerCase();
+      const nb = (b.nickname || b.title || '').toLowerCase();
+      return na.localeCompare(nb);
+    });
     const sel = document.getElementById('q-listing');
     sel.innerHTML = '<option value="">Select property...</option>' +
       listings.map(l => {
@@ -552,22 +556,15 @@ function onGuestsChange() {
 }
 
 async function loadAvailabilityForCal(listingId) {
-  // Fetch a wide window of availability to show blocked dates in calendar
   try {
     const now = new Date();
-    const end = new Date(); end.setMonth(end.getMonth() + 4);
-    const fmt = d => d.toISOString().split('T')[0];
-    const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${fmt(now)}&checkOut=${fmt(end)}&guests=1`);
+    const end = new Date(); end.setMonth(end.getMonth() + 6);
+    const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
+    const r = await fetch(`${API}/api/website/calendar/${listingId}?startDate=${fmt(now)}&endDate=${fmt(end)}`);
     const d = await r.json();
-    // The days array tells us which dates are available; we infer blocked from gaps
-    // Actually use the blockedDates from the response if available
     admBlockedDates = new Set();
-    if (d.days) {
-      // days array has {date, available} objects
-      d.days.forEach(day => {
-        if (!day.available && day.date) admBlockedDates.add(day.date);
-      });
-    }
+    if (d.blockedDates)      d.blockedDates.forEach(dt => admBlockedDates.add(dt));
+    if (d.checkoutOnlyDates) d.checkoutOnlyDates.forEach(dt => admBlockedDates.add(dt));
     admRenderCal();
   } catch(e) { /* ignore — calendar still works without availability */ }
 }

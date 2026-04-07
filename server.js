@@ -262,7 +262,6 @@ function extractV3Pricing(quote, listingFees = null) {
   const nights        = rp.days?.length || 1;
   const accommodation = moneyData?.fareAccommodation || 0;
   const cleaningFee   = moneyData?.fareCleaning || 0;
-  const taxes         = moneyData?.totalTaxes   || 0;
   const subTotal      = moneyData?.subTotalPrice || (accommodation + cleaningFee);
 
   // Tier 1: V3 invoice items
@@ -298,6 +297,17 @@ function extractV3Pricing(quote, listingFees = null) {
   }
 
   serviceFee = Math.max(0, serviceFee);
+
+  // When service fee comes from fallback (not from V3), V3's totalTaxes was computed
+  // without the service fee in the taxable base. Infer the effective tax rate from V3
+  // (totalTaxes / subTotal) and reapply it to the full subtotal including service fee.
+  let taxes = moneyData?.totalTaxes || 0;
+  const v3FeeFromGuesty = feeSource === 'v3_invoice_item' || feeSource === 'v3_subtotal_delta';
+  if (!v3FeeFromGuesty && taxes > 0 && subTotal > 0) {
+    const effectiveTaxRate = taxes / subTotal;
+    taxes = Math.round((accommodation + cleaningFee + serviceFee) * effectiveTaxRate * 100) / 100;
+  }
+
   const total      = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
   const nightlyAvg = nights > 0 ? Math.round(accommodation / nights * 100) / 100 : 0;
   const ratePlanId = rp.ratePlan?._id || 'default-rateplan-id';

@@ -818,12 +818,25 @@ app.get('/api/debug/reviews', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
-// ── Debug: coupon test — hit /api/debug/coupon?code=TRAVELLIKETIFF&listingId=XXX&checkIn=2025-05-01&checkOut=2025-05-05
+// ── Debug: coupon test — hit /api/debug/coupon?code=TRAVELLIKETIFF
 app.get('/api/debug/coupon', async (req, res) => {
   try {
-    const { code, listingId, checkIn = '2025-06-01', checkOut = '2025-06-05' } = req.query;
-    if (!code || !listingId) return res.status(400).json({ error: 'code and listingId required' });
+    const { code, checkIn = '2025-06-01', checkOut = '2025-06-05' } = req.query;
+    if (!code) return res.status(400).json({ error: 'code param required' });
     const token = await getBeApiToken();
+
+    // Auto-grab first listing if none supplied
+    let { listingId } = req.query;
+    if (!listingId) {
+      const cached = getCache('listings_all');
+      if (cached?.length) { listingId = cached[0]._id; }
+      else {
+        const lr = await fetch('https://booking.guesty.com/api/listings?limit=1', { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } });
+        const ld = await lr.json();
+        listingId = (ld.results||[])[0]?._id;
+      }
+      if (!listingId) return res.status(500).json({ error: 'Could not find a listing ID' });
+    }
 
     // Step 1: create a quote
     const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {

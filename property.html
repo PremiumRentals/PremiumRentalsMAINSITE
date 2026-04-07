@@ -777,8 +777,80 @@ document.addEventListener('keydown', e => {
 });
 
 // ── Amenities ──
-const amenityIcons={'Air conditioning':'❄️','Wifi':'📶','Wireless Internet':'📶','Internet':'📶','Kitchen':'🍳','Washer':'👕','Dryer':'👕','Free parking on premises':'🅿️','Parking':'🅿️','TV':'📺','Heating':'🔥','Smoke detector':'🔔','Carbon monoxide detector':'🔔','First aid kit':'🩺','Fire extinguisher':'🧯','Pool':'🏊','Hot tub':'🛁','Gym':'🏋️','Sauna':'🧖','Game room':'🎮','Dvd player':'📀','Dishwasher':'🍽️','Refrigerator':'🧊','Microwave':'📡','Coffee maker':'☕','Hair dryer':'💨','Iron':'👔','Essentials':'🧴','Shampoo':'🧴','Bed linens':'🛌','Extra pillows and blankets':'🛌','Crib':'👶','High chair':'👶','Pets allowed':'🐾','Pet allowed':'🐾','Suitable for events':'🎉','Patio or balcony':'🌿','Garden or backyard':'🌿','Indoor fireplace':'🔥','Laptop friendly workspace':'💼','Sound system':'🔊','Garage':'🚗','Ping pong table':'🏓','Board games':'🎲','Game console':'🎮','Wine glasses':'🍷','Oven':'🍳','Stove':'🍳','Toaster':'🍞','Blender':'🥤','Cookware':'🍳','Dining table':'🪑','Desk':'💻'};
-function getIcon(a){return amenityIcons[a]||'✓';}
+const amenityIcons={
+  // Climate
+  'Air conditioning':'❄️','Central air conditioning':'❄️','Ceiling fan':'❄️','Heating':'🔥','Central heating':'🔥','Indoor fireplace':'🔥','Fireplace':'🔥',
+  // Internet & tech
+  'Wifi':'📶','Wireless Internet':'📶','Internet':'📶','High-speed internet':'📶',
+  'TV':'📺','Cable TV':'📺','Smart TV':'📺','Netflix':'📺','Streaming services':'📺','Dvd player':'📺','Sound system':'🔊','Speakers':'🔊',
+  'Laptop friendly workspace':'💻','Desk':'💻','Workspace':'💻',
+  // Kitchen
+  'Kitchen':'🍳','Full kitchen':'🍳','Kitchenette':'🍳','Oven':'🍳','Stove':'🍳','Cookware':'🍳','Pots and pans':'🍳',
+  'Refrigerator':'🧊','Mini fridge':'🧊','Freezer':'🧊',
+  'Dishwasher':'🫧','Microwave':'🫧',
+  'Coffee maker':'☕','Coffee':'☕','Espresso machine':'☕','Keurig':'☕',
+  'Toaster':'🍞','Blender':'🥤','Juicer':'🥤',
+  'Dining table':'🪑','Wine glasses':'🍷','Bar':'🍷',
+  // Laundry
+  'Washer':'🧺','Dryer':'🧺','Washer/Dryer':'🧺','In-unit laundry':'🧺','Laundry':'🧺',
+  // Parking & outdoor
+  'Free parking on premises':'🚗','Parking':'🚗','Free parking':'🚗','Street parking':'🚗','Garage':'🚗','EV charger':'🔌',
+  'Patio or balcony':'🌿','Balcony':'🌿','Patio':'🌿','Garden or backyard':'🌿','Backyard':'🌿','Deck':'🌿','Outdoor dining area':'🌿','Fire pit':'🔥',
+  'BBQ grill':'🪵','Grill':'🪵','Barbecue':'🪵',
+  // Recreation
+  'Pool':'🏊','Private pool':'🏊','Shared pool':'🏊','Swimming pool':'🏊',
+  'Hot tub':'🛁','Jacuzzi':'🛁','Whirlpool':'🛁',
+  'Gym':'🏋️','Exercise equipment':'🏋️','Fitness room':'🏋️',
+  'Sauna':'🧖','Steam room':'🧖',
+  'Game room':'🎮','Game console':'🎮','Gaming console':'🎮','Arcade games':'🎮',
+  'Ping pong table':'🏓','Pool table':'🎱','Billiards':'🎱','Foosball':'⚽',
+  'Board games':'🎲','Books and reading material':'📚','Library':'📚',
+  'Tennis court':'🎾','Basketball court':'🏀','Ski-in/Ski-out':'⛷️',
+  // Baby & family
+  'Crib':'👶','Baby crib':'👶','Pack n play':'👶','High chair':'👶','Baby monitor':'👶','Baby safety gates':'👶','Children\'s books and toys':'🧸',
+  // Pets
+  'Pets allowed':'🐾','Pet allowed':'🐾','Dog(s)':'🐾','Cat(s)':'🐾',
+  // Events
+  'Suitable for events':'🎉',
+  // Safety
+  'Smoke detector':'🚨','Smoke alarm':'🚨','Carbon monoxide detector':'🚨','Carbon monoxide alarm':'🚨','Fire extinguisher':'🧯','First aid kit':'🩺','Security cameras':'📷','Safe':'🔒','Keypad':'🔑','Smart lock':'🔑','Lockbox':'🔑',
+  // Bathroom & toiletries
+  'Hair dryer':'💨','Blow dryer':'💨','Iron':'👔','Ironing board':'👔',
+  'Essentials':'🧴','Shampoo':'🧴','Conditioner':'🧴','Body wash':'🧴','Soap':'🧴','Towels':'🧴',
+  'Bathtub':'🛁','Bathtub/Shower combo':'🛁','Rain shower':'🚿',
+  // Bedding & comfort
+  'Bed linens':'🛌','Extra pillows and blankets':'🛌','Blackout curtains':'🛌','Hangers':'👔','Clothing storage':'👔',
+  // Access
+  'Elevator':'🏢','Wheelchair accessible':'♿','Step-free access':'♿',
+  // Outdoor adventure
+  'Kayak':'🚣','Canoe':'🚣','Paddleboard':'🏄','Bikes':'🚲','Beach access':'🏖️','Waterfront':'🌊','Lake access':'🌊','Mountain view':'🏔️','Ocean view':'🌊',
+};
+function getIcon(a) {
+  if (amenityIcons[a]) return amenityIcons[a];
+  // Fuzzy match on keywords
+  const l = a.toLowerCase();
+  if (l.includes('pool'))        return '🏊';
+  if (l.includes('hot tub') || l.includes('jacuzzi')) return '🛁';
+  if (l.includes('wifi') || l.includes('internet'))   return '📶';
+  if (l.includes('parking') || l.includes('garage'))  return '🚗';
+  if (l.includes('kitchen') || l.includes('cook'))    return '🍳';
+  if (l.includes('washer') || l.includes('laundry'))  return '🧺';
+  if (l.includes('tv') || l.includes('television'))   return '📺';
+  if (l.includes('fire'))        return '🔥';
+  if (l.includes('air') || l.includes('ac ') || l.includes('cooling')) return '❄️';
+  if (l.includes('pet') || l.includes('dog') || l.includes('cat'))     return '🐾';
+  if (l.includes('gym') || l.includes('fitness') || l.includes('exercise')) return '🏋️';
+  if (l.includes('coffee'))      return '☕';
+  if (l.includes('baby') || l.includes('crib') || l.includes('child')) return '👶';
+  if (l.includes('grill') || l.includes('bbq') || l.includes('barbeque')) return '🪵';
+  if (l.includes('balcony') || l.includes('patio') || l.includes('deck')) return '🌿';
+  if (l.includes('game') || l.includes('gaming')) return '🎮';
+  if (l.includes('safe') || l.includes('lock') || l.includes('key'))   return '🔑';
+  if (l.includes('view') || l.includes('mountain')) return '🏔️';
+  if (l.includes('beach') || l.includes('lake') || l.includes('water')) return '🌊';
+  if (l.includes('ski'))         return '⛷️';
+  return '✨';
+}
 function renderAmenities(){
   const am=listing.amenities||[];
   document.getElementById('amenities-grid').innerHTML=am.slice(0,10).map(a=>`<div class="amenity-item"><span class="amenity-ico">${getIcon(a)}</span><span>${a}</span></div>`).join('');

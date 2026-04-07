@@ -232,23 +232,46 @@ function getApplicableRatePlan(quote) {
 
 // ── Extract pricing from Open API V3 quote ──
 // V3 money path: rates.ratePlans[n].money.money.* (double-nested)
+// Service fee: read from invoiceItems first, then fall back to env var (13.5%)
 function extractV3Pricing(quote) {
   const rp = getApplicableRatePlan(quote);
   if (!rp) return null;
 
-  const moneyData    = rp.money?.money;
-  const nights       = rp.days?.length || 1;
+  const moneyData     = rp.money?.money;
+  const nights        = rp.days?.length || 1;
   const accommodation = moneyData?.fareAccommodation || 0;
-  const cleaningFee  = moneyData?.fareCleaning || 0;
-  const taxes        = moneyData?.totalTaxes   || 0;
-  const subTotal     = moneyData?.subTotalPrice || (accommodation + cleaningFee);
-  const serviceFee   = Math.max(0, Math.round((subTotal - accommodation - cleaningFee) * 100) / 100);
-  const total        = Math.round((subTotal + taxes) * 100) / 100;
-  const nightlyAvg   = nights > 0 ? Math.round(accommodation / nights * 100) / 100 : 0;
-  const ratePlanId   = rp.ratePlan?._id || 'default-rateplan-id';
+  const cleaningFee   = moneyData?.fareCleaning || 0;
+  const taxes         = moneyData?.totalTaxes   || 0;
+  const subTotal      = moneyData?.subTotalPrice || (accommodation + cleaningFee);
 
-  console.log(`V3 Pricing [${quote.unitId}]: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + fees=$${serviceFee} + taxes=$${taxes} = $${total}`);
-  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, quoteId: quote._id, feeSource: 'v3_quote' };
+  // Look for service/management fee in V3 invoice items first
+  const invoiceItems = moneyData?.invoiceItems || [];
+  const feeItem = invoiceItems.find(i =>
+    i.normalType === 'MF' || i.normalType === 'SF' ||
+    (typeof i.type === 'string' && /management|service/i.test(i.type))
+  );
+  let serviceFee = feeItem ? Math.abs(feeItem.amount || 0) : 0;
+
+  // If V3 has no service fee invoice item, check subTotalPrice for any unexplained delta
+  if (!serviceFee) {
+    const delta = Math.round((subTotal - accommodation - cleaningFee) * 100) / 100;
+    if (delta > 0) serviceFee = delta;
+  }
+
+  // Last resort: fall back to env var rate (13.5% of accommodation + cleaning)
+  if (!serviceFee) {
+    const { serviceFeeRate } = getFeeRates();
+    serviceFee = Math.round((accommodation + cleaningFee) * serviceFeeRate * 100) / 100;
+  }
+
+  serviceFee = Math.max(0, serviceFee);
+  const total = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
+  const nightlyAvg = nights > 0 ? Math.round(accommodation / nights * 100) / 100 : 0;
+  const ratePlanId = rp.ratePlan?._id || 'default-rateplan-id';
+
+  const feeSource = feeItem ? 'v3_invoice_item' : (subTotal > accommodation + cleaningFee ? 'v3_subtotal_delta' : 'env_var_fallback');
+  console.log(`V3 Pricing [${quote.unitId}] (${feeSource}): nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + svc=$${serviceFee} + taxes=$${taxes} = $${total}`);
+  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, quoteId: quote._id, feeSource };
 }
 
 // ── Extract pricing from BE-API quote (legacy — used by /availability only) ──
@@ -916,21 +939,25 @@ app.get('/api/debug/v3quote', async (req, res) => {
     const strictText = await strictRes.text();
     let strictData; try { strictData = JSON.parse(strictText); } catch(e) { strictData = { raw: strictText.slice(0, 500) }; }
 
-    const summarize = (d, status) => ({
-      httpStatus: status,
-      quoteId: d._id,
-      error: d.error || d.message || d.msg,
-      ratePlanCount: d.rates?.ratePlans?.length,
-      ratePlans: d.rates?.ratePlans?.map(rp => ({
-        ratePlanId: rp.ratePlan?._id,
-        name: rp.ratePlan?.name,
-        notApplicable: rp.notApplicable,
-        fareAccommodation: rp.money?.money?.fareAccommodation,
-        fareCleaning: rp.money?.money?.fareCleaning,
-        subTotalPrice: rp.money?.money?.subTotalPrice,
-        totalTaxes: rp.money?.money?.totalTaxes,
-      }))
-    });
+    const summarize = (d, status) => {
+      const extracted = d._id ? extractV3Pricing(d) : null;
+      return {
+        httpStatus: status,
+        quoteId: d._id,
+        error: d.error || d.message || d.msg,
+        ratePlanCount: d.rates?.ratePlans?.length,
+        extractedPricing: extracted,
+        ratePlans: d.rates?.ratePlans?.map(rp => ({
+          ratePlanId: rp.ratePlan?._id,
+          name: rp.ratePlan?.name,
+          notApplicable: rp.notApplicable,
+          allMoneyFields: rp.money?.money,
+          invoiceItems: (rp.money?.money?.invoiceItems || []).map(i => ({
+            type: i.type, normalType: i.normalType, amount: i.amount, title: i.title
+          })),
+        }))
+      };
+    };
 
     res.json({
       listingId, checkIn, checkOut, guests,

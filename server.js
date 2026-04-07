@@ -847,70 +847,67 @@ app.get('/api/debug/coupon', async (req, res) => {
     const defaultOut = d2.toISOString().split('T')[0];
     const { code, checkIn = defaultIn, checkOut = defaultOut } = req.query;
     if (!code) return res.status(400).json({ error: 'code param required' });
-    const token = await getBeApiToken();
 
-    // Get all listings and try each until a quote succeeds
-    const cached = getCache('listings_all');
-    let listings = cached?.length ? cached : [];
-    if (!listings.length) {
-      const lr = await fetch('https://booking.guesty.com/api/listings?limit=50', { headers: { Authorization: `Bearer ${token}`, accept: 'application/json' } });
-      const ld = await lr.json();
-      listings = ld.results || [];
-    }
+    const beToken   = await getBeApiToken();
+    const openToken = await getOpenApiToken();
 
-    // Find first available listing (quote without coupon)
+    // Get listings and find an available one
+    const lr = await fetch('https://booking.guesty.com/api/listings?limit=50', { headers: { Authorization: `Bearer ${beToken}`, accept: 'application/json' } });
+    const ld = await lr.json();
+    const listings = ld.results || [];
+
     let usedListingId = null;
+    let baseQuoteId   = null;
     for (const l of listings) {
       const qRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
         method: 'POST',
-        headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+        headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json', accept: 'application/json' },
         body: JSON.stringify({ listingId: l._id, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
       });
       const qData = await qRes.json();
-      if (qData._id) { usedListingId = l._id; break; }
+      if (qData._id) { usedListingId = l._id; baseQuoteId = qData._id; break; }
     }
-    if (!usedListingId) return res.json({ error: 'No available listing found for these dates', checkIn, checkOut });
+    if (!usedListingId) return res.json({ error: 'No available listing found', checkIn, checkOut });
 
-    // Baseline quote (no coupon) — dump full raw response to find money structure
-    const baseRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ listingId: usedListingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
+    // Fetch base quote via Open API to confirm quoteId is accessible there
+    const oqBaseRes = await fetch(`https://open-api.guesty.com/v1/quotes/${baseQuoteId}?mergeAccommodationFarePriceComponents=true`, {
+      headers: { Authorization: `Bearer ${openToken}` }
     });
-    const baseData = await baseRes.json();
+    const oqBaseText = await oqBaseRes.text();
+    let oqBaseData;
+    try { oqBaseData = JSON.parse(oqBaseText); } catch(e) { oqBaseData = { raw: oqBaseText.slice(0,300) }; }
 
-    // One quote WITH couponCode to compare
-    const withRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
-      body: JSON.stringify({ listingId: usedListingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1, couponCode: code })
-    });
-    const withData = await withRes.json();
+    // Apply coupon via Open API POST /v1/quotes/{id}/coupons
+    const couponRes = await fetch(
+      `https://open-api.guesty.com/v1/quotes/${baseQuoteId}/coupons?mergeAccommodationFarePriceComponents=true`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coupons: [code.toUpperCase()] })
+      }
+    );
+    const couponText = await couponRes.text();
+    let couponData;
+    try { couponData = JSON.parse(couponText); } catch(e) { couponData = { raw: couponText.slice(0, 500) }; }
 
-    // BE-API coupon in body is silently ignored — check Open API for promotions
-    const openToken = await getOpenApiToken();
-    const promoEndpoints = [
-      '/v1/promotions',
-      '/v1/promotions/codes',
-      `/v1/promotions?code=${code}`,
-      `/v1/promotions?couponCode=${code}`,
-      `/v1/coupons`,
-      `/v1/coupons?code=${code}`,
-    ];
-    const openApiResults = {};
-    for (const ep of promoEndpoints) {
-      try {
-        const r = await fetch(`https://open-api.guesty.com${ep}`, { headers: { Authorization: `Bearer ${openToken}` } });
-        const d = await r.json();
-        openApiResults[ep] = { status: r.status, count: (d.results||d.data||[]).length, sample: d.results?.[0] || d.data?.[0] || d };
-      } catch(e) { openApiResults[ep] = { error: e.message }; }
-    }
+    // Extract totals for comparison
+    const baseTotal   = oqBaseData?.money?.subTotalPrice ?? oqBaseData?.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice;
+    const afterTotal  = couponData?.money?.subTotalPrice ?? couponData?.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice;
+    const invoiceItems = couponData?.money?.invoiceItems || couponData?.invoiceItems || [];
 
     res.json({
-      conclusion: 'BE-API couponCode field is silently ignored (identical totals). Checking Open API for promotions.',
-      baseTotal: baseData.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice,
-      withCouponTotal: withData.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice,
-      openApiPromoEndpoints: openApiResults
+      listingId:   usedListingId,
+      beQuoteId:   baseQuoteId,
+      checkIn,
+      checkOut,
+      openApiBaseQuoteStatus: oqBaseRes.status,
+      openApiBaseQuoteFields: oqBaseData && !oqBaseData.raw ? Object.keys(oqBaseData) : oqBaseData,
+      couponApplyStatus: couponRes.status,
+      baseTotal,
+      afterTotal,
+      discountApplied: afterTotal != null && baseTotal != null && afterTotal < baseTotal,
+      invoiceItems,
+      couponRawResponse: couponData
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

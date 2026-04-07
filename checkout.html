@@ -472,14 +472,16 @@ function updateGuestButtons() {
   document.getElementById('co-guests-plus').disabled  = coGuests >= maxGuests;
 }
 
-// ── Live repricing ──
+// ── Live repricing (disabled for admin quote mode) ──
 let repriceTimer = null;
 function triggerReprice() {
+  if (pricing.quoteId) return; // admin quote — price is locked
   clearTimeout(repriceTimer);
   document.getElementById('reprice-note').textContent = 'Updating price…';
   repriceTimer = setTimeout(reprice, 700);
 }
 async function reprice() {
+  if (pricing.quoteId) return;
   try {
     const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${coGuests}`);
     const data = await res.json();
@@ -607,16 +609,29 @@ async function submitBooking() {
 
     // Step 2: Create reservation
     setStep(2,'active');
-    const res  = await fetch(`${API_BASE}/api/website/reserve`,{
-      method:'POST',headers:{'Content-Type':'application/json'},
-      body:JSON.stringify({
-        listingId,checkIn,checkOut,guests:coGuests,
-        firstName:first,lastName:last,email,phone,
-        stripePaymentMethodId:confirmedPmId,totalAmount:pricing.total,
-        couponCode: appliedCoupon?.code || null
-      })
-    });
-    const data = await res.json();
+    let res, data;
+    if (pricing.quoteId && pricing.quoteId.length > 20) {
+      // Admin quote flow — use dedicated endpoint
+      res  = await fetch(`${API_BASE}/api/quote/${pricing.quoteId}/reserve`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          stripePaymentMethodId:confirmedPmId,
+          guestFirstName:first,guestLastName:last,guestEmail:email,guestPhone:phone
+        })
+      });
+    } else {
+      // Standard flow
+      res  = await fetch(`${API_BASE}/api/website/reserve`,{
+        method:'POST',headers:{'Content-Type':'application/json'},
+        body:JSON.stringify({
+          listingId,checkIn,checkOut,guests:coGuests,
+          firstName:first,lastName:last,email,phone,
+          stripePaymentMethodId:confirmedPmId,totalAmount:pricing.total,
+          couponCode: appliedCoupon?.code || null
+        })
+      });
+    }
+    data = await res.json();
     if (!data.success){setStep(2,'error');throw new Error(data.error||'Booking failed. Please try again.');}
     setStep(2,'done');
 

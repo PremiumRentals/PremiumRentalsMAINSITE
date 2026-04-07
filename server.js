@@ -1142,16 +1142,16 @@ app.get('/api/admin/listings', requireAdmin, async (req, res) => {
   try {
     const listings = getCache('listings_all') || [];
     if (listings.length) return res.json({ success: true, listings: listings.map(l => ({
-      _id: l._id, title: l.title, address: l.address, picture: l.picture
+      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture
     }))});
     // Trigger a fresh fetch if cache empty
     const token = await getBeApiToken();
-    const r = await fetch('https://booking.guesty.com/api/listings?limit=100&fields=_id,title,address,picture', {
+    const r = await fetch('https://booking.guesty.com/api/listings?limit=100&fields=_id,title,nickname,address,picture', {
       headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
     });
     const data = await r.json();
     res.json({ success: true, listings: (data.results || []).map(l => ({
-      _id: l._id, title: l.title, address: l.address, picture: l.picture
+      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture
     }))});
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1175,19 +1175,19 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
       listingId, listingName, listingPhoto,
       guestFirstName, guestLastName, guestEmail, guestPhone,
       checkIn, checkOut,
-      customNightlyRate, cleaningFee, taxes,
+      customNightlyRate, cleaningFee, serviceFee, taxes, couponCode,
       holdType, holdHours,
       notes
     } = req.body;
 
-    if (!listingId || !guestEmail || !checkIn || !checkOut) {
-      return res.status(400).json({ error: 'listingId, guestEmail, checkIn, checkOut required' });
+    if (!listingId || !checkIn || !checkOut) {
+      return res.status(400).json({ error: 'listingId, checkIn, checkOut required' });
     }
 
     const nights = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
     const accommodationTotal = customNightlyRate ? customNightlyRate * nights : null;
     const total = accommodationTotal != null
-      ? accommodationTotal + (cleaningFee || 0) + (taxes || 0)
+      ? accommodationTotal + (cleaningFee || 0) + (serviceFee || 0) + (taxes || 0)
       : null;
 
     const expiresAt = holdHours
@@ -1244,7 +1244,9 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
       custom_nightly_rate:  customNightlyRate || null,
       accommodation_total:  accommodationTotal,
       cleaning_fee:     cleaningFee || null,
+      service_fee:      serviceFee || null,
       taxes:            taxes || null,
+      coupon_code:      couponCode || null,
       total,
       hold_type:        holdType || 'inquiry',
       hold_hours:       holdHours || 24,
@@ -1305,6 +1307,108 @@ app.get('/api/quote/:id', async (req, res) => {
     const { guesty_reservation_id, ...pub } = data;
     res.json({ success: true, quote: pub });
   } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
+// ── Public: Reserve from admin quote (guest-facing booking) ──
+app.post('/api/quote/:id/reserve', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { stripePaymentMethodId, guestFirstName, guestLastName, guestEmail, guestPhone } = req.body;
+    if (!stripePaymentMethodId) return res.status(400).json({ error: 'Payment method required' });
+
+    // Fetch the admin quote
+    const { data: quote, error: qErr } = await supabase
+      .from('admin_quotes').select('*').eq('id', id).single();
+    if (qErr || !quote) return res.status(404).json({ error: 'Quote not found' });
+    if (quote.status !== 'pending') return res.status(400).json({ error: 'Quote is no longer available' });
+
+    const openToken = await getOpenApiToken();
+    const listingId = quote.listing_id;
+    const checkIn   = quote.check_in;
+    const checkOut  = quote.check_out;
+    const firstName = guestFirstName || quote.guest_first_name || 'Guest';
+    const lastName  = guestLastName  || quote.guest_last_name  || '';
+    const email     = guestEmail     || quote.guest_email      || '';
+    const phone     = guestPhone     || quote.guest_phone      || '';
+
+    // Step 1: Stripe customer
+    let customerId;
+    try {
+      const customers = await stripe.customers.list({ email, limit: 1 });
+      let customer = customers.data[0];
+      if (!customer) customer = await stripe.customers.create({ email, name: `${firstName} ${lastName}`.trim() });
+      customerId = customer.id;
+      await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: stripePaymentMethodId } });
+    } catch(e) { console.warn('Stripe customer warning:', e.message); }
+
+    // Step 2: Get payment provider
+    let paymentProviderId = null;
+    try {
+      const ppRes  = await fetch(`https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`, { headers: { Authorization: `Bearer ${openToken}` } });
+      const ppData = await ppRes.json();
+      paymentProviderId = ppData.paymentProviderId || ppData._id;
+    } catch(e) { console.warn('Could not get payment provider:', e.message); }
+
+    // Step 3: Create V3 quote for date validation
+    const listingFees = await getListingFees(listingId);
+    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests: quote.guests || 1 }, { strict: true });
+    if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
+      return res.status(400).json({ error: 'Dates are no longer available' });
+    }
+    const pricing    = extractV3Pricing(quoteData, listingFees);
+    const quoteId    = quoteData._id;
+    const ratePlanId = pricing.ratePlanId;
+
+    // Step 4: Create reservation with custom pricing override if admin set a custom rate
+    const accommodationOverride = quote.accommodation_total || pricing.accommodation;
+    const reservationBody = {
+      status: 'confirmed',
+      reservedUntil: -1,
+      guest: {
+        firstName, lastName, email,
+        ...(phone ? { phone: formatPhone(phone) } : {})
+      },
+      quoteId,
+      ratePlanId,
+      ...(paymentProviderId ? { paymentProviderId } : {})
+    };
+    const resRes = await fetch('https://open-api.guesty.com/v1/reservations-v3/quote', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify(reservationBody)
+    });
+    const resData = await resRes.json();
+    if (!resData._id) throw new Error(resData.message || resData.error || 'Reservation failed');
+    const reservationId = resData._id;
+    const guestId = resData.guestId || resData.guest?._id;
+
+    // Step 5: Attach payment method to guest
+    if (guestId) {
+      try {
+        const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
+        await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            provider: 'stripe', token: stripePaymentMethodId,
+            isDefault: true,
+            ...(paymentProviderId ? { paymentProviderId } : {})
+          })
+        });
+      } catch(e) { console.warn('Payment method attach warning:', e.message); }
+    }
+
+    // Step 6: Mark admin quote as accepted
+    await supabase.from('admin_quotes').update({
+      status: 'accepted',
+      guesty_reservation_id: reservationId
+    }).eq('id', id);
+
+    res.json({ success: true, reservationId, confirmationCode: resData.confirmationCode });
+  } catch(e) {
+    console.error('Quote reserve error:', e.message);
+    res.status(500).json({ error: e.message });
+  }
 });
 
 // ── Health check ──

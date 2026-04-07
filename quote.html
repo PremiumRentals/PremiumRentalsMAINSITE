@@ -324,11 +324,22 @@ function render(q) {
     document.getElementById('price-total').textContent = 'Contact for total';
   }
 
-  // Reserve button — links to property page with dates pre-filled
-  const reserveUrl = `${SITE}/property.html?id=${q.listing_id}` +
-    (q.check_in  ? `&checkIn=${q.check_in}`   : '') +
-    (q.check_out ? `&checkOut=${q.check_out}` : '');
-  document.getElementById('reserve-btn').href = reserveUrl;
+  // Reserve button — goes to checkout with all quote params pre-filled
+  const params = new URLSearchParams({
+    quoteId:    q.id,
+    listingId:  q.listing_id,
+    checkIn:    q.check_in,
+    checkOut:   q.check_out,
+    guests:     q.guests || 1,
+  });
+  if (q.custom_nightly_rate) params.set('nightlyAvg',   q.custom_nightly_rate);
+  if (q.accommodation_total) params.set('accommodation', q.accommodation_total);
+  if (q.cleaning_fee)        params.set('cleaningFee',   q.cleaning_fee);
+  if (q.service_fee)         params.set('serviceFee',    q.service_fee);
+  if (q.taxes)               params.set('taxes',         q.taxes);
+  if (q.total)               params.set('total',         q.total);
+  if (q.nights)              params.set('nights',        q.nights);
+  document.getElementById('reserve-btn').href = `${SITE}/checkout.html?${params.toString()}`;
 
   // Show
   document.getElementById('loading').style.display = 'none';

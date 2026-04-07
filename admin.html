@@ -110,11 +110,41 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .modal-link-box{background:var(--light);border-radius:6px;padding:12px 16px;font-size:13px;color:var(--dark);word-break:break-all;margin-bottom:20px}
 .modal-actions{display:flex;gap:10px;justify-content:center}
 
+/* ── Admin Calendar ── */
+.adm-cal-wrap{border:1px solid var(--border);border-radius:8px;overflow:hidden}
+.adm-cal-header{display:flex;align-items:center;justify-content:space-between;padding:12px 16px;background:var(--light);border-bottom:1px solid var(--border)}
+.adm-cal-lbl{font-size:13px;font-weight:600;color:var(--dark);text-align:center;flex:1}
+.adm-cal-nav{background:none;border:1px solid var(--border);border-radius:4px;width:28px;height:28px;cursor:pointer;font-size:14px;display:flex;align-items:center;justify-content:center;color:var(--mid);transition:all .15s}
+.adm-cal-nav:hover{border-color:var(--gold);color:var(--gold)}
+.adm-cal-months{display:grid;grid-template-columns:1fr 1fr;gap:0;padding:16px}
+.adm-cal-month{min-width:0}
+.adm-cal-month+.adm-cal-month{border-left:1px solid var(--border);padding-left:16px;margin-left:0}
+.adm-cal-month-title{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);text-align:center;margin-bottom:10px}
+.adm-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
+.adm-cal-dn{text-align:center;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--mid);padding:4px 0;text-transform:uppercase}
+.adm-cal-d{text-align:center;padding:7px 2px;font-size:13px;border-radius:4px;cursor:pointer;transition:background .1s;line-height:1}
+.adm-cal-d.empty{cursor:default}
+.adm-cal-d.avail:hover{background:#f0ede8}
+.adm-cal-d.blocked{color:#ccc;text-decoration:line-through;cursor:not-allowed}
+.adm-cal-d.past{color:#ccc;cursor:not-allowed}
+.adm-cal-d.ci,.adm-cal-d.co{background:var(--gold)!important;color:#fff!important;font-weight:700;border-radius:4px}
+.adm-cal-d.in-range{background:rgba(201,169,110,.15);color:var(--dark)}
+.adm-cal-d.today{font-weight:700}.adm-cal-d.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:var(--gold);margin:1px auto 0}
+.adm-cal-hint{padding:8px 16px;font-size:12px;color:var(--mid);border-top:1px solid var(--border);text-align:center;background:var(--light)}
+.adm-sel-dates{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:12px}
+.adm-sel-date{padding:10px 14px;border:1.5px solid var(--border);border-radius:6px;cursor:pointer;transition:all .2s}
+.adm-sel-date.active{border-color:var(--gold);background:rgba(201,169,110,.06)}
+.adm-sel-date label{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:3px;pointer-events:none}
+.adm-sel-date-val{font-size:14px;font-weight:600;color:var(--dark)}
+.adm-sel-date-val.placeholder{color:#bbb;font-weight:400}
+
 @media(max-width:768px){
   .sidebar{width:100%;height:auto;position:relative}
   .main{margin-left:0;padding:20px}
   .section-grid{grid-template-columns:1fr}
   .section-grid.three{grid-template-columns:1fr 1fr}
+  .adm-cal-months{grid-template-columns:1fr;padding:12px}
+  .adm-cal-month+.adm-cal-month{border-left:none;border-top:1px solid var(--border);padding-left:0;padding-top:16px;margin-top:16px}
 }
 </style>
 </head>
@@ -163,35 +193,60 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <!-- Property + Dates -->
       <div class="panel">
         <div class="panel-title">Property & Dates</div>
-        <div class="section-grid">
-          <div class="field full">
-            <label>Property</label>
-            <select id="q-listing" onchange="onListingChange()">
-              <option value="">Loading properties...</option>
-            </select>
-          </div>
-          <div class="field">
+        <div class="field" style="margin-bottom:16px">
+          <label>Property</label>
+          <select id="q-listing" onchange="onListingChange()">
+            <option value="">Select property...</option>
+          </select>
+        </div>
+
+        <!-- Date selector summary -->
+        <div class="adm-sel-dates">
+          <div class="adm-sel-date active" id="adm-sel-ci" onclick="calSetMode('checkin')">
             <label>Check-In</label>
-            <input type="date" id="q-checkin" onchange="calcNights()">
+            <div class="adm-sel-date-val placeholder" id="adm-ci-val">Select date</div>
           </div>
-          <div class="field">
+          <div class="adm-sel-date" id="adm-sel-co" onclick="calSetMode('checkout')">
             <label>Check-Out</label>
-            <input type="date" id="q-checkout" onchange="calcNights()">
+            <div class="adm-sel-date-val placeholder" id="adm-co-val">Select date</div>
           </div>
+        </div>
+
+        <!-- 2-month calendar -->
+        <div class="adm-cal-wrap">
+          <div class="adm-cal-header">
+            <button class="adm-cal-nav" onclick="admCalNav(-1)">‹</button>
+            <div class="adm-cal-lbl" id="adm-cal-lbl"></div>
+            <button class="adm-cal-nav" onclick="admCalNav(1)">›</button>
+          </div>
+          <div class="adm-cal-months">
+            <div class="adm-cal-month">
+              <div class="adm-cal-month-title" id="adm-cal-m1-title"></div>
+              <div class="adm-cal-grid" id="adm-cal-grid1"></div>
+            </div>
+            <div class="adm-cal-month">
+              <div class="adm-cal-month-title" id="adm-cal-m2-title"></div>
+              <div class="adm-cal-grid" id="adm-cal-grid2"></div>
+            </div>
+          </div>
+          <div class="adm-cal-hint" id="adm-cal-hint">Select check-in date</div>
+        </div>
+
+        <div class="section-grid" style="margin-top:16px">
           <div class="field">
             <label>Nights</label>
             <input type="number" id="q-nights" readonly placeholder="—" style="background:#f8f6f2;color:var(--mid)">
           </div>
           <div class="field">
             <label>Guests</label>
-            <input type="number" id="q-guests" value="2" min="1" max="20">
+            <input type="number" id="q-guests" value="2" min="1" max="20" oninput="onGuestsChange()">
           </div>
         </div>
       </div>
 
       <!-- Guest Info -->
       <div class="panel">
-        <div class="panel-title">Guest Information</div>
+        <div class="panel-title">Guest Information <span style="font-size:10px;color:var(--mid);font-weight:400;text-transform:none;letter-spacing:0">(optional)</span></div>
         <div class="section-grid">
           <div class="field">
             <label>First Name</label>
@@ -215,19 +270,27 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
       <!-- Pricing -->
       <div class="panel">
         <div class="panel-title">Pricing</div>
-        <div class="section-grid three">
+        <div class="section-grid" style="margin-bottom:12px">
           <div class="field">
-            <label>Nightly Rate (custom)</label>
+            <label>Nightly Rate</label>
             <input type="number" id="q-rate" placeholder="e.g. 250" min="0" oninput="calcTotal()">
-            <div class="price-hint" id="q-rate-hint">Enter a custom rate or leave blank to use standard Guesty pricing</div>
+            <div class="price-hint" id="q-rate-hint">Auto-filled from Guesty when dates set</div>
           </div>
           <div class="field">
             <label>Cleaning Fee</label>
             <input type="number" id="q-cleaning" placeholder="e.g. 150" min="0" oninput="calcTotal()">
           </div>
           <div class="field">
-            <label>Taxes & Fees</label>
+            <label>Service Fee</label>
+            <input type="number" id="q-svcfee" placeholder="e.g. 115" min="0" oninput="calcTotal()">
+          </div>
+          <div class="field">
+            <label>Taxes</label>
             <input type="number" id="q-taxes" placeholder="e.g. 80" min="0" oninput="calcTotal()">
+          </div>
+          <div class="field">
+            <label>Coupon Code <span style="text-transform:none;font-weight:400">(optional)</span></label>
+            <input type="text" id="q-coupon" placeholder="e.g. TRAVELLIKETIFF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
           </div>
         </div>
         <div class="total-row">
@@ -304,6 +367,104 @@ let selectedHoldType = 'inquiry';
 let selectedHoldHours = 24;
 let modalLink = '';
 
+// ── Calendar state ──
+const MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const DAYS_S = ['Su','Mo','Tu','We','Th','Fr','Sa'];
+let admCalYear, admCalMonth, admCalMode = 'checkin';
+let admCI = null, admCO = null;
+let admBlockedDates = new Set();
+
+function admCalInit() {
+  const now = new Date();
+  admCalYear = now.getFullYear(); admCalMonth = now.getMonth();
+  admCI = null; admCO = null; admCalMode = 'checkin';
+  admBlockedDates = new Set();
+  admRenderCal();
+}
+
+function admCalNav(dir) {
+  admCalMonth += dir;
+  if (admCalMonth > 11) { admCalMonth = 0; admCalYear++; }
+  if (admCalMonth < 0)  { admCalMonth = 11; admCalYear--; }
+  admRenderCal();
+}
+
+function admRenderCal() {
+  const m2 = (admCalMonth + 1) % 12;
+  const y2 = admCalMonth === 11 ? admCalYear + 1 : admCalYear;
+  document.getElementById('adm-cal-lbl').textContent = `${MONTHS[admCalMonth]} ${admCalYear}  —  ${MONTHS[m2]} ${y2}`;
+  document.getElementById('adm-cal-m1-title').textContent = `${MONTHS[admCalMonth]} ${admCalYear}`;
+  document.getElementById('adm-cal-m2-title').textContent = `${MONTHS[m2]} ${y2}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('adm-cal-grid1').innerHTML = admRenderMonth(admCalYear, admCalMonth, today);
+  document.getElementById('adm-cal-grid2').innerHTML = admRenderMonth(y2, m2, today);
+  // Update hint
+  const hintEl = document.getElementById('adm-cal-hint');
+  if (!admCI)      hintEl.textContent = 'Select check-in date';
+  else if (!admCO) hintEl.textContent = 'Now select check-out date';
+  else             hintEl.textContent = `${admCI} → ${admCO}`;
+  // Update selected date displays
+  const fmtD = ds => { const d = new Date(ds+'T12:00:00'); return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`; };
+  const ciVal = document.getElementById('adm-ci-val');
+  const coVal = document.getElementById('adm-co-val');
+  if (admCI) { ciVal.textContent = fmtD(admCI); ciVal.classList.remove('placeholder'); }
+  else       { ciVal.textContent = 'Select date'; ciVal.classList.add('placeholder'); }
+  if (admCO) { coVal.textContent = fmtD(admCO); coVal.classList.remove('placeholder'); }
+  else       { coVal.textContent = 'Select date'; coVal.classList.add('placeholder'); }
+  // Active state on date boxes
+  document.getElementById('adm-sel-ci').classList.toggle('active', admCalMode === 'checkin');
+  document.getElementById('adm-sel-co').classList.toggle('active', admCalMode === 'checkout');
+}
+
+function admRenderMonth(year, month, today) {
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
+  const first = new Date(year, month, 1).getDay();
+  const total = new Date(year, month+1, 0).getDate();
+  let html = DAYS_S.map(d => `<div class="adm-cal-dn">${d}</div>`).join('');
+  for (let i = 0; i < first; i++) html += `<div class="adm-cal-d empty"></div>`;
+  for (let d = 1; d <= total; d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isPast    = new Date(ds+'T12:00:00') < today;
+    const isBlocked = admBlockedDates.has(ds);
+    const isToday   = ds === todayStr;
+    const inRange   = admCI && admCO && ds > admCI && ds < admCO;
+    let cls = 'adm-cal-d';
+    if      (isPast || isBlocked) cls += isPast ? ' past' : ' blocked';
+    else                          cls += ' avail';
+    if (ds === admCI) cls += ' ci';
+    else if (ds === admCO) cls += ' co';
+    else if (inRange) cls += ' in-range';
+    if (isToday) cls += ' today';
+    const clickable = !isPast && !isBlocked;
+    html += `<div class="${cls}"${clickable ? ` onclick="admSelectDate('${ds}')"` : ''}>${d}</div>`;
+  }
+  return html;
+}
+
+function admSelectDate(ds) {
+  const today = new Date(); today.setHours(0,0,0,0);
+  if (new Date(ds+'T12:00:00') < today) return;
+  if (admCalMode === 'checkin' || !admCI || (admCI && admCO)) {
+    admCI = ds; admCO = null; admCalMode = 'checkout';
+  } else {
+    if (ds <= admCI) { admCI = ds; admCO = null; admCalMode = 'checkout'; }
+    else { admCO = ds; admCalMode = 'checkin'; }
+  }
+  admRenderCal();
+  if (admCI && admCO) {
+    // Update nights field and fetch pricing
+    const nights = Math.ceil((new Date(admCO) - new Date(admCI)) / 86400000);
+    document.getElementById('q-nights').value = nights > 0 ? nights : '';
+    calcTotal();
+    if (document.getElementById('q-listing').value) fetchStandardPricing();
+  }
+}
+
+function calSetMode(mode) {
+  admCalMode = mode;
+  admRenderCal();
+}
+
 // ── Auth ──
 async function doLogin() {
   const pw = document.getElementById('pw-input').value;
@@ -349,6 +510,7 @@ async function initApp() {
   if (!ok) { doLogout(); return; }
   document.getElementById('login-screen').style.display = 'none';
   document.getElementById('app').style.display = 'block';
+  admCalInit();
   loadListings();
 }
 
@@ -359,7 +521,11 @@ async function loadListings() {
     listings = d.listings || [];
     const sel = document.getElementById('q-listing');
     sel.innerHTML = '<option value="">Select property...</option>' +
-      listings.map(l => `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${(l.title||'').replace(/"/g,'&quot;')}">${l.title || 'Untitled'} — ${l.address?.city || ''}</option>`).join('');
+      listings.map(l => {
+        const displayName = (l.nickname || l.title || 'Untitled').replace(/"/g, '&quot;');
+        const city = l.address?.city || '';
+        return `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${displayName}">${displayName}${city ? ' — ' + city : ''}</option>`;
+      }).join('');
   } catch(e) { console.error('Could not load listings', e); }
 }
 
@@ -374,40 +540,51 @@ function showPage(page) {
 
 // ── Form Logic ──
 function onListingChange() {
-  const sel = document.getElementById('q-listing');
-  const opt = sel.options[sel.selectedIndex];
-  // Auto-fetch standard pricing if dates are set
-  if (document.getElementById('q-checkin').value && document.getElementById('q-checkout').value) {
-    fetchStandardPricing();
-  }
+  admBlockedDates = new Set();
+  admRenderCal();
+  if (admCI && admCO) fetchStandardPricing();
+  const listingId = document.getElementById('q-listing').value;
+  if (listingId) loadAvailabilityForCal(listingId);
 }
 
-function calcNights() {
-  const ci = document.getElementById('q-checkin').value;
-  const co = document.getElementById('q-checkout').value;
-  if (!ci || !co) { document.getElementById('q-nights').value = ''; calcTotal(); return; }
-  const nights = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-  document.getElementById('q-nights').value = nights > 0 ? nights : '';
-  calcTotal();
-  if (document.getElementById('q-listing').value) fetchStandardPricing();
+function onGuestsChange() {
+  if (admCI && admCO && document.getElementById('q-listing').value) fetchStandardPricing();
+}
+
+async function loadAvailabilityForCal(listingId) {
+  // Fetch a wide window of availability to show blocked dates in calendar
+  try {
+    const now = new Date();
+    const end = new Date(); end.setMonth(end.getMonth() + 4);
+    const fmt = d => d.toISOString().split('T')[0];
+    const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${fmt(now)}&checkOut=${fmt(end)}&guests=1`);
+    const d = await r.json();
+    // The days array tells us which dates are available; we infer blocked from gaps
+    // Actually use the blockedDates from the response if available
+    admBlockedDates = new Set();
+    if (d.days) {
+      // days array has {date, available} objects
+      d.days.forEach(day => {
+        if (!day.available && day.date) admBlockedDates.add(day.date);
+      });
+    }
+    admRenderCal();
+  } catch(e) { /* ignore — calendar still works without availability */ }
 }
 
 async function fetchStandardPricing() {
   const listingId = document.getElementById('q-listing').value;
-  const ci = document.getElementById('q-checkin').value;
-  const co = document.getElementById('q-checkout').value;
-  const guests = document.getElementById('q-guests').value || 1;
-  if (!listingId || !ci || !co) return;
+  const guests    = document.getElementById('q-guests').value || 1;
+  if (!listingId || !admCI || !admCO) return;
   try {
-    const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${guests}`);
+    const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${admCI}&checkOut=${admCO}&guests=${guests}`);
     const d = await r.json();
     if (d.available && d.nightlyAvg) {
-      const nights = document.getElementById('q-nights').value;
       document.getElementById('q-rate-hint').textContent =
-        `Standard pricing: $${d.nightlyAvg}/night avg · Cleaning: $${d.cleaningFee||0} · Taxes: $${d.taxes||0}`;
-      // Only pre-fill if fields are empty
+        `Guesty: $${d.nightlyAvg}/night · Cleaning: $${d.cleaningFee||0} · Svc: $${d.serviceFee||0} · Taxes: $${d.taxes||0}`;
       if (!document.getElementById('q-rate').value)     document.getElementById('q-rate').value     = d.nightlyAvg;
       if (!document.getElementById('q-cleaning').value) document.getElementById('q-cleaning').value = d.cleaningFee || 0;
+      if (!document.getElementById('q-svcfee').value)   document.getElementById('q-svcfee').value   = d.serviceFee  || 0;
       if (!document.getElementById('q-taxes').value)    document.getElementById('q-taxes').value    = d.taxes || 0;
       calcTotal();
     } else if (!d.available) {
@@ -417,13 +594,14 @@ async function fetchStandardPricing() {
 }
 
 function calcTotal() {
-  const nights   = parseFloat(document.getElementById('q-nights').value) || 0;
-  const rate     = parseFloat(document.getElementById('q-rate').value)   || 0;
-  const cleaning = parseFloat(document.getElementById('q-cleaning').value) || 0;
-  const taxes    = parseFloat(document.getElementById('q-taxes').value) || 0;
+  const nights   = parseFloat(document.getElementById('q-nights').value)  || 0;
+  const rate     = parseFloat(document.getElementById('q-rate').value)    || 0;
+  const cleaning = parseFloat(document.getElementById('q-cleaning').value)|| 0;
+  const svcfee   = parseFloat(document.getElementById('q-svcfee').value)  || 0;
+  const taxes    = parseFloat(document.getElementById('q-taxes').value)   || 0;
   const el = document.getElementById('q-total');
   if (!nights || !rate) { el.textContent = '—'; return; }
-  const total = (rate * nights) + cleaning + taxes;
+  const total = (rate * nights) + cleaning + svcfee + taxes;
   el.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
 }
 
@@ -447,36 +625,42 @@ function setHoldHours(h) {
 }
 
 function resetForm() {
-  ['q-listing','q-checkin','q-checkout','q-fname','q-lname','q-email','q-phone','q-rate','q-cleaning','q-taxes','q-notes'].forEach(id => {
-    document.getElementById(id).value = '';
-  });
-  document.getElementById('q-guests').value = 2;
-  document.getElementById('q-nights').value = '';
+  document.getElementById('q-listing').value = '';
+  document.getElementById('q-guests').value  = 2;
+  document.getElementById('q-nights').value  = '';
+  document.getElementById('q-fname').value   = '';
+  document.getElementById('q-lname').value   = '';
+  document.getElementById('q-email').value   = '';
+  document.getElementById('q-phone').value   = '';
+  document.getElementById('q-rate').value    = '';
+  document.getElementById('q-cleaning').value= '';
+  document.getElementById('q-svcfee').value  = '';
+  document.getElementById('q-taxes').value   = '';
+  document.getElementById('q-coupon').value  = '';
+  document.getElementById('q-notes').value   = '';
   document.getElementById('q-total').textContent = '—';
-  document.getElementById('q-msg').textContent = '';
-  document.getElementById('q-rate-hint').textContent = 'Enter a custom rate or leave blank to use standard Guesty pricing';
+  document.getElementById('q-msg').textContent   = '';
+  document.getElementById('q-rate-hint').textContent = 'Auto-filled from Guesty when dates set';
+  admCalInit();
 }
 
 async function createQuote() {
-  const listingId  = document.getElementById('q-listing').value;
-  const checkIn    = document.getElementById('q-checkin').value;
-  const checkOut   = document.getElementById('q-checkout').value;
-  const guestEmail = document.getElementById('q-email').value;
+  const listingId = document.getElementById('q-listing').value;
   const msgEl = document.getElementById('q-msg');
   msgEl.className = 'form-msg';
-  if (!listingId)  { msgEl.textContent = 'Select a property'; msgEl.className='form-msg form-err'; return; }
-  if (!checkIn || !checkOut) { msgEl.textContent = 'Select dates'; msgEl.className='form-msg form-err'; return; }
-  if (!guestEmail) { msgEl.textContent = 'Guest email required'; msgEl.className='form-msg form-err'; return; }
+  if (!listingId) { msgEl.textContent = 'Select a property'; msgEl.className='form-msg form-err'; return; }
+  if (!admCI || !admCO) { msgEl.textContent = 'Select check-in and check-out dates'; msgEl.className='form-msg form-err'; return; }
 
   const sel = document.getElementById('q-listing');
   const opt = sel.options[sel.selectedIndex];
   const listingName  = opt.dataset.name  || opt.textContent;
   const listingPhoto = opt.dataset.photo || '';
 
-  const nights   = parseFloat(document.getElementById('q-nights').value) || 0;
-  const rate     = parseFloat(document.getElementById('q-rate').value)   || null;
+  const rate     = parseFloat(document.getElementById('q-rate').value)     || null;
   const cleaning = parseFloat(document.getElementById('q-cleaning').value) || null;
-  const taxes    = parseFloat(document.getElementById('q-taxes').value) || null;
+  const svcfee   = parseFloat(document.getElementById('q-svcfee').value)   || null;
+  const taxes    = parseFloat(document.getElementById('q-taxes').value)    || null;
+  const coupon   = document.getElementById('q-coupon').value.trim().toUpperCase() || null;
 
   msgEl.textContent = 'Creating quote...';
   try {
@@ -487,14 +671,16 @@ async function createQuote() {
         listingId, listingName, listingPhoto,
         guestFirstName: document.getElementById('q-fname').value,
         guestLastName:  document.getElementById('q-lname').value,
-        guestEmail,
-        guestPhone: document.getElementById('q-phone').value,
-        checkIn, checkOut,
+        guestEmail:     document.getElementById('q-email').value,
+        guestPhone:     document.getElementById('q-phone').value,
+        checkIn: admCI, checkOut: admCO,
         customNightlyRate: rate,
         cleaningFee:  cleaning,
+        serviceFee:   svcfee,
         taxes,
-        holdType:  selectedHoldType,
-        holdHours: selectedHoldHours,
+        couponCode:   coupon,
+        holdType:     selectedHoldType,
+        holdHours:    selectedHoldHours,
         notes: document.getElementById('q-notes').value
       })
     });

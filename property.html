@@ -236,7 +236,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .mob-cal-d.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
 .mob-cal-d.checkout-only{color:var(--mid)}
 .mob-cal-d.min-nights-blocked{color:#e0e0e0;cursor:not-allowed}
-.mob-cal-d.today{font-weight:800}.mob-cal-d.today.avail{text-decoration:underline}.mob-cal-d.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:#C9A96E;margin:1px auto 0}
+.mob-cal-d.today{font-weight:800}.mob-cal-d.today.avail{color:var(--gold)}.mob-cal-d.today::after{content:'';display:block;width:5px;height:5px;border-radius:50%;background:#C9A96E;margin:2px auto 0}
 #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;backdrop-filter:blur(2px)}
 #mob-overlay.open{display:block}
 #mob-sheet{position:fixed;bottom:0;left:0;right:0;z-index:501;background:#fff;border-radius:16px 16px 0 0;padding:0 0 env(safe-area-inset-bottom,16px);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,0,.67,0);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -1121,8 +1121,8 @@ async function checkAvailAndPrice(ci, co) {
       document.getElementById('sb-nights-lbl').textContent = `$${nightlyAvg.toLocaleString()} × ${nights} night${nights!==1?'s':''}`;
       document.getElementById('sb-nights-amt').textContent = `$${accommodation.toLocaleString()}`;
       document.getElementById('sb-clean').textContent      = cleaningFee ? `$${cleaningFee.toLocaleString()}` : 'Included';
-      document.getElementById('sb-svc').textContent        = `$${serviceFee.toLocaleString()}`;
-      document.getElementById('sb-svc-row').style.display  = serviceFee ? '' : 'none';
+      document.getElementById('sb-svc').textContent        = serviceFee ? `$${serviceFee.toLocaleString()}` : 'Included';
+      document.getElementById('sb-svc-row').style.display  = '';
       document.getElementById('sb-taxes').textContent      = `$${taxes.toLocaleString()}`;
       document.getElementById('sb-total').textContent      = `$${total.toLocaleString()}`;
       breakEl.style.display = 'block';
@@ -1295,12 +1295,12 @@ function renderMobCal() {
 function renderMobMonthGrid(year, month, today) {
   const DAYS = ['S','M','T','W','T','F','S'];
   const first = new Date(year,month,1).getDay(), total = new Date(year,month+1,0).getDate();
+  const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   let html = DAYS.map(d=>`<div class="mob-cal-dn">${d}</div>`).join('');
   for(let i=0;i<first;i++) html += `<div class="mob-cal-d empty"></div>`;
   for(let d=1;d<=total;d++) {
     const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isBlocked = blockedDates.has(ds), isCoOnly = checkoutOnlyDates.has(ds);
-    const todayStr = today.toISOString().split('T')[0];
     const isPast = new Date(ds+'T12:00:00') < today;
     const isToday = ds === todayStr;
     const inRange = mobCI && mobCO && ds > mobCI && ds < mobCO;
@@ -1412,8 +1412,8 @@ function updateMobPricing(show) {
   document.getElementById('mob-nights-lbl').textContent = `$${b.nightlyAvg?.toLocaleString()} × ${b.nights} night${b.nights!==1?'s':''}`;
   document.getElementById('mob-accom').textContent  = `$${b.accommodation?.toLocaleString()}`;
   document.getElementById('mob-clean').textContent  = b.cleaningFee ? `$${b.cleaningFee.toLocaleString()}` : 'Included';
-  document.getElementById('mob-svc').textContent        = `$${b.serviceFee?.toLocaleString()}`;
-  document.getElementById('mob-svc-row').style.display  = b.serviceFee ? '' : 'none';
+  document.getElementById('mob-svc').textContent        = b.serviceFee ? `$${b.serviceFee.toLocaleString()}` : 'Included';
+  document.getElementById('mob-svc-row').style.display  = '';
   document.getElementById('mob-taxes').textContent  = `$${b.taxes?.toLocaleString()}`;
   document.getElementById('mob-total').textContent  = `$${b.total?.toLocaleString()}`;
   if (show) {

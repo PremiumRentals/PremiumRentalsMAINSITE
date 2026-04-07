@@ -191,9 +191,62 @@ function getFeeRates() {
   };
 }
 
-// ── Extract pricing from BE-API quote ──
-// BE-API quote returns: ratePlan, inquiryId, days only — no money/invoice items
-// Extra person fee baked into accommodation total
+// ── Create Open API V3 quote ──
+async function createV3Quote(openToken, { listingId, checkIn, checkOut, guests }) {
+  const guestCount = parseInt(guests) || 1;
+  const res = await fetch('https://open-api.guesty.com/v1/quotes', {
+    method: 'POST',
+    headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+    body: JSON.stringify({
+      listingId,
+      checkInDateLocalized:  checkIn,
+      checkOutDateLocalized: checkOut,
+      guestsCount: guestCount,
+      numberOfGuests: { numberOfAdults: guestCount, numberOfChildren: 0, numberOfInfants: 0 },
+      source: 'DIRECT',
+      ignoreCalendar: false,
+      ignoreTerms:    false,
+      ignoreBlocks:   false
+    })
+  });
+  const text = await res.text();
+  let data;
+  try { data = JSON.parse(text); } catch(e) { throw new Error('Quote parse error: ' + text.slice(0, 200)); }
+  return { data, status: res.status };
+}
+
+// ── Find first applicable rate plan from V3 quote ──
+function getApplicableRatePlan(quote) {
+  const ratePlans = quote.rates?.ratePlans || [];
+  return ratePlans.find(rp => {
+    const na = rp.notApplicable;
+    if (!na) return true;
+    return !Object.values(na).some(v => v === true);
+  }) || ratePlans[0];
+}
+
+// ── Extract pricing from Open API V3 quote ──
+// V3 money path: rates.ratePlans[n].money.money.* (double-nested)
+function extractV3Pricing(quote) {
+  const rp = getApplicableRatePlan(quote);
+  if (!rp) return null;
+
+  const moneyData    = rp.money?.money;
+  const nights       = rp.days?.length || 1;
+  const accommodation = moneyData?.fareAccommodation || 0;
+  const cleaningFee  = moneyData?.fareCleaning || 0;
+  const taxes        = moneyData?.totalTaxes   || 0;
+  const subTotal     = moneyData?.subTotalPrice || (accommodation + cleaningFee);
+  const serviceFee   = Math.max(0, Math.round((subTotal - accommodation - cleaningFee) * 100) / 100);
+  const total        = Math.round((subTotal + taxes) * 100) / 100;
+  const nightlyAvg   = nights > 0 ? Math.round(accommodation / nights * 100) / 100 : 0;
+  const ratePlanId   = rp.ratePlan?._id || 'default-rateplan-id';
+
+  console.log(`V3 Pricing [${quote.unitId}]: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + fees=$${serviceFee} + taxes=$${taxes} = $${total}`);
+  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, quoteId: quote._id, feeSource: 'v3_quote' };
+}
+
+// ── Extract pricing from BE-API quote (legacy — used by /availability only) ──
 async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const ratePlan   = quoteData.rates?.ratePlans?.[0];
   const days       = ratePlan?.days || [];
@@ -203,27 +256,18 @@ async function extractPricingFromQuote(quoteData, nights, listingId, guests) {
   const listingFees = await getListingFees(listingId);
   const { cleaningFee, extraPersonFee, guestsIncludedInRegularFee } = listingFees;
 
-  // Base accommodation from day prices
-  const baseAccommodation = Math.round(
-    days.reduce((sum, d) => sum + (d.price || 0), 0) * 100
-  ) / 100;
+  const baseAccommodation = Math.round(days.reduce((sum, d) => sum + (d.price || 0), 0) * 100) / 100;
+  const guestCount        = parseInt(guests) || 1;
+  const extraGuests       = Math.max(0, guestCount - guestsIncludedInRegularFee);
+  const extraPersonTotal  = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
+  const accommodation     = Math.round((baseAccommodation + extraPersonTotal) * 100) / 100;
+  const nightlyAvg        = nights > 0 && accommodation > 0 ? Math.round((accommodation / nights) * 100) / 100 : 0;
+  const serviceFee        = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
+  const taxAmount         = Math.round((accommodation + cleaningFee + serviceFee) * fees.taxRate * 100) / 100;
+  const total             = Math.round((accommodation + cleaningFee + serviceFee + taxAmount) * 100) / 100;
 
-  // Extra person fee baked into accommodation
-  const guestCount       = parseInt(guests) || 1;
-  const extraGuests      = Math.max(0, guestCount - guestsIncludedInRegularFee);
-  const extraPersonTotal = Math.round(extraPersonFee * extraGuests * nights * 100) / 100;
-
-  const accommodation = Math.round((baseAccommodation + extraPersonTotal) * 100) / 100;
-  const nightlyAvg    = nights > 0 && accommodation > 0
-    ? Math.round((accommodation / nights) * 100) / 100 : 0;
-
-  const serviceFee = Math.round((accommodation + cleaningFee) * fees.serviceFeeRate * 100) / 100;
-  const taxes      = Math.round((accommodation + cleaningFee + serviceFee) * fees.taxRate * 100) / 100;
-  const total      = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
-
-  console.log(`Pricing [${listingId}] ${guestCount} guests: nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + service=$${serviceFee} + taxes=$${taxes} = $${total}`);
-
-  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, feeSource: 'be_api_days' };
+  console.log(`BE Pricing [${listingId}] ${guestCount}g: nightly=$${nightlyAvg} × ${nights} = $${total}`);
+  return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes: taxAmount, total, ratePlanId, feeSource: 'be_api_days' };
 }
 
 // ── Pricing sync ──
@@ -400,47 +444,55 @@ app.post('/api/website/sync-pricing', async (req, res) => {
   } catch(e) { console.error('Sync error:', e.message); }
 });
 
-// ── Route 5b: Apply Coupon (Supabase-backed) ──
+// ── Route 5b: Apply Coupon (Guesty Open API V3) ──
 app.post('/api/website/apply-coupon', async (req, res) => {
   try {
-    const { couponCode, subtotal } = req.body;
+    const { listingId, checkIn, checkOut, guests, couponCode } = req.body;
     const code = couponCode?.trim()?.toUpperCase();
-    if (!code) return res.status(400).json({ success: false, error: 'Coupon code required' });
-
-    const { data: coupon, error } = await supabase
-      .from('coupons')
-      .select('*')
-      .eq('code', code)
-      .eq('active', true)
-      .single();
-
-    if (error || !coupon) {
-      return res.json({ success: false, error: 'Invalid or expired coupon code' });
-    }
-    if (coupon.expires_at && new Date(coupon.expires_at) < new Date()) {
-      return res.json({ success: false, error: 'This coupon has expired' });
-    }
-    if (coupon.max_uses != null && coupon.use_count >= coupon.max_uses) {
-      return res.json({ success: false, error: 'This coupon has reached its usage limit' });
+    if (!code || !listingId || !checkIn || !checkOut) {
+      return res.status(400).json({ success: false, error: 'couponCode, listingId, checkIn, checkOut required' });
     }
 
-    // Calculate discount amount
-    let discount = 0;
-    const base = parseFloat(subtotal) || 0;
-    if (base > 0) {
-      if (coupon.discount_type === 'percent') {
-        discount = Math.round(base * coupon.discount_value / 100 * 100) / 100;
-      } else {
-        discount = Math.min(coupon.discount_value, base);
+    const openToken = await getOpenApiToken();
+
+    // Create V3 quote to get base price
+    const { data: quote, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
+    if (qStatus !== 200 || !quote._id) {
+      return res.status(400).json({ success: false, error: 'Could not create quote for these dates' });
+    }
+    const basePricing = extractV3Pricing(quote);
+    if (!basePricing) return res.status(400).json({ success: false, error: 'Could not read pricing from quote' });
+
+    // Apply coupon via Guesty Open API
+    const couponRes = await fetch(
+      `https://open-api.guesty.com/v1/quotes/${quote._id}/coupons?mergeAccommodationFarePriceComponents=true`,
+      {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ coupons: [code] })
       }
+    );
+
+    if (couponRes.status === 400) {
+      const errData = await couponRes.json().catch(() => ({}));
+      return res.json({ success: false, error: errData.message || 'Invalid or expired coupon code' });
+    }
+
+    const updatedQuote = await couponRes.json();
+    const updatedPricing = extractV3Pricing(updatedQuote);
+    if (!updatedPricing) return res.json({ success: false, error: 'Could not read updated pricing' });
+
+    const discount = Math.max(0, Math.round((basePricing.total - updatedPricing.total) * 100) / 100);
+    if (discount <= 0) {
+      return res.json({ success: false, error: 'Coupon is not valid for this property or dates' });
     }
 
     res.json({
-      success: true,
+      success:    true,
       couponCode: code,
       discount,
-      discountType: coupon.discount_type,
-      discountValue: coupon.discount_value
+      quoteId:    updatedQuote._id,
+      ...updatedPricing
     });
   } catch(e) {
     console.error('Apply coupon error:', e.message);
@@ -568,215 +620,129 @@ app.post('/api/website/create-setup-intent', async (req, res) => {
   }
 });
 
-// ── Route 11: Reserve ──
+// ── Route 11: Reserve (Open API V3 flow) ──
 app.post('/api/website/reserve', async (req, res) => {
   try {
     const {
       listingId, checkIn, checkOut, guests,
       firstName, lastName, email, phone,
-      stripePaymentMethodId, totalAmount,
-      couponCode, couponDiscount
+      stripePaymentMethodId, totalAmount, couponCode
     } = req.body;
 
     if (!listingId || !checkIn || !checkOut || !firstName || !lastName || !email || !stripePaymentMethodId) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
-    // Format phone to E.164 — handles any format guest enters
     const formattedPhone = formatPhone(phone);
-    console.log(`Creating reservation for ${firstName} ${lastName} (${email}) phone: ${formattedPhone}`);
+    console.log(`Creating reservation (V3) for ${firstName} ${lastName} (${email})`);
 
     const openToken = await getOpenApiToken();
-    const beToken   = await getBeApiToken();
 
-    // ── Step 1: Find or create guest (Open API) ──
-    let guestId = null;
-    const guestSearchRes  = await fetch(
-      `https://open-api.guesty.com/v1/guests?email=${encodeURIComponent(email)}`,
-      { headers: { Authorization: `Bearer ${openToken}` } }
-    );
-    const guestSearchData = await guestSearchRes.json();
-    const existingGuest   = guestSearchData.results?.[0];
-    if (existingGuest) {
-      guestId = existingGuest._id;
-      console.log('Found existing guest:', guestId);
-    } else {
-      const guestCreateRes  = await fetch('https://open-api.guesty.com/v1/guests', {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          firstName,
-          lastName,
-          email,
-          phone: formattedPhone  // E.164 formatted
-        })
-      });
-      const guestCreateData = await guestCreateRes.json();
-      if (!guestCreateData._id) throw new Error('Failed to create guest: ' + JSON.stringify(guestCreateData));
-      guestId = guestCreateData._id;
-      console.log('Created new guest:', guestId);
-    }
-
-    // ── Step 2: Save to Stripe customer ──
+    // ── Step 1: Stripe customer record ──
     try {
       const customers = await stripe.customers.list({ email, limit: 1 });
       let customer = customers.data[0];
-      if (!customer) {
-        customer = await stripe.customers.create({
-          email,
-          name:  `${firstName} ${lastName}`,
-          phone: formattedPhone || undefined
-        });
-      }
-      try {
-        await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customer.id });
-      } catch(attachErr) {
-        if (!attachErr.message?.includes('already been attached')) throw attachErr;
-      }
-      await stripe.customers.update(customer.id, {
-        invoice_settings: { default_payment_method: stripePaymentMethodId }
-      });
-      console.log('Payment method saved to Stripe customer:', customer.id);
-    } catch(e) {
-      console.warn('Stripe customer warning:', e.message);
-    }
+      if (!customer) customer = await stripe.customers.create({ email, name: `${firstName} ${lastName}`, phone: formattedPhone || undefined });
+      try { await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customer.id }); }
+      catch(attachErr) { if (!attachErr.message?.includes('already been attached')) throw attachErr; }
+      await stripe.customers.update(customer.id, { invoice_settings: { default_payment_method: stripePaymentMethodId } });
+    } catch(e) { console.warn('Stripe customer warning:', e.message); }
 
-    // ── Step 3: Get paymentProviderId (Open API) ──
+    // ── Step 2: Get paymentProviderId ──
     let paymentProviderId = null;
     try {
-      const ppRes  = await fetch(
-        `https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`,
-        { headers: { Authorization: `Bearer ${openToken}` } }
-      );
+      const ppRes  = await fetch(`https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`, { headers: { Authorization: `Bearer ${openToken}` } });
       const ppData = await ppRes.json();
       paymentProviderId = ppData.paymentProviderId || ppData._id;
       console.log('Payment provider:', paymentProviderId);
-    } catch(e) {
-      console.warn('Could not get payment provider:', e.message);
+    } catch(e) { console.warn('Could not get payment provider:', e.message); }
+
+    // ── Step 3: Create Open API V3 quote ──
+    console.log('Creating V3 quote...');
+    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
+    if (qStatus !== 200 || !quoteData._id) {
+      throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
+    }
+    const pricing    = extractV3Pricing(quoteData);
+    let   quoteId    = quoteData._id;
+    const ratePlanId = pricing.ratePlanId;
+    console.log('V3 Quote created:', quoteId, 'Total:', pricing.total);
+
+    // ── Step 4: Apply coupon if provided ──
+    const couponCodeClean = couponCode?.trim()?.toUpperCase();
+    if (couponCodeClean) {
+      try {
+        const couponRes = await fetch(
+          `https://open-api.guesty.com/v1/quotes/${quoteId}/coupons?mergeAccommodationFarePriceComponents=true`,
+          { method: 'POST', headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ coupons: [couponCodeClean] }) }
+        );
+        if (couponRes.status === 200) {
+          console.log('Coupon applied to quote:', couponCodeClean);
+        } else {
+          const errBody = await couponRes.text();
+          console.warn('Coupon not applied:', couponRes.status, errBody.slice(0, 100));
+        }
+      } catch(e) { console.warn('Coupon apply error:', e.message); }
     }
 
-    // ── Step 4: Create fresh quote (BE-API) ──
-    console.log('Creating fresh quote...');
-    const quoteRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+    // ── Step 5: Create V3 reservation from quote ──
+    console.log('Creating V3 reservation...');
+    await new Promise(r => setTimeout(r, 1500));
+
+    const reserveRes  = await fetch('https://open-api.guesty.com/v1/reservations-v3/quote', {
       method: 'POST',
-      headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        listingId,
-        checkInDateLocalized:  checkIn,
-        checkOutDateLocalized: checkOut,
-        guestsCount: parseInt(guests) || 1
+        status:         'confirmed',
+        reservedUntil:  -1,
+        guest: {
+          firstName,
+          lastName,
+          email,
+          phones: formattedPhone ? [formattedPhone] : undefined
+        },
+        quoteId,
+        ratePlanId,
+        ignoreCalendar: false,
+        ignoreTerms:    false,
+        ignoreBlocks:   false
       })
     });
-    const quoteText = await quoteRes.text();
-    let quoteData;
-    try { quoteData = JSON.parse(quoteText); } catch(e) {
-      throw new Error('Quote parse error: ' + quoteText.slice(0, 200));
-    }
-    if (!quoteData._id) throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
-
-    const nights     = Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000);
-    const pricing    = await extractPricingFromQuote(quoteData, nights, listingId, guests);
-    const quoteId    = quoteData._id;
-    const ratePlanId = pricing.ratePlanId;
-    console.log('Quote created:', quoteId, 'Total:', pricing.total);
-
-    // ── Step 5: Create instant reservation (BE-API) ──
-    console.log('Creating instant reservation from quote...');
-    await new Promise(r => setTimeout(r, 2000));
-
-    const reserveRes = await fetch(
-      `https://booking.guesty.com/api/reservations/quotes/${quoteId}/instant`,
-      {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json', accept: 'application/json' },
-        body: JSON.stringify({
-          ratePlanId,
-          ccToken: stripePaymentMethodId,
-          guest: {
-            firstName,
-            lastName,
-            email,
-            phone: formattedPhone || undefined  // E.164 formatted
-          }
-        })
-      }
-    );
     const reserveText = await reserveRes.text();
     let reserveData;
-    try { reserveData = JSON.parse(reserveText); } catch(e) {
-      throw new Error('Reservation parse error: ' + reserveText.slice(0, 200));
-    }
-    if (!reserveData._id) {
+    try { reserveData = JSON.parse(reserveText); } catch(e) { throw new Error('Reservation parse error: ' + reserveText.slice(0, 200)); }
+
+    const reservationId    = reserveData.reservationId;
+    const guestId          = reserveData.guestId;
+    const confirmationCode = reserveData.confirmationCode || reservationId;
+
+    if (!reservationId) {
       const errMsg = JSON.stringify(reserveData);
-      if (errMsg.includes('minNights')) {
-        throw new Error('This property requires a longer minimum stay. Please go back and select different dates.');
-      }
+      if (errMsg.includes('minNights')) throw new Error('This property requires a longer minimum stay. Please go back and select different dates.');
       throw new Error('Failed to create reservation: ' + errMsg.slice(0, 200));
     }
+    console.log('V3 Reservation created:', reservationId, 'Code:', confirmationCode, 'Guest:', guestId);
 
-    const reservationId    = reserveData._id;
-    const confirmationCode = reserveData.confirmationCode || reservationId;
-    console.log('Created reservation:', reservationId, 'Code:', confirmationCode);
-
-    // ── Step 6: Attach payment to Guesty guest for automation (Open API) ──
-    console.log('Attaching payment to Guesty guest for automation...');
+    // ── Step 6: Attach Stripe payment method to Guesty guest ──
     try {
-      const pmRes  = await fetch(
-        `https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`,
-        {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            stripeCardToken:   stripePaymentMethodId,
-            paymentProviderId: paymentProviderId,
-            reservationId:     reservationId,
-            skipSetupIntent:   true,
-            reuse:             true
-          })
-        }
-      );
-      const pmText = await pmRes.text();
-      let pmData;
-      try { pmData = JSON.parse(pmText); } catch(e) { pmData = { raw: pmText }; }
+      const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+        method: 'POST',
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+        body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true })
+      });
+      const pmData = await pmRes.json().catch(() => ({}));
       console.log('Payment attached to guest:', JSON.stringify(pmData).slice(0, 200));
-    } catch(e) {
-      console.warn('Could not attach payment to guest:', e.message);
-    }
+    } catch(e) { console.warn('Could not attach payment to guest:', e.message); }
 
-    // ── Step 7: Apply coupon as negative invoice item (Open API) ──
-    const discountAmt = parseFloat(couponDiscount) || 0;
-    if (couponCode && discountAmt > 0) {
-      try {
-        const invRes = await fetch(
-          `https://open-api.guesty.com/v1/reservations/${reservationId}/invoice-items`,
-          {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-              title:  `Coupon: ${couponCode.toUpperCase()}`,
-              amount: -Math.abs(discountAmt),
-              type:   'ADJUSTMENT'
-            })
-          }
-        );
-        const invData = await invRes.json();
-        console.log('Coupon invoice item:', JSON.stringify(invData).slice(0, 200));
-
-        // Increment usage count in Supabase
-        await supabase.rpc('increment_coupon_use', { coupon_code: couponCode.toUpperCase() }).catch(() => {});
-      } catch(e) {
-        console.warn('Could not apply coupon invoice item:', e.message);
-      }
-    }
-
-    // ── Step 8: Save to Supabase ──
-    const couponNote = couponCode && discountAmt > 0 ? ` | Coupon: ${couponCode.toUpperCase()} -$${discountAmt}` : '';
+    // ── Step 7: Save to Supabase ──
+    const couponNote = couponCodeClean ? ` | Coupon: ${couponCodeClean}` : '';
     await supabase.from('website_contacts').insert([{
       first_name: firstName,
       last_name:  lastName,
       email,
       interest: 'booking',
-      message:  `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount}${couponNote} | Guesty ID: ${reservationId}`
+      message: `Reservation ${confirmationCode} | ${checkIn} → ${checkOut} | ${guests} guests | $${pricing.total || totalAmount}${couponNote} | Guesty ID: ${reservationId}`
     }]);
 
     res.json({ success: true, reservationId, confirmationCode, amount: pricing.total || totalAmount });

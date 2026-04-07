@@ -436,12 +436,13 @@ async function applyCheckoutCoupon() {
     const r = await fetch(`${API_BASE}/api/website/apply-coupon`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ couponCode: code, subtotal: pricing.total })
+      body: JSON.stringify({ listingId, checkIn, checkOut, guests: coGuests, couponCode: code })
     });
     const d = await r.json();
     if (!d.success) { msgEl.style.color='#e57373'; msgEl.textContent = d.error || 'Invalid coupon'; return; }
     appliedCoupon = { code: d.couponCode, discount: d.discount || 0 };
-    pricing = { ...pricing, total: pricing.total - (d.discount || 0) };
+    if (d.total) pricing = { ...pricing, total: d.total };
+    else pricing = { ...pricing, total: pricing.total - (d.discount || 0) };
     renderPricing();
   } catch(e) { msgEl.style.color='#e57373'; msgEl.textContent = 'Could not apply coupon'; }
 }
@@ -607,8 +608,7 @@ async function submitBooking() {
         listingId,checkIn,checkOut,guests:coGuests,
         firstName:first,lastName:last,email,phone,
         stripePaymentMethodId:confirmedPmId,totalAmount:pricing.total,
-        couponCode: appliedCoupon?.code || null,
-        couponDiscount: appliedCoupon?.discount || 0
+        couponCode: appliedCoupon?.code || null
       })
     });
     const data = await res.json();

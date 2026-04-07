@@ -39,8 +39,11 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .nav-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid);text-decoration:none;transition:color .2s}
 .nav-back:hover{color:var(--gold)}
 .nav-right{display:flex;gap:12px;align-items:center}
-.nav-action{background:transparent;border:1px solid #e0ddd8;padding:8px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--mid)}
-.nav-action:hover{border-color:var(--gold);color:var(--gold)}
+.nav-action{background:transparent;border:none;padding:8px 10px;border-radius:4px;font-family:'Inter',sans-serif;font-size:12px;font-weight:500;cursor:pointer;transition:all .2s;color:var(--mid);display:flex;align-items:center;gap:6px}
+.nav-action:hover{background:var(--light);color:var(--dark)}
+.nav-action svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;flex-shrink:0}
+.nav-action.saved{color:#c0392b}.nav-action.saved svg.heart-icon{fill:#c0392b;stroke:#c0392b}
+.nav-action-label{display:inline}
 .gallery{margin-top:64px}
 .gallery-grid{display:grid;grid-template-columns:2fr 1fr 1fr;grid-template-rows:300px 300px;gap:4px;height:600px;position:relative}
 .gallery-cell{overflow:hidden;background:#f0ede8;cursor:pointer}
@@ -236,8 +239,14 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
   <a href="properties.html" class="nav-back">← All Properties</a>
   <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
   <div class="nav-right">
-    <button class="nav-action" onclick="shareProperty()">Share</button>
-    <button class="nav-action" id="fav-btn" onclick="toggleFav()">♡ Save</button>
+    <button class="nav-action" onclick="shareProperty()" title="Share this property">
+      <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>
+      <span class="nav-action-label">Share</span>
+    </button>
+    <button class="nav-action" id="fav-btn" onclick="toggleFav()" title="Save to wishlist">
+      <svg class="heart-icon" viewBox="0 0 24 24"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
+      <span class="nav-action-label" id="fav-label">Save</span>
+    </button>
   </div>
 </nav>
 
@@ -486,7 +495,23 @@ async function loadFromPrice() {
 
 // ── Render listing ──
 function renderListing() {
-  document.title = `${listing.title||'Property'} – Premium Rentals`;
+  const pageTitle = `${listing.title||'Luxury Property'} — Premium Rentals`;
+  document.title = pageTitle;
+  // Update OG/Twitter meta for native share & modern link preview crawlers
+  const heroImg = listing.pictures?.[0]?.original || listing.pictures?.[0]?.thumbnail || '';
+  const summary = listing.publicDescription?.summary || 'Luxury vacation rental in Idaho. Book directly for the best rate.';
+  const pageUrl = window.location.href;
+  const setMeta = (sel, val) => { const el = document.querySelector(sel); if(el && val) el.setAttribute('content', val); };
+  setMeta('meta[property="og:title"]', pageTitle);
+  setMeta('meta[property="og:description"]', summary);
+  setMeta('meta[property="og:url"]', pageUrl);
+  setMeta('meta[name="twitter:title"]', pageTitle);
+  setMeta('meta[name="twitter:description"]', summary);
+  if(heroImg){ setMeta('meta[property="og:image"]', heroImg); setMeta('meta[name="twitter:image"]', heroImg); }
+  const canonical = document.querySelector('link[rel="canonical"]');
+  if(canonical) canonical.setAttribute('href', pageUrl);
+  // Init save button for this listing
+  initFav(listingId);
   allPhotos = listing.pictures || [];
   renderGallery();
   const city = [listing.address?.city, listing.address?.state].filter(Boolean).join(', ');
@@ -936,16 +961,45 @@ function toggleDesc(){
   document.getElementById('read-more-btn').textContent = descExpanded ? 'Show less ↑' : 'Show more ↓';
 }
 function shareProperty(){
-  if(navigator.share) navigator.share({title:listing?.title||'Premium Rentals',url:window.location.href});
-  else { navigator.clipboard.writeText(window.location.href); alert('Link copied!'); }
+  const url = window.location.href;
+  const title = listing?.title || 'Premium Rentals';
+  if(navigator.share){
+    navigator.share({ title, url }).catch(()=>{});
+  } else {
+    navigator.clipboard.writeText(url).then(()=>showToast('Link copied!')).catch(()=>showToast('Link copied!'));
+  }
 }
-let favOn = false;
-function toggleFav(){
-  favOn = !favOn;
+function showToast(msg){
+  let t = document.getElementById('share-toast');
+  if(!t){ t = document.createElement('div'); t.id='share-toast'; Object.assign(t.style,{position:'fixed',bottom:'80px',left:'50%',transform:'translateX(-50%)',background:'#1a1a1a',color:'#fff',padding:'10px 20px',borderRadius:'4px',fontSize:'13px',fontWeight:'500',zIndex:'9999',opacity:'0',transition:'opacity .25s',whiteSpace:'nowrap'}); document.body.appendChild(t); }
+  t.textContent = msg; t.style.opacity = '1';
+  setTimeout(()=>{ t.style.opacity='0'; }, 2200);
+}
+// Save/wishlist — persisted via localStorage
+const SAVED_KEY = 'pr_saved_listings';
+function getSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]'); }catch(e){ return []; } }
+function setSaved(arr){ localStorage.setItem(SAVED_KEY, JSON.stringify(arr)); }
+let favListingId = null;
+function initFav(listingId){
+  favListingId = listingId;
+  const saved = getSaved();
+  const isSaved = saved.includes(listingId);
+  updateFavUI(isSaved);
+}
+function updateFavUI(isSaved){
   const btn = document.getElementById('fav-btn');
-  btn.textContent    = favOn ? '♥ Saved' : '♡ Save';
-  btn.style.color    = favOn ? '#e74c3c' : '';
-  btn.style.borderColor = favOn ? '#e74c3c' : '';
+  const lbl = document.getElementById('fav-label');
+  if(!btn) return;
+  if(isSaved){ btn.classList.add('saved'); lbl.textContent = 'Saved'; }
+  else { btn.classList.remove('saved'); lbl.textContent = 'Save'; }
+}
+function toggleFav(){
+  const saved = getSaved();
+  const idx = saved.indexOf(favListingId);
+  if(idx === -1){ saved.push(favListingId); showToast('Saved!'); }
+  else { saved.splice(idx,1); showToast('Removed from saved'); }
+  setSaved(saved);
+  updateFavUI(saved.includes(favListingId));
 }
 
 // ── Reviews ──

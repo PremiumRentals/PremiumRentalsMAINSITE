@@ -112,6 +112,33 @@ function setCache(key, data, ttl) {
 // Fetched once from Open API and cached permanently per server instance
 const listingFeesCache = {};
 
+// ── Listing coordinates (Open API) ──
+// BE-API listings don't include lat/lng for the map
+// Fetched from Open API once per hour and merged into listings response
+async function getListingCoords() {
+  const cached = getCache('listing_coords');
+  if (cached) return cached;
+  try {
+    const token  = await getOpenApiToken();
+    const res    = await fetch('https://open-api.guesty.com/v1/listings?limit=100&fields=_id,address', {
+      headers: { Authorization: `Bearer ${token}` }
+    });
+    const data   = await res.json();
+    const coords = {};
+    (data.results || []).forEach(l => {
+      if (l.address?.lat && l.address?.lng) {
+        coords[l._id] = { lat: l.address.lat, lng: l.address.lng };
+      }
+    });
+    setCache('listing_coords', coords, 60 * 60 * 1000);
+    console.log(`Listing coords cached: ${Object.keys(coords).length} with lat/lng`);
+    return coords;
+  } catch(e) {
+    console.warn('Could not fetch listing coords:', e.message);
+    return {};
+  }
+}
+
 async function getListingFees(listingId) {
   if (listingFeesCache[listingId]) return listingFeesCache[listingId];
   try {
@@ -219,6 +246,19 @@ app.get('/api/website/listings', async (req, res) => {
     });
     const data    = await response.json();
     const results = data.results || [];
+    // Enrich with Open API coordinates (BE-API doesn't include lat/lng)
+    try {
+      const coords = await getListingCoords();
+      const enriched = Object.keys(coords).length;
+      results.forEach(l => {
+        if (coords[l._id] && (!l.address?.lat || !l.address?.lng)) {
+          l.address = l.address || {};
+          l.address.lat = coords[l._id].lat;
+          l.address.lng = coords[l._id].lng;
+        }
+      });
+      console.log(`Coords merged: ${enriched} available, applied to listings`);
+    } catch(e) { console.warn('Coords merge failed:', e.message); }
     setCache('listings_all', results, 5 * 60 * 1000);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch(e) {
@@ -342,26 +382,28 @@ app.post('/api/website/sync-pricing', async (req, res) => {
 });
 
 // ── Route 6: Reviews (Open API) ──
+// Supports ?listingId= to fetch reviews for a specific listing directly from Guesty
 app.get('/api/website/reviews', async (req, res) => {
   try {
-    const cached = getCache('reviews');
-    if (cached) {
-      const listingId = req.query.listingId;
-      const filtered  = listingId ? cached.filter(r => r.listingId === listingId) : cached;
-      return res.json({ success: true, count: filtered.length, reviews: filtered, total: cached.length, cached: true });
-    }
-    const token    = await getOpenApiToken();
+    const listingId = req.query.listingId;
+    const cacheKey  = listingId ? `reviews_${listingId}` : 'reviews_all';
+    const cached    = getCache(cacheKey);
+    if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
+
+    const token  = await getOpenApiToken();
+    const params = new URLSearchParams({ limit: '200', fields: 'rating,publicReview,reviewer,listingId,createdAt' });
+    if (listingId) params.set('listingId', listingId);
+
     const response = await fetch(
-      'https://open-api.guesty.com/v1/reviews?limit=200&fields=rating,publicReview,reviewer,listingId,createdAt',
+      `https://open-api.guesty.com/v1/reviews?${params}`,
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data       = await response.json();
     const allReviews = data.results || data.data || [];
     const fourPlus   = allReviews.filter(r => r.rating >= 4 && r.publicReview?.trim().length > 20);
-    const listingId  = req.query.listingId;
-    const filtered   = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
-    setCache('reviews', fourPlus, 60 * 60 * 1000);
-    res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length });
+    console.log(`Reviews fetched: ${allReviews.length} total, ${fourPlus.length} qualifying${listingId ? ` for listing ${listingId}` : ' (all)'}`);
+    setCache(cacheKey, fourPlus, 60 * 60 * 1000);
+    res.json({ success: true, count: fourPlus.length, reviews: fourPlus });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

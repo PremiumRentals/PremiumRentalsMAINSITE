@@ -967,6 +967,37 @@ app.get('/api/debug/v3quote', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+app.get('/api/debug/listing-fees', async (req, res) => {
+  try {
+    let { listingId } = req.query;
+    const beToken   = await getBeApiToken();
+    const openToken = await getOpenApiToken();
+    if (!listingId) {
+      const lr = await fetch('https://booking.guesty.com/api/listings?limit=5', { headers: { Authorization: `Bearer ${beToken}`, accept: 'application/json' } });
+      const ld = await lr.json();
+      listingId = ld.results?.[0]?._id;
+      if (!listingId) return res.status(400).json({ error: 'No listings found' });
+    }
+    // BE-API listing — full prices + terms object
+    const beRes  = await fetch(`https://booking.guesty.com/api/listings/${listingId}`, { headers: { Authorization: `Bearer ${beToken}`, accept: 'application/json' } });
+    const beData = await beRes.json();
+    // Open API listing prices
+    const openRes  = await fetch(`https://open-api.guesty.com/v1/listings/${listingId}?fields=prices`, { headers: { Authorization: `Bearer ${openToken}` } });
+    const openData = await openRes.json();
+    res.json({
+      listingId,
+      beApi: {
+        prices: beData?.prices,
+        terms:  beData?.terms,
+        fees:   beData?.fees,
+      },
+      openApi: {
+        prices: openData?.prices,
+      }
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/debug/listings', async (req, res) => {
   try {
     delete cache['listings_all'];

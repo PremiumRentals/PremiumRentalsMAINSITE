@@ -230,6 +230,7 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
             </div>
           </div>
           <div class="adm-cal-hint" id="adm-cal-hint">Select check-in date</div>
+          <div id="adm-cal-avail-status" style="display:none;padding:6px 16px;font-size:11px;background:#fff3cd;color:#856404;border-top:1px solid #ffc107"></div>
         </div>
 
         <div class="section-grid" style="margin-top:16px">
@@ -527,8 +528,7 @@ async function loadListings() {
     sel.innerHTML = '<option value="">Select property...</option>' +
       listings.map(l => {
         const displayName = (l.nickname || l.title || 'Untitled').replace(/"/g, '&quot;');
-        const city = l.address?.city || '';
-        return `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${displayName}">${displayName}${city ? ' — ' + city : ''}</option>`;
+        return `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${displayName}">${displayName}</option>`;
       }).join('');
   } catch(e) { console.error('Could not load listings', e); }
 }
@@ -556,17 +556,24 @@ function onGuestsChange() {
 }
 
 async function loadAvailabilityForCal(listingId) {
+  const statusEl = document.getElementById('adm-cal-avail-status');
   try {
+    if (statusEl) { statusEl.textContent = 'Loading availability…'; statusEl.style.display = 'block'; }
     const now = new Date();
-    const end = new Date(); end.setMonth(end.getMonth() + 6);
+    const end = new Date(); end.setMonth(end.getMonth() + 4);
     const fmt = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}`;
     const r = await fetch(`${API}/api/website/calendar/${listingId}?startDate=${fmt(now)}&endDate=${fmt(end)}`);
     const d = await r.json();
+    if (!r.ok || d.success === false) throw new Error(d.error || `HTTP ${r.status}`);
     admBlockedDates = new Set();
     if (d.blockedDates)      d.blockedDates.forEach(dt => admBlockedDates.add(dt));
     if (d.checkoutOnlyDates) d.checkoutOnlyDates.forEach(dt => admBlockedDates.add(dt));
+    if (statusEl) statusEl.style.display = 'none';
     admRenderCal();
-  } catch(e) { /* ignore — calendar still works without availability */ }
+  } catch(e) {
+    console.error('Calendar availability load failed:', e.message);
+    if (statusEl) { statusEl.textContent = `⚠ Could not load availability: ${e.message}`; statusEl.style.display = 'block'; }
+  }
 }
 
 async function fetchStandardPricing() {

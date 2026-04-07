@@ -54,6 +54,14 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .filter-field input:focus,.filter-field select:focus{border-color:var(--gold)}
 .filter-btn{background:var(--accent);color:#fff;border:none;padding:10px 24px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:background .25s;white-space:nowrap}
 .filter-btn:hover{background:#1e3329}
+.view-toggle-bar{background:var(--white);border-bottom:1px solid #eeede9;padding:8px 5%;display:flex;gap:6px;align-items:center}
+.view-btn{display:flex;align-items:center;gap:6px;background:transparent;border:1.5px solid #e0ddd8;padding:7px 16px;border-radius:20px;font-family:'Inter',sans-serif;font-size:13px;font-weight:500;cursor:pointer;color:var(--mid);transition:all .2s}
+.view-btn:hover{border-color:var(--gold);color:var(--gold)}
+.view-btn.active{background:var(--dark);border-color:var(--dark);color:#fff}
+.view-btn.active:hover{background:var(--dark);color:#fff}
+.main-layout.map-view .cards-col{display:none}
+.main-layout.map-view .map-col{height:calc(100vh - 72px - 57px - 36px)}
+.main-layout.map-view{grid-template-columns:1fr}
 .filter-clear{background:transparent;color:var(--mid);border:1px solid #e0ddd8;padding:10px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all .25s;white-space:nowrap}
 .filter-clear:hover{border-color:var(--gold);color:var(--gold)}
 .filter-saved{background:transparent;color:var(--mid);border:1px solid #e0ddd8;padding:10px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all .25s;white-space:nowrap}
@@ -173,7 +181,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
   </div>
 </div>
 
-<div class="main-layout">
+<div class="view-toggle-bar">
+  <button class="view-btn active" id="btn-list" onclick="setView('list')">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><rect x="2" y="3" width="16" height="3" rx="1"/><rect x="2" y="8.5" width="16" height="3" rx="1"/><rect x="2" y="14" width="16" height="3" rx="1"/></svg>
+    List
+  </button>
+  <button class="view-btn" id="btn-map" onclick="setView('map')">
+    <svg viewBox="0 0 20 20" fill="none" stroke="currentColor" stroke-width="1.8" width="15" height="15"><path d="M7 2L2 4v14l5-2 6 2 5-2V4l-5 2-6-2z"/><path d="M7 2v14M13 4v14"/></svg>
+    Map
+  </button>
+</div>
+
+<div class="main-layout" id="main-layout">
   <div class="cards-col" id="cards-col">
     <div class="properties-grid" id="properties-grid">
       <div class="skel-card skeleton"></div>
@@ -488,6 +507,22 @@ function highlightCard(id) {
   document.querySelectorAll('.prop-card').forEach(c => c.classList.remove('highlighted'));
   const card = document.getElementById(`card-${id}`);
   if (card) { card.classList.add('highlighted'); card.scrollIntoView({behavior:'smooth',block:'nearest'}); }
+}
+
+// ── List / Map view toggle ──
+function setView(v) {
+  const layout = document.getElementById('main-layout');
+  const btnList = document.getElementById('btn-list');
+  const btnMap  = document.getElementById('btn-map');
+  if (v === 'map') {
+    layout.classList.add('map-view');
+    btnMap.classList.add('active'); btnList.classList.remove('active');
+    // Trigger map resize so tiles fill the expanded area
+    if (map) google.maps.event.trigger(map, 'resize');
+  } else {
+    layout.classList.remove('map-view');
+    btnList.classList.add('active'); btnMap.classList.remove('active');
+  }
 }
 
 // ── Saved listings (localStorage) ──

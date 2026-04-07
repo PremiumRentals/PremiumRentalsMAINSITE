@@ -217,7 +217,26 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 @media(max-width:900px){#podium-website-widget{display:none!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.content-wrap{grid-template-columns:1fr 340px;gap:40px}}
-/* ── Mobile booking sheet ── */
+/* ── Mobile calendar ── */
+.mob-selected-dates{display:flex;gap:8px;padding:12px 20px;border-bottom:1px solid #f0ede8}
+.mob-sel-date{flex:1;background:var(--light);border-radius:8px;padding:10px 12px;cursor:pointer;border:1.5px solid transparent;transition:all .2s}
+.mob-sel-date label{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:3px;pointer-events:none}
+.mob-sel-date-val{font-size:14px;font-weight:600;color:var(--dark)}
+.mob-sel-date-val.placeholder{color:#bbb;font-weight:400}
+.mob-sel-date.active{border-color:var(--gold);background:rgba(201,169,110,.06)}
+.mob-cal-hint{font-size:12px;color:var(--accent);font-weight:500;text-align:center;padding:8px 20px 4px;min-height:30px}
+.mob-cal-header{display:flex;justify-content:space-between;align-items:center;padding:4px 20px 4px}
+.mob-cal-lbl{font-size:13px;font-weight:600;color:var(--dark);text-align:center;flex:1}
+.mob-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:1px;padding:0 12px;margin-bottom:4px}
+.mob-cal-dn{text-align:center;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--mid);padding:5px 0;text-transform:uppercase}
+.mob-cal-d{text-align:center;padding:10px 2px;font-size:13px;border-radius:4px;transition:background .1s;line-height:1}
+.mob-cal-d.avail{cursor:pointer}.mob-cal-d.avail:hover{background:var(--light)}
+.mob-cal-d.blocked{color:#ddd;text-decoration:line-through}
+.mob-cal-d.past{color:#e0e0e0}
+.mob-cal-d.ci,.mob-cal-d.co{background:var(--accent)!important;color:#fff!important;font-weight:700;border-radius:4px}
+.mob-cal-d.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
+.mob-cal-d.checkout-only{color:var(--mid)}
+.mob-cal-d.today{font-weight:800;text-decoration:underline}
 #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;backdrop-filter:blur(2px)}
 #mob-overlay.open{display:block}
 #mob-sheet{position:fixed;bottom:0;left:0;right:0;z-index:501;background:#fff;border-radius:16px 16px 0 0;padding:0 0 env(safe-area-inset-bottom,16px);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,0,.67,0);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -453,19 +472,30 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
     <button class="mob-close" onclick="closeMobSheet()">×</button>
   </div>
 
-  <div class="mob-section">
-    <div class="mob-label">Dates</div>
-    <div class="mob-date-row">
-      <div class="mob-date-box" id="mob-ci-box">
-        <label>Check-in</label>
-        <input type="date" id="mob-checkin" onchange="onMobDateChange()">
-      </div>
-      <div class="mob-date-box" id="mob-co-box">
-        <label>Check-out</label>
-        <input type="date" id="mob-checkout" onchange="onMobDateChange()">
-      </div>
+  <!-- Date display + calendar -->
+  <div class="mob-selected-dates">
+    <div class="mob-sel-date active" id="mob-sel-ci" onclick="startMobCal('checkin')">
+      <label>Check-in</label>
+      <div class="mob-sel-date-val placeholder" id="mob-sel-ci-val">Add date</div>
+    </div>
+    <div class="mob-sel-date" id="mob-sel-co" onclick="startMobCal('checkout')">
+      <label>Check-out</label>
+      <div class="mob-sel-date-val placeholder" id="mob-sel-co-val">Add date</div>
     </div>
   </div>
+  <div class="mob-cal-hint" id="mob-cal-hint">Select check-in date</div>
+  <div class="mob-cal-header">
+    <button class="sb-cal-nav" onclick="mobCalNav(-1)">‹</button>
+    <div class="mob-cal-lbl" id="mob-cal-lbl1"></div>
+    <button class="sb-cal-nav" onclick="mobCalNav(1)">›</button>
+  </div>
+  <div class="mob-cal-grid" id="mob-cal-grid1"></div>
+  <div class="mob-cal-header" style="margin-top:2px">
+    <div style="width:32px"></div>
+    <div class="mob-cal-lbl" id="mob-cal-lbl2"></div>
+    <div style="width:32px"></div>
+  </div>
+  <div class="mob-cal-grid" id="mob-cal-grid2"></div>
 
   <div class="mob-section">
     <div class="mob-guest-row">
@@ -1032,19 +1062,11 @@ function proceedBooking() {
 let mobGuestCount = 2;
 
 function openMobSheet() {
-  // Sync guest count with desktop
   mobGuestCount = guestCount;
   document.getElementById('mob-guest-num').textContent = mobGuestCount;
   document.getElementById('mob-max-guests').textContent = maxGuests;
   updateMobGuestBtns();
-  // Pre-fill dates if already selected
-  if (selectedCheckIn)  { document.getElementById('mob-checkin').value  = selectedCheckIn;  document.getElementById('mob-ci-box').classList.add('filled'); }
-  if (selectedCheckOut) { document.getElementById('mob-checkout').value = selectedCheckOut; document.getElementById('mob-co-box').classList.add('filled'); }
-  // Set min date
-  const today = new Date().toISOString().split('T')[0];
-  document.getElementById('mob-checkin').min  = today;
-  document.getElementById('mob-checkout').min = today;
-  // Pre-show pricing if already calculated
+  initMobCal();
   if (bookingData.total) updateMobPricing(true);
   document.getElementById('mob-overlay').classList.add('open');
   document.getElementById('mob-sheet').classList.add('open');
@@ -1072,15 +1094,101 @@ function changeMobGuests(delta) {
   if (ci && co) { guestCount = mobGuestCount; checkMobAvail(ci, co); }
 }
 
-function onMobDateChange() {
-  const ci = document.getElementById('mob-checkin').value;
-  const co = document.getElementById('mob-checkout').value;
-  document.getElementById('mob-ci-box').classList.toggle('filled', !!ci);
-  document.getElementById('mob-co-box').classList.toggle('filled', !!co);
-  // Enforce checkout > checkin
-  if (ci) document.getElementById('mob-checkout').min = ci;
-  if (ci && co && co <= ci) { document.getElementById('mob-checkout').value = ''; document.getElementById('mob-co-box').classList.remove('filled'); return; }
-  if (ci && co) checkMobAvail(ci, co);
+// ── Mobile calendar ──
+const MOB_MONTHS = ['January','February','March','April','May','June','July','August','September','October','November','December'];
+const MOB_MONTHS_S = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+let mobCalYear, mobCalMonth, mobCalMode = 'checkin', mobCI = null, mobCO = null;
+
+function initMobCal() {
+  const now = new Date();
+  mobCalYear = now.getFullYear(); mobCalMonth = now.getMonth();
+  mobCalMode = 'checkin';
+  mobCI = selectedCheckIn || null; mobCO = selectedCheckOut || null;
+  updateMobSelDates(); renderMobCal();
+}
+function startMobCal(mode) {
+  mobCalMode = mode;
+  if (mode === 'checkin') { mobCI = null; mobCO = null; resetMobPricing(); }
+  updateMobSelDates(); renderMobCal();
+}
+function updateMobSelDates() {
+  const fmtD = ds => { const d = new Date(ds+'T12:00:00'); return `${MOB_MONTHS_S[d.getMonth()]} ${d.getDate()}`; };
+  const ciV = document.getElementById('mob-sel-ci-val');
+  const coV = document.getElementById('mob-sel-co-val');
+  if (mobCI) { ciV.textContent = fmtD(mobCI); ciV.classList.remove('placeholder'); }
+  else       { ciV.textContent = 'Add date'; ciV.classList.add('placeholder'); }
+  if (mobCO) { coV.textContent = fmtD(mobCO); coV.classList.remove('placeholder'); }
+  else       { coV.textContent = 'Add date'; coV.classList.add('placeholder'); }
+  document.getElementById('mob-sel-ci').classList.toggle('active', mobCalMode === 'checkin');
+  document.getElementById('mob-sel-co').classList.toggle('active', mobCalMode === 'checkout');
+  const hint = document.getElementById('mob-cal-hint');
+  if (!mobCI)      hint.textContent = 'Select check-in date';
+  else if (!mobCO) hint.textContent = 'Now select check-out date';
+  else             hint.textContent = '✓ Tap dates above to change';
+}
+function mobCalNav(dir) {
+  mobCalMonth += dir;
+  if (mobCalMonth > 11) { mobCalMonth = 0; mobCalYear++; }
+  if (mobCalMonth < 0)  { mobCalMonth = 11; mobCalYear--; }
+  renderMobCal();
+}
+function renderMobCal() {
+  let m2 = mobCalMonth+1, y2 = mobCalYear; if(m2>11){m2=0;y2++;}
+  document.getElementById('mob-cal-lbl1').textContent = `${MOB_MONTHS[mobCalMonth]} ${mobCalYear}`;
+  document.getElementById('mob-cal-lbl2').textContent = `${MOB_MONTHS[m2]} ${y2}`;
+  const today = new Date(); today.setHours(0,0,0,0);
+  document.getElementById('mob-cal-grid1').innerHTML = renderMobMonthGrid(mobCalYear, mobCalMonth, today);
+  document.getElementById('mob-cal-grid2').innerHTML = renderMobMonthGrid(y2, m2, today);
+}
+function renderMobMonthGrid(year, month, today) {
+  const DAYS = ['S','M','T','W','T','F','S'];
+  const first = new Date(year,month,1).getDay(), total = new Date(year,month+1,0).getDate();
+  let html = DAYS.map(d=>`<div class="mob-cal-dn">${d}</div>`).join('');
+  for(let i=0;i<first;i++) html += `<div class="mob-cal-d empty"></div>`;
+  for(let d=1;d<=total;d++) {
+    const ds = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const isBlocked = blockedDates.has(ds), isCoOnly = checkoutOnlyDates.has(ds);
+    const isPast = new Date(ds+'T12:00:00') < today;
+    const isToday = ds === today.toISOString().split('T')[0];
+    const inRange = mobCI && mobCO && ds > mobCI && ds < mobCO;
+    let cls = 'mob-cal-d';
+    if (isPast) cls += ' past';
+    else if (isBlocked && !isCoOnly) cls += ' blocked';
+    else if (isCoOnly) cls += ' checkout-only avail';
+    else cls += ' avail';
+    if (ds === mobCI) cls += ' ci';
+    else if (ds === mobCO) cls += ' co';
+    else if (inRange) cls += ' in-range';
+    if (isToday) cls += ' today';
+    const canClick = !isPast && (!isBlocked || (isCoOnly && mobCalMode==='checkout'));
+    html += `<div class="${cls}"${canClick?` onclick="selectMobDate('${ds}',${isCoOnly})"`:''} >${d}</div>`;
+  }
+  return html;
+}
+function selectMobDate(ds, isCoOnly) {
+  if (mobCalMode === 'checkin') {
+    mobCI = ds; mobCO = null; mobCalMode = 'checkout';
+    updateMobSelDates(); renderMobCal(); return;
+  }
+  if (ds <= mobCI) { mobCI = ds; mobCO = null; updateMobSelDates(); renderMobCal(); return; }
+  // Check range for mid-stay blocks
+  const s = new Date(mobCI+'T12:00:00'), e = new Date(ds+'T12:00:00');
+  for(let dt=new Date(s); dt<e; dt.setDate(dt.getDate()+1)) {
+    const d2 = dt.toISOString().split('T')[0];
+    if (blockedDates.has(d2) && !checkoutOnlyDates.has(d2) && d2 !== mobCI) {
+      document.getElementById('mob-cal-hint').textContent = '✗ Range includes blocked nights — select closer dates';
+      return;
+    }
+  }
+  mobCO = ds; mobCalMode = 'checkin';
+  selectedCheckIn = mobCI; selectedCheckOut = mobCO;
+  updateMobSelDates(); renderMobCal();
+  checkMobAvail(mobCI, mobCO);
+}
+function resetMobPricing() {
+  document.getElementById('mob-avail').style.display = 'none';
+  document.getElementById('mob-price-section').style.display = 'none';
+  document.getElementById('mob-reserve-btn').style.display = 'none';
 }
 
 async function checkMobAvail(ci, co) {

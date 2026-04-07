@@ -880,6 +880,57 @@ app.get('/api/debug/coupon', async (req, res) => {
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
+// ── Debug: test V3 quote for a listing — /api/debug/v3quote?listingId=XXX&checkIn=2026-05-01&checkOut=2026-05-05
+app.get('/api/debug/v3quote', async (req, res) => {
+  try {
+    const d1 = new Date(); d1.setDate(d1.getDate() + 21);
+    const d2 = new Date(); d2.setDate(d2.getDate() + 25);
+    const { listingId, checkIn = d1.toISOString().split('T')[0], checkOut = d2.toISOString().split('T')[0], guests = 2 } = req.query;
+
+    const openToken = await getOpenApiToken();
+
+    // Try permissive (no ignore flags)
+    const permRes = await fetch('https://open-api.guesty.com/v1/quotes', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: parseInt(guests), numberOfGuests: { numberOfAdults: parseInt(guests), numberOfChildren: 0, numberOfInfants: 0 }, source: 'OAPI' })
+    });
+    const permText = await permRes.text();
+    let permData; try { permData = JSON.parse(permText); } catch(e) { permData = { raw: permText.slice(0, 500) }; }
+
+    // Try strict (all false)
+    const strictRes = await fetch('https://open-api.guesty.com/v1/quotes', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify({ listingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: parseInt(guests), numberOfGuests: { numberOfAdults: parseInt(guests), numberOfChildren: 0, numberOfInfants: 0 }, source: 'OAPI', ignoreCalendar: false, ignoreTerms: false, ignoreBlocks: false })
+    });
+    const strictText = await strictRes.text();
+    let strictData; try { strictData = JSON.parse(strictText); } catch(e) { strictData = { raw: strictText.slice(0, 500) }; }
+
+    const summarize = (d, status) => ({
+      httpStatus: status,
+      quoteId: d._id,
+      error: d.error || d.message || d.msg,
+      ratePlanCount: d.rates?.ratePlans?.length,
+      ratePlans: d.rates?.ratePlans?.map(rp => ({
+        ratePlanId: rp.ratePlan?._id,
+        name: rp.ratePlan?.name,
+        notApplicable: rp.notApplicable,
+        fareAccommodation: rp.money?.money?.fareAccommodation,
+        fareCleaning: rp.money?.money?.fareCleaning,
+        subTotalPrice: rp.money?.money?.subTotalPrice,
+        totalTaxes: rp.money?.money?.totalTaxes,
+      }))
+    });
+
+    res.json({
+      listingId, checkIn, checkOut, guests,
+      permissive: summarize(permData, permRes.status),
+      strict: summarize(strictData, strictRes.status)
+    });
+  } catch(e) { res.status(500).json({ error: e.message }); }
+});
+
 app.get('/api/debug/listings', async (req, res) => {
   try {
     delete cache['listings_all'];

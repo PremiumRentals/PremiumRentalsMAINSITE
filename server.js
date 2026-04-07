@@ -409,29 +409,35 @@ app.get('/api/website/reviews', async (req, res) => {
     if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
 
     const token = await getOpenApiToken();
-    // Fetch all reviews first (no listingId filter) — Guesty's listingId param may not match BE-API IDs
+    // Fetch without fields filter — rating/text are nested in rawReview, fields param strips them
     const response = await fetch(
-      'https://open-api.guesty.com/v1/reviews?limit=200&fields=rating,publicReview,reviewer,listingId,listing,createdAt',
+      'https://open-api.guesty.com/v1/reviews?limit=200',
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data       = await response.json();
     const allReviews = data.results || data.data || [];
-    const fourPlus   = allReviews.filter(r => r.rating >= 4 && r.publicReview?.trim().length > 20);
 
-    // Flexible ID matching: reviews may store listing ID in different fields
-    const matchId = (r, id) =>
-      r.listingId === id ||
-      r.listing?._id === id ||
-      r.listing?.id  === id ||
-      r.listingId === id.toString();
+    // Guesty stores rating in rawReview.overall_rating and text in rawReview.public_review
+    const fourPlus = allReviews
+      .filter(r => {
+        const rating = r.rawReview?.overall_rating ?? r.rating;
+        const text   = r.rawReview?.public_review  ?? r.publicReview ?? '';
+        return rating >= 4 && text.trim().length > 20;
+      })
+      .map(r => ({
+        _id:          r._id,
+        listingId:    r.listingId,
+        createdAt:    r.createdAt,
+        rating:       r.rawReview?.overall_rating ?? r.rating ?? 5,
+        publicReview: r.rawReview?.public_review  ?? r.publicReview ?? '',
+        reviewer:     r.reviewer || null
+      }));
 
-    const filtered = listingId ? fourPlus.filter(r => matchId(r, listingId)) : fourPlus;
-    const sampleIds = [...new Set(allReviews.slice(0,20).map(r => r.listingId || r.listing?._id).filter(Boolean))].slice(0,5);
-    console.log(`Reviews: ${allReviews.length} total, ${fourPlus.length} qualifying, ${filtered.length} for listing ${listingId||'all'}. Sample listingIds: ${JSON.stringify(sampleIds)}`);
-    // Cache all reviews globally AND per-listing for fast subsequent lookups
+    const filtered  = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
+    console.log(`Reviews: ${allReviews.length} raw, ${fourPlus.length} qualifying (4★+), ${filtered.length} for listing ${listingId||'all'}`);
     setCache('reviews_all', fourPlus, 60 * 60 * 1000);
     if (listingId) setCache(cacheKey, filtered, 60 * 60 * 1000);
-    res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length, sampleIds });
+    res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

@@ -21,8 +21,11 @@
     }
   ],
   "redirects": [
-    { "source": "/index", "destination": "/", "permanent": true },
+    { "source": "/index",      "destination": "/", "permanent": true },
     { "source": "/index.html", "destination": "/", "permanent": true },
-    { "source": "/home", "destination": "/", "permanent": true }
+    { "source": "/home",       "destination": "/", "permanent": true }
+  ],
+  "rewrites": [
+    { "source": "/property/:id", "destination": "/api/og/:id" }
   ]
 }

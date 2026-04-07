@@ -696,31 +696,27 @@ app.post('/api/website/reserve', async (req, res) => {
 });
 
 // ── Debug: coords ──
-// ── Debug: reviews vs listing IDs ──
+// ── Debug: try multiple review endpoints to find the right one ──
 app.get('/api/debug/reviews', async (req, res) => {
   try {
-    const token = await getOpenApiToken();
-    // Fetch a sample of reviews WITHOUT filter to see what IDs they carry
-    const revRes = await fetch(
-      'https://open-api.guesty.com/v1/reviews?limit=50&fields=rating,listingId,listing',
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const revData   = await revRes.json();
-    const reviews   = revData.results || revData.data || [];
-    const sampleIds = reviews.slice(0,10).map(r => ({
-      listingId:       r.listingId,
-      listing_id:      r.listing?._id,
-      listing_id_alt:  r.listing?.id,
-      rating:          r.rating
-    }));
-    // Also fetch BE-API listing IDs to compare
-    const beToken  = await getBeApiToken();
-    const listRes  = await fetch('https://booking.guesty.com/api/listings?limit=10', {
-      headers: { Authorization: `Bearer ${beToken}`, accept: 'application/json' }
-    });
-    const listData   = await listRes.json();
-    const beIds      = (listData.results||[]).slice(0,5).map(l => ({ _id: l._id, city: l.address?.city }));
-    res.json({ totalReviews: reviews.length, sampleReviewIds: sampleIds, sampleBeIds: beIds, match: sampleIds[0]?.listingId === beIds[0]?._id ? 'IDs match!' : 'IDs DO NOT match — check fields' });
+    const token    = await getOpenApiToken();
+    const headers  = { Authorization: `Bearer ${token}` };
+    const endpoints = [
+      'https://open-api.guesty.com/v1/reviews?limit=10',
+      'https://open-api.guesty.com/v1/guest-reviews?limit=10',
+      'https://open-api.guesty.com/v1/reviews-requests?limit=10',
+      'https://open-api.guesty.com/v2/reviews?limit=10',
+    ];
+    const results = {};
+    for (const url of endpoints) {
+      try {
+        const r    = await fetch(url, { headers });
+        const data = await r.json();
+        const count = (data.results||data.data||[]).length;
+        results[url] = { status: r.status, count, sample: (data.results||data.data||[]).slice(0,2) };
+      } catch(e) { results[url] = { error: e.message }; }
+    }
+    res.json({ results });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

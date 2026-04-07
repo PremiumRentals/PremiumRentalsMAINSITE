@@ -1320,8 +1320,10 @@ function toggleDesc(){
   document.getElementById('read-more-btn').textContent = descExpanded ? 'Show less ↑' : 'Show more ↓';
 }
 function shareProperty(){
-  const url = window.location.href;
-  const title = listing?.title || 'Premium Rentals';
+  // Use the clean /property/ID URL — this triggers the Vercel OG function
+  // so iMessage/Facebook/WhatsApp show the property photo as the preview image
+  const url   = `https://premiumrentals.com/property/${listingId}`;
+  const title = listing?.title ? `${listing.title} — Premium Rentals` : 'Premium Rentals';
   if(navigator.share){
     navigator.share({ title, url }).catch(()=>{});
   } else {

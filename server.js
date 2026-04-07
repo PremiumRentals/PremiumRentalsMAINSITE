@@ -885,9 +885,18 @@ app.get('/api/debug/v3quote', async (req, res) => {
   try {
     const d1 = new Date(); d1.setDate(d1.getDate() + 21);
     const d2 = new Date(); d2.setDate(d2.getDate() + 25);
-    const { listingId, checkIn = d1.toISOString().split('T')[0], checkOut = d2.toISOString().split('T')[0], guests = 2 } = req.query;
+    let { listingId, checkIn = d1.toISOString().split('T')[0], checkOut = d2.toISOString().split('T')[0], guests = 2 } = req.query;
 
     const openToken = await getOpenApiToken();
+
+    // Auto-fetch a listingId if not provided
+    if (!listingId) {
+      const beToken = await getBeApiToken();
+      const lr = await fetch('https://booking.guesty.com/api/listings?limit=10', { headers: { Authorization: `Bearer ${beToken}`, accept: 'application/json' } });
+      const ld = await lr.json();
+      listingId = ld.results?.[0]?._id;
+      if (!listingId) return res.status(400).json({ error: 'No listings found — pass listingId param' });
+    }
 
     // Try permissive (no ignore flags)
     const permRes = await fetch('https://open-api.guesty.com/v1/quotes', {

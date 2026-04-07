@@ -851,7 +851,18 @@ app.get('/api/debug/coupon', async (req, res) => {
     }
     if (!usedListingId) return res.json({ error: 'No available listing found for these dates', checkIn, checkOut });
 
-    // Now try creating quotes WITH the coupon code in various field names
+    // Baseline quote (no coupon) to compare totals
+    const baseRes = await fetch('https://booking.guesty.com/api/reservations/quotes', {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json', accept: 'application/json' },
+      body: JSON.stringify({ listingId: usedListingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1 })
+    });
+    const baseData = await baseRes.json();
+    const baseTotal = baseData.rates?.ratePlans?.[0]?.money?.invoiceItems?.reduce((s,i)=>s+(i.amount||0),0)
+      || baseData.money?.invoiceItems?.reduce((s,i)=>s+(i.amount||0),0)
+      || baseData.money?.total || baseData.money?.fareAccommodation || '(check money field)';
+
+    // Try creating quotes with coupon in body
     const attempts = ['couponCode','promoCode','promotionCode','coupon','promo','discountCode'];
     const results = {};
     for (const field of attempts) {
@@ -861,10 +872,14 @@ app.get('/api/debug/coupon', async (req, res) => {
         body: JSON.stringify({ listingId: usedListingId, checkInDateLocalized: checkIn, checkOutDateLocalized: checkOut, guestsCount: 1, [field]: code })
       });
       const d = await r.json();
-      results[field] = { status: r.status, quoteId: d._id, money: d.money, error: d.error };
+      const total = d.rates?.ratePlans?.[0]?.money?.invoiceItems?.reduce((s,i)=>s+(i.amount||0),0)
+        || d.money?.invoiceItems?.reduce((s,i)=>s+(i.amount||0),0)
+        || d.money?.total || d.money?.fareAccommodation;
+      const invoiceItems = d.rates?.ratePlans?.[0]?.money?.invoiceItems || d.money?.invoiceItems || [];
+      results[field] = { status: r.status, quoteId: d._id, total, discountApplied: total !== baseTotal, invoiceItems };
     }
 
-    res.json({ usedListingId, checkIn, checkOut, couponCode: code, results });
+    res.json({ usedListingId, checkIn, checkOut, couponCode: code, baseTotal, results });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
 

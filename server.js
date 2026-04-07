@@ -166,17 +166,34 @@ async function getListingFees(listingId) {
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data = await res.json();
+
+    // Check prices.fees array for a percentage-based service/management fee
+    const extraFees = data?.prices?.fees || data?.prices?.extraFees || [];
+    let serviceFeeRate = 0;
+    let serviceFeeFlat = 0;
+    for (const f of extraFees) {
+      const isServiceFee = /management|service|host/i.test(f.name || f.type || '');
+      if (isServiceFee) {
+        if (f.unit === 'PERCENT' || f.type === 'PERCENT') serviceFeeRate = (f.value || 0) / 100;
+        else if (f.unit === 'USD' || f.unit === 'FLAT') serviceFeeFlat = f.value || 0;
+        console.log(`Found listing service fee [${listingId}]: name=${f.name} type=${f.type} unit=${f.unit} value=${f.value}`);
+      }
+    }
+
     const fees = {
       cleaningFee:                data?.prices?.cleaningFee                || 0,
       extraPersonFee:             data?.prices?.extraPersonFee             || 0,
-      guestsIncludedInRegularFee: data?.prices?.guestsIncludedInRegularFee || 2
+      guestsIncludedInRegularFee: data?.prices?.guestsIncludedInRegularFee || 2,
+      serviceFeeRate,
+      serviceFeeFlat,
+      rawPrices: data?.prices  // kept for debug — not used in calculations
     };
     listingFeesCache[listingId] = fees;
-    console.log(`Listing fees [${listingId}]: cleaning=$${fees.cleaningFee} extraPerson=$${fees.extraPersonFee} baseGuests=${fees.guestsIncludedInRegularFee}`);
+    console.log(`Listing fees [${listingId}]: cleaning=$${fees.cleaningFee} svcRate=${fees.serviceFeeRate} svcFlat=${fees.serviceFeeFlat} extraPerson=$${fees.extraPersonFee} baseGuests=${fees.guestsIncludedInRegularFee}`);
     return fees;
   } catch(e) {
     console.warn('Could not fetch listing fees for', listingId, e.message);
-    const fallback = { cleaningFee: 0, extraPersonFee: 0, guestsIncludedInRegularFee: 2 };
+    const fallback = { cleaningFee: 0, extraPersonFee: 0, guestsIncludedInRegularFee: 2, serviceFeeRate: 0, serviceFeeFlat: 0 };
     listingFeesCache[listingId] = fallback;
     return fallback;
   }
@@ -232,8 +249,12 @@ function getApplicableRatePlan(quote) {
 
 // ── Extract pricing from Open API V3 quote ──
 // V3 money path: rates.ratePlans[n].money.money.* (double-nested)
-// Service fee: read from invoiceItems first, then fall back to env var (13.5%)
-function extractV3Pricing(quote) {
+// Service fee priority:
+//   1. V3 invoiceItems (normalType MF/SF or type matching management/service)
+//   2. V3 subTotalPrice delta vs accommodation+cleaning
+//   3. Listing-level prices.fees serviceFeeRate (from getListingFees)
+//   4. Env var SERVICE_FEE_RATE (13.5% default)
+function extractV3Pricing(quote, listingFees = null) {
   const rp = getApplicableRatePlan(quote);
   if (!rp) return null;
 
@@ -244,33 +265,44 @@ function extractV3Pricing(quote) {
   const taxes         = moneyData?.totalTaxes   || 0;
   const subTotal      = moneyData?.subTotalPrice || (accommodation + cleaningFee);
 
-  // Look for service/management fee in V3 invoice items first
+  // Tier 1: V3 invoice items
   const invoiceItems = moneyData?.invoiceItems || [];
   const feeItem = invoiceItems.find(i =>
     i.normalType === 'MF' || i.normalType === 'SF' ||
     (typeof i.type === 'string' && /management|service/i.test(i.type))
   );
   let serviceFee = feeItem ? Math.abs(feeItem.amount || 0) : 0;
+  let feeSource  = feeItem ? 'v3_invoice_item' : null;
 
-  // If V3 has no service fee invoice item, check subTotalPrice for any unexplained delta
+  // Tier 2: V3 subTotalPrice delta
   if (!serviceFee) {
     const delta = Math.round((subTotal - accommodation - cleaningFee) * 100) / 100;
-    if (delta > 0) serviceFee = delta;
+    if (delta > 0) { serviceFee = delta; feeSource = 'v3_subtotal_delta'; }
   }
 
-  // Last resort: fall back to env var rate (13.5% of accommodation + cleaning)
+  // Tier 3: listing-level prices.fees (now read from getListingFees)
+  if (!serviceFee && listingFees?.serviceFeeRate) {
+    serviceFee = Math.round((accommodation + cleaningFee) * listingFees.serviceFeeRate * 100) / 100;
+    feeSource = 'listing_prices_fees';
+  }
+  if (!serviceFee && listingFees?.serviceFeeFlat) {
+    serviceFee = listingFees.serviceFeeFlat;
+    feeSource = 'listing_prices_fees_flat';
+  }
+
+  // Tier 4: env var fallback (SERVICE_FEE_RATE, default 13.5%)
   if (!serviceFee) {
     const { serviceFeeRate } = getFeeRates();
     serviceFee = Math.round((accommodation + cleaningFee) * serviceFeeRate * 100) / 100;
+    feeSource = 'env_var_fallback';
   }
 
   serviceFee = Math.max(0, serviceFee);
-  const total = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
+  const total      = Math.round((accommodation + cleaningFee + serviceFee + taxes) * 100) / 100;
   const nightlyAvg = nights > 0 ? Math.round(accommodation / nights * 100) / 100 : 0;
   const ratePlanId = rp.ratePlan?._id || 'default-rateplan-id';
 
-  const feeSource = feeItem ? 'v3_invoice_item' : (subTotal > accommodation + cleaningFee ? 'v3_subtotal_delta' : 'env_var_fallback');
-  console.log(`V3 Pricing [${quote.unitId}] (${feeSource}): nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + svc=$${serviceFee} + taxes=$${taxes} = $${total}`);
+  console.log(`V3 Pricing [${quote.unitId || quote.listingId}] (${feeSource}): nightly=$${nightlyAvg} × ${nights} + cleaning=$${cleaningFee} + svc=$${serviceFee} + taxes=$${taxes} = $${total}`);
   return { nightlyAvg, nights, accommodation, cleaningFee, serviceFee, taxes, total, ratePlanId, quoteId: quote._id, feeSource };
 }
 
@@ -386,7 +418,8 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
       return res.json({ success: true, available: false, error: 'No available rate plan for these dates' });
     }
 
-    const pricing = extractV3Pricing(quoteData);
+    const listingFees = await getListingFees(listingId);
+    const pricing = extractV3Pricing(quoteData, listingFees);
     const days    = rp.days || [];
     const result  = { available: true, quoteId: quoteData._id, days, ...pricing };
     setCache(cacheKey, result, 30 * 1000);
@@ -478,7 +511,8 @@ app.post('/api/website/apply-coupon', async (req, res) => {
     if (qStatus < 200 || qStatus > 299 || !quote._id) {
       return res.status(400).json({ success: false, error: 'Could not create quote for these dates' });
     }
-    const basePricing = extractV3Pricing(quote);
+    const listingFees = await getListingFees(listingId);
+    const basePricing = extractV3Pricing(quote, listingFees);
     if (!basePricing) return res.status(400).json({ success: false, error: 'Could not read pricing from quote' });
 
     // Apply coupon via Guesty Open API
@@ -497,7 +531,7 @@ app.post('/api/website/apply-coupon', async (req, res) => {
     }
 
     const updatedQuote = await couponRes.json();
-    const updatedPricing = extractV3Pricing(updatedQuote);
+    const updatedPricing = extractV3Pricing(updatedQuote, listingFees);
     if (!updatedPricing) return res.json({ success: false, error: 'Could not read updated pricing' });
 
     const discount = Math.max(0, Math.round((basePricing.total - updatedPricing.total) * 100) / 100);
@@ -681,7 +715,8 @@ app.post('/api/website/reserve', async (req, res) => {
     if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
       throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
     }
-    const pricing    = extractV3Pricing(quoteData);
+    const listingFees = await getListingFees(listingId);
+    const pricing    = extractV3Pricing(quoteData, listingFees);
     let   quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
     console.log('V3 Quote created:', quoteId, 'Total:', pricing.total);

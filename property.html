@@ -235,6 +235,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .mob-cal-d.ci,.mob-cal-d.co{background:var(--accent)!important;color:#fff!important;font-weight:700;border-radius:4px}
 .mob-cal-d.in-range{background:rgba(44,74,62,.1);color:var(--accent)}
 .mob-cal-d.checkout-only{color:var(--mid)}
+.mob-cal-d.min-nights-blocked{color:#e0e0e0;cursor:not-allowed}
 .mob-cal-d.today{font-weight:800}.mob-cal-d.today.avail{text-decoration:underline}.mob-cal-d.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:#C9A96E;margin:1px auto 0}
 #mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;backdrop-filter:blur(2px)}
 #mob-overlay.open{display:block}
@@ -1151,16 +1152,19 @@ function renderMobMonthGrid(year, month, today) {
     const isPast = new Date(ds+'T12:00:00') < today;
     const isToday = ds === todayStr;
     const inRange = mobCI && mobCO && ds > mobCI && ds < mobCO;
+    const earliestCO = mobCI && mobCalMode === 'checkout' ? getEarliestCheckout(mobCI) : null;
+    const isMinBlocked = earliestCO && ds > mobCI && ds < earliestCO;
     let cls = 'mob-cal-d';
     if (isPast) cls += ' past';
     else if (isBlocked && !isCoOnly) cls += ' blocked';
+    else if (isMinBlocked) cls += ' min-nights-blocked';
     else if (isCoOnly) cls += ' checkout-only avail';
     else cls += ' avail';
     if (ds === mobCI) cls += ' ci';
     else if (ds === mobCO) cls += ' co';
     else if (inRange) cls += ' in-range';
     if (isToday) cls += ' today';
-    const canClick = !isPast && (!isBlocked || (isCoOnly && mobCalMode==='checkout'));
+    const canClick = !isPast && !isMinBlocked && (!isBlocked || (isCoOnly && mobCalMode==='checkout'));
     html += `<div class="${cls}"${canClick?` onclick="selectMobDate('${ds}',${isCoOnly})"`:''} >${d}</div>`;
   }
   return html;
@@ -1168,9 +1172,19 @@ function renderMobMonthGrid(year, month, today) {
 function selectMobDate(ds, isCoOnly) {
   if (mobCalMode === 'checkin') {
     mobCI = ds; mobCO = null; mobCalMode = 'checkout';
+    const mn = getMinNights(ds);
+    const hintEl = document.getElementById('mob-cal-hint');
+    hintEl.textContent = mn > 1 ? `${mn}-night minimum stay` : 'Select check-out date';
     updateMobSelDates(); renderMobCal(); return;
   }
   if (ds <= mobCI) { mobCI = ds; mobCO = null; updateMobSelDates(); renderMobCal(); return; }
+  // Enforce minimum nights
+  const earliestCO = getEarliestCheckout(mobCI);
+  if (ds < earliestCO) {
+    const mn = getMinNights(mobCI);
+    document.getElementById('mob-cal-hint').textContent = `${mn}-night minimum — choose a later check-out`;
+    return;
+  }
   // Check range for mid-stay blocks
   const s = new Date(mobCI+'T12:00:00'), e = new Date(ds+'T12:00:00');
   for(let dt=new Date(s); dt<e; dt.setDate(dt.getDate()+1)) {
@@ -1182,6 +1196,7 @@ function selectMobDate(ds, isCoOnly) {
   }
   mobCO = ds; mobCalMode = 'checkin';
   selectedCheckIn = mobCI; selectedCheckOut = mobCO;
+  document.getElementById('mob-cal-hint').textContent = '';
   updateMobSelDates(); renderMobCal();
   checkMobAvail(mobCI, mobCO);
 }

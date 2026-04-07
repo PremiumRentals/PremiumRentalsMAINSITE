@@ -192,22 +192,27 @@ function getFeeRates() {
 }
 
 // ── Create Open API V3 quote ──
-async function createV3Quote(openToken, { listingId, checkIn, checkOut, guests }) {
+// strict=false (default): permissive — for pricing/availability checks
+// strict=true: enforce all calendar/term rules — for actual reservation creation
+async function createV3Quote(openToken, { listingId, checkIn, checkOut, guests }, { strict = false } = {}) {
   const guestCount = parseInt(guests) || 1;
+  const body = {
+    listingId,
+    checkInDateLocalized:  checkIn,
+    checkOutDateLocalized: checkOut,
+    guestsCount: guestCount,
+    numberOfGuests: { numberOfAdults: guestCount, numberOfChildren: 0, numberOfInfants: 0 },
+    source: 'OAPI'
+  };
+  if (strict) {
+    body.ignoreCalendar = false;
+    body.ignoreTerms    = false;
+    body.ignoreBlocks   = false;
+  }
   const res = await fetch('https://open-api.guesty.com/v1/quotes', {
     method: 'POST',
     headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      listingId,
-      checkInDateLocalized:  checkIn,
-      checkOutDateLocalized: checkOut,
-      guestsCount: guestCount,
-      numberOfGuests: { numberOfAdults: guestCount, numberOfChildren: 0, numberOfInfants: 0 },
-      source: 'DIRECT',
-      ignoreCalendar: false,
-      ignoreTerms:    false,
-      ignoreBlocks:   false
-    })
+    body: JSON.stringify(body)
   });
   const text = await res.text();
   let data;
@@ -647,9 +652,9 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Payment provider:', paymentProviderId);
     } catch(e) { console.warn('Could not get payment provider:', e.message); }
 
-    // ── Step 3: Create Open API V3 quote ──
+    // ── Step 3: Create Open API V3 quote (strict — enforce all calendar/term rules) ──
     console.log('Creating V3 quote...');
-    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
+    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests }, { strict: true });
     if (qStatus !== 200 || !quoteData._id) {
       throw new Error('Failed to create quote: ' + JSON.stringify(quoteData).slice(0, 200));
     }

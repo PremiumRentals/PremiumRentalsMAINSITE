@@ -821,7 +821,11 @@ app.get('/api/debug/reviews', async (req, res) => {
 // ── Debug: coupon test — hit /api/debug/coupon?code=TRAVELLIKETIFF
 app.get('/api/debug/coupon', async (req, res) => {
   try {
-    const { code, checkIn = '2025-06-01', checkOut = '2025-06-05' } = req.query;
+    const d1 = new Date(); d1.setDate(d1.getDate()+14);
+    const d2 = new Date(); d2.setDate(d2.getDate()+18);
+    const defaultIn  = d1.toISOString().split('T')[0];
+    const defaultOut = d2.toISOString().split('T')[0];
+    const { code, checkIn = defaultIn, checkOut = defaultOut } = req.query;
     if (!code) return res.status(400).json({ error: 'code param required' });
     const token = await getBeApiToken();
 

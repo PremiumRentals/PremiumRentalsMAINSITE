@@ -867,10 +867,30 @@ app.get('/api/debug/coupon', async (req, res) => {
     });
     const withData = await withRes.json();
 
+    // BE-API coupon in body is silently ignored — check Open API for promotions
+    const openToken = await getOpenApiToken();
+    const promoEndpoints = [
+      '/v1/promotions',
+      '/v1/promotions/codes',
+      `/v1/promotions?code=${code}`,
+      `/v1/promotions?couponCode=${code}`,
+      `/v1/coupons`,
+      `/v1/coupons?code=${code}`,
+    ];
+    const openApiResults = {};
+    for (const ep of promoEndpoints) {
+      try {
+        const r = await fetch(`https://open-api.guesty.com${ep}`, { headers: { Authorization: `Bearer ${openToken}` } });
+        const d = await r.json();
+        openApiResults[ep] = { status: r.status, count: (d.results||d.data||[]).length, sample: d.results?.[0] || d.data?.[0] || d };
+      } catch(e) { openApiResults[ep] = { error: e.message }; }
+    }
+
     res.json({
-      usedListingId, checkIn, checkOut, couponCode: code,
-      baseline: { quoteId: baseData._id, money: baseData.money, rates: baseData.rates },
-      withCoupon: { quoteId: withData._id, money: withData.money, rates: withData.rates }
+      conclusion: 'BE-API couponCode field is silently ignored (identical totals). Checking Open API for promotions.',
+      baseTotal: baseData.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice,
+      withCouponTotal: withData.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice,
+      openApiPromoEndpoints: openApiResults
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

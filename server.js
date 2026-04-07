@@ -406,37 +406,44 @@ app.get('/api/website/reviews', async (req, res) => {
     const listingId = req.query.listingId;
     const cacheKey  = listingId ? `reviews_${listingId}` : 'reviews_all';
     const cached    = getCache(cacheKey);
-    if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
+    // Use !== null check — empty array [] is truthy but should NOT be a cache hit
+    if (cached !== null && cached.length > 0) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
 
-    const token = await getOpenApiToken();
-    // Fetch without fields filter — rating/text are nested in rawReview, fields param strips them
-    const response = await fetch(
-      'https://open-api.guesty.com/v1/reviews?limit=200',
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data       = await response.json();
-    const allReviews = data.results || data.data || [];
+    // Check if we already have all reviews cached — avoid re-fetching Guesty
+    let fourPlus = getCache('reviews_all');
+    if (!fourPlus || fourPlus.length === 0) {
+      const token = await getOpenApiToken();
+      // Fetch without fields filter — rating/text are nested in rawReview
+      const response = await fetch(
+        'https://open-api.guesty.com/v1/reviews?limit=200',
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await response.json();
+      const allReviews = data.results || data.data || [];
 
-    // Guesty stores rating in rawReview.overall_rating and text in rawReview.public_review
-    const fourPlus = allReviews
-      .filter(r => {
-        const rating = r.rawReview?.overall_rating ?? r.rating;
-        const text   = r.rawReview?.public_review  ?? r.publicReview ?? '';
-        return rating >= 4 && text.trim().length > 20;
-      })
-      .map(r => ({
-        _id:          r._id,
-        listingId:    r.listingId,
-        createdAt:    r.createdAt,
-        rating:       r.rawReview?.overall_rating ?? r.rating ?? 5,
-        publicReview: r.rawReview?.public_review  ?? r.publicReview ?? '',
-        reviewer:     r.reviewer || null
-      }));
+      // Guesty stores rating in rawReview.overall_rating and text in rawReview.public_review
+      fourPlus = allReviews
+        .filter(r => {
+          const rating = r.rawReview?.overall_rating ?? r.rating;
+          const text   = r.rawReview?.public_review  ?? r.publicReview ?? '';
+          return rating >= 4 && text.trim().length > 20;
+        })
+        .map(r => ({
+          _id:          r._id,
+          listingId:    r.listingId,
+          createdAt:    r.createdAt,
+          rating:       r.rawReview?.overall_rating ?? r.rating ?? 5,
+          publicReview: r.rawReview?.public_review  ?? r.publicReview ?? '',
+          reviewer:     r.reviewer || null
+        }));
 
-    const filtered  = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
-    console.log(`Reviews: ${allReviews.length} raw, ${fourPlus.length} qualifying (4★+), ${filtered.length} for listing ${listingId||'all'}`);
-    setCache('reviews_all', fourPlus, 60 * 60 * 1000);
-    if (listingId) setCache(cacheKey, filtered, 60 * 60 * 1000);
+      console.log(`Reviews fetched from Guesty: ${allReviews.length} raw, ${fourPlus.length} qualifying (4★+)`);
+      if (fourPlus.length > 0) setCache('reviews_all', fourPlus, 60 * 60 * 1000);
+    }
+
+    const filtered = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
+    console.log(`Reviews for listing ${listingId||'all'}: ${filtered.length}`);
+    if (filtered.length > 0) setCache(cacheKey, filtered, 60 * 60 * 1000);
     res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

@@ -856,10 +856,17 @@ app.get('/api/debug/coupon', async (req, res) => {
     let couponData;
     try { couponData = JSON.parse(couponText); } catch(e) { couponData = { raw: couponText.slice(0, 500) }; }
 
-    // Extract totals for comparison
-    const baseTotal   = oqBaseData?.money?.subTotalPrice ?? oqBaseData?.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice;
-    const afterTotal  = couponData?.money?.subTotalPrice ?? couponData?.rates?.ratePlans?.[0]?.ratePlan?.money?.subTotalPrice;
-    const invoiceItems = couponData?.money?.invoiceItems || couponData?.invoiceItems || [];
+    // Extract totals — correct path: rates.ratePlans[0].money.money.*
+    const baseMoneyObj  = oqBaseData?.rates?.ratePlans?.[0]?.money?.money;
+    const afterMoneyObj = couponData?.rates?.ratePlans?.[0]?.money?.money;
+    const baseTotal  = baseMoneyObj?.subTotalPrice;
+    const afterTotal = afterMoneyObj?.subTotalPrice;
+    const baseTaxes  = baseMoneyObj?.totalTaxes  || 0;
+    const afterTaxes = afterMoneyObj?.totalTaxes || 0;
+    const baseGrandTotal  = baseTotal  != null ? Math.round((baseTotal  + baseTaxes)  * 100) / 100 : null;
+    const afterGrandTotal = afterTotal != null ? Math.round((afterTotal + afterTaxes) * 100) / 100 : null;
+    const invoiceItems    = afterMoneyObj?.invoiceItems || [];
+    const couponItem      = invoiceItems.find(i => i.type === 'DISCOUNT' || i.normalType === 'CO');
 
     res.json({
       listingId:   usedListingId,
@@ -867,13 +874,13 @@ app.get('/api/debug/coupon', async (req, res) => {
       checkIn,
       checkOut,
       openApiBaseQuoteStatus: oqBaseRes.status,
-      openApiBaseQuoteFields: oqBaseData && !oqBaseData.raw ? Object.keys(oqBaseData) : oqBaseData,
       couponApplyStatus: couponRes.status,
-      baseTotal,
-      afterTotal,
-      discountApplied: afterTotal != null && baseTotal != null && afterTotal < baseTotal,
-      invoiceItems,
-      couponRawResponse: couponData
+      basePricing:  { accommodation: baseMoneyObj?.fareAccommodation, cleaning: baseMoneyObj?.fareCleaning, subtotal: baseTotal, taxes: baseTaxes, total: baseGrandTotal },
+      afterPricing: { accommodation: afterMoneyObj?.fareAccommodation, cleaning: afterMoneyObj?.fareCleaning, subtotal: afterTotal, taxes: afterTaxes, total: afterGrandTotal },
+      discountApplied: afterGrandTotal != null && baseGrandTotal != null && afterGrandTotal < baseGrandTotal,
+      discountAmount: baseGrandTotal != null && afterGrandTotal != null ? Math.round((baseGrandTotal - afterGrandTotal) * 100) / 100 : null,
+      couponItem,
+      couponsApplied: couponData?.coupons || []
     });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });

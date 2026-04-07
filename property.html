@@ -217,8 +217,41 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 @media(max-width:900px){#podium-website-widget{display:none!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.content-wrap{grid-template-columns:1fr 340px;gap:40px}}
+/* ── Mobile booking sheet ── */
+#mob-overlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:500;backdrop-filter:blur(2px)}
+#mob-overlay.open{display:block}
+#mob-sheet{position:fixed;bottom:0;left:0;right:0;z-index:501;background:#fff;border-radius:16px 16px 0 0;padding:0 0 env(safe-area-inset-bottom,16px);transform:translateY(100%);transition:transform .35s cubic-bezier(.32,0,.67,0);max-height:92vh;overflow-y:auto;-webkit-overflow-scrolling:touch}
+#mob-sheet.open{transform:translateY(0);transition:transform .35s cubic-bezier(.33,1,.68,1)}
+.mob-handle{width:40px;height:4px;background:#e0ddd8;border-radius:2px;margin:12px auto 0}
+.mob-sheet-head{display:flex;align-items:center;justify-content:space-between;padding:16px 20px 0}
+.mob-sheet-title{font-family:'Playfair Display',serif;font-size:18px;font-weight:500}
+.mob-close{background:none;border:1px solid #e0ddd8;width:32px;height:32px;border-radius:50%;font-size:18px;cursor:pointer;display:flex;align-items:center;justify-content:center;color:var(--mid);line-height:1}
+.mob-section{padding:16px 20px;border-bottom:1px solid #f0ede8}
+.mob-label{font-size:9px;font-weight:700;letter-spacing:1.5px;text-transform:uppercase;color:var(--mid);margin-bottom:8px}
+.mob-date-row{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.mob-date-box{border:1.5px solid #e0ddd8;border-radius:8px;padding:12px 14px;cursor:pointer;transition:border-color .2s}
+.mob-date-box.filled{border-color:var(--gold);background:rgba(201,169,110,.05)}
+.mob-date-box label{display:block;font-size:9px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);margin-bottom:4px;pointer-events:none}
+.mob-date-box input[type=date]{border:none;outline:none;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;color:var(--dark);background:transparent;width:100%;padding:0;cursor:pointer;color-scheme:light}
+.mob-guest-row{display:flex;align-items:center;justify-content:space-between}
+.mob-guest-ctrl{display:flex;align-items:center;gap:16px}
+.mob-guest-btn{width:38px;height:38px;border:1.5px solid #e0ddd8;border-radius:50%;background:transparent;font-size:20px;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:all .2s;color:var(--dark);line-height:1}
+.mob-guest-btn:disabled{opacity:.3;cursor:default}
+.mob-guest-btn:not(:disabled):hover{border-color:var(--gold);color:var(--gold)}
+.mob-guest-num{font-size:18px;font-weight:600;min-width:24px;text-align:center}
+.mob-avail{padding:10px 14px;border-radius:6px;font-size:13px;font-weight:500;margin:0 20px}
+.mob-avail.ok{background:rgba(44,74,62,.08);color:var(--accent)}
+.mob-avail.no{background:rgba(231,76,60,.08);color:#c0392b}
+.mob-price-section{padding:16px 20px}
+.mob-price-row{display:flex;justify-content:space-between;font-size:13px;color:var(--mid);padding:5px 0}
+.mob-price-row.total{font-weight:700;color:var(--dark);font-size:16px;border-top:1px solid #f0ede8;padding-top:12px;margin-top:6px}
+.mob-loading{text-align:center;font-size:13px;color:var(--mid);padding:16px 20px}
+.mob-reserve-btn{display:block;width:calc(100% - 40px);margin:0 20px 16px;background:var(--gold);color:#fff;border:none;padding:17px;border-radius:8px;font-family:'Inter',sans-serif;font-size:16px;font-weight:700;cursor:pointer;transition:background .2s;letter-spacing:.3px}
+.mob-reserve-btn:hover{background:#b8914e}
+.mob-reserve-btn:disabled{opacity:.5;cursor:default}
+.mob-note{text-align:center;font-size:11px;color:var(--mid);padding:0 20px 12px;line-height:1.6}
 @media(max-width:900px){
-  .content-wrap{grid-template-columns:1fr;padding-bottom:100px}
+  .content-wrap{grid-template-columns:1fr;padding-bottom:90px}
   .content-sidebar{display:none}
   .mobile-bar{display:flex}
   .gallery-grid{grid-template-columns:1fr 1fr;grid-template-rows:220px 220px;height:440px}
@@ -406,9 +439,61 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 <div class="mobile-bar">
   <div>
     <div class="mobile-bar-price serif" id="mobile-price">—</div>
-    <div style="font-size:11px;color:var(--mid)" id="mobile-price-sub">Select dates to see pricing</div>
+    <div style="font-size:11px;color:var(--mid)" id="mobile-price-sub">Tap to check availability</div>
   </div>
-  <button class="mobile-bar-btn" onclick="document.querySelector('.section-block').scrollIntoView({behavior:'smooth'})">Reserve</button>
+  <button class="mobile-bar-btn" onclick="openMobSheet()">Reserve</button>
+</div>
+
+<!-- Mobile booking sheet -->
+<div id="mob-overlay" onclick="closeMobSheet()"></div>
+<div id="mob-sheet">
+  <div class="mob-handle"></div>
+  <div class="mob-sheet-head">
+    <span class="mob-sheet-title serif">Book This Property</span>
+    <button class="mob-close" onclick="closeMobSheet()">×</button>
+  </div>
+
+  <div class="mob-section">
+    <div class="mob-label">Dates</div>
+    <div class="mob-date-row">
+      <div class="mob-date-box" id="mob-ci-box">
+        <label>Check-in</label>
+        <input type="date" id="mob-checkin" onchange="onMobDateChange()">
+      </div>
+      <div class="mob-date-box" id="mob-co-box">
+        <label>Check-out</label>
+        <input type="date" id="mob-checkout" onchange="onMobDateChange()">
+      </div>
+    </div>
+  </div>
+
+  <div class="mob-section">
+    <div class="mob-guest-row">
+      <div>
+        <div class="mob-label" style="margin-bottom:2px">Guests</div>
+        <div style="font-size:11px;color:var(--mid)" id="mob-guests-note">Max <span id="mob-max-guests">—</span></div>
+      </div>
+      <div class="mob-guest-ctrl">
+        <button class="mob-guest-btn" id="mob-guest-minus" onclick="changeMobGuests(-1)">−</button>
+        <span class="mob-guest-num" id="mob-guest-num">2</span>
+        <button class="mob-guest-btn" id="mob-guest-plus" onclick="changeMobGuests(1)">+</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="mob-loading" class="mob-loading" style="display:none">Checking availability…</div>
+  <div id="mob-avail" class="mob-avail" style="display:none"></div>
+
+  <div id="mob-price-section" class="mob-price-section" style="display:none">
+    <div class="mob-price-row"><span id="mob-nights-lbl">Accommodation</span><span id="mob-accom">—</span></div>
+    <div class="mob-price-row"><span>Cleaning fee</span><span id="mob-clean">—</span></div>
+    <div class="mob-price-row"><span>Service fee</span><span id="mob-svc">—</span></div>
+    <div class="mob-price-row"><span>Taxes</span><span id="mob-taxes">—</span></div>
+    <div class="mob-price-row total"><span>Total</span><span id="mob-total">—</span></div>
+  </div>
+
+  <button class="mob-reserve-btn" id="mob-reserve-btn" onclick="proceedBooking()" style="display:none">Reserve Now →</button>
+  <p class="mob-note">Free cancellation may apply · No charge today</p>
 </div>
 
 <div id="amenities-modal">
@@ -932,7 +1017,7 @@ async function checkAvailAndPrice(ci, co) {
 
 function proceedBooking() {
   const ci = selectedCheckIn, co = selectedCheckOut;
-  if (!ci || !co) { alert('Please select check-in and check-out dates first.'); return; }
+  if (!ci || !co) { showToast('Please select check-in and check-out dates first.'); return; }
   const p = new URLSearchParams({
     id:listingId, checkIn:ci, checkOut:co, guests:guestCount,
     maxGuests,
@@ -941,6 +1026,121 @@ function proceedBooking() {
     serviceFee:bookingData.serviceFee, taxes:bookingData.taxes, total:bookingData.total
   });
   window.location.href = `checkout.html?${p.toString()}`;
+}
+
+// ── Mobile booking sheet ──
+let mobGuestCount = 2;
+
+function openMobSheet() {
+  // Sync guest count with desktop
+  mobGuestCount = guestCount;
+  document.getElementById('mob-guest-num').textContent = mobGuestCount;
+  document.getElementById('mob-max-guests').textContent = maxGuests;
+  updateMobGuestBtns();
+  // Pre-fill dates if already selected
+  if (selectedCheckIn)  { document.getElementById('mob-checkin').value  = selectedCheckIn;  document.getElementById('mob-ci-box').classList.add('filled'); }
+  if (selectedCheckOut) { document.getElementById('mob-checkout').value = selectedCheckOut; document.getElementById('mob-co-box').classList.add('filled'); }
+  // Set min date
+  const today = new Date().toISOString().split('T')[0];
+  document.getElementById('mob-checkin').min  = today;
+  document.getElementById('mob-checkout').min = today;
+  // Pre-show pricing if already calculated
+  if (bookingData.total) updateMobPricing(true);
+  document.getElementById('mob-overlay').classList.add('open');
+  document.getElementById('mob-sheet').classList.add('open');
+  document.body.style.overflow = 'hidden';
+}
+
+function closeMobSheet() {
+  document.getElementById('mob-overlay').classList.remove('open');
+  document.getElementById('mob-sheet').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function updateMobGuestBtns() {
+  document.getElementById('mob-guest-minus').disabled = mobGuestCount <= 1;
+  document.getElementById('mob-guest-plus').disabled  = mobGuestCount >= maxGuests;
+}
+
+function changeMobGuests(delta) {
+  mobGuestCount = Math.max(1, Math.min(maxGuests, mobGuestCount + delta));
+  document.getElementById('mob-guest-num').textContent = mobGuestCount;
+  updateMobGuestBtns();
+  // Recheck availability if dates are set
+  const ci = document.getElementById('mob-checkin').value;
+  const co = document.getElementById('mob-checkout').value;
+  if (ci && co) { guestCount = mobGuestCount; checkMobAvail(ci, co); }
+}
+
+function onMobDateChange() {
+  const ci = document.getElementById('mob-checkin').value;
+  const co = document.getElementById('mob-checkout').value;
+  document.getElementById('mob-ci-box').classList.toggle('filled', !!ci);
+  document.getElementById('mob-co-box').classList.toggle('filled', !!co);
+  // Enforce checkout > checkin
+  if (ci) document.getElementById('mob-checkout').min = ci;
+  if (ci && co && co <= ci) { document.getElementById('mob-checkout').value = ''; document.getElementById('mob-co-box').classList.remove('filled'); return; }
+  if (ci && co) checkMobAvail(ci, co);
+}
+
+async function checkMobAvail(ci, co) {
+  // Sync to globals
+  selectedCheckIn  = ci;
+  selectedCheckOut = co;
+  guestCount = mobGuestCount;
+
+  const loadEl  = document.getElementById('mob-loading');
+  const availEl = document.getElementById('mob-avail');
+  const priceEl = document.getElementById('mob-price-section');
+  const resBtn  = document.getElementById('mob-reserve-btn');
+
+  loadEl.style.display  = 'block';
+  availEl.style.display = 'none';
+  priceEl.style.display = 'none';
+  resBtn.style.display  = 'none';
+
+  try {
+    const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${ci}&checkOut=${co}&guests=${mobGuestCount}`);
+    const data = await res.json();
+    loadEl.style.display = 'none';
+
+    if (data.available === false) {
+      availEl.className   = 'mob-avail no';
+      availEl.textContent = '✗ Unavailable — please try different dates';
+      availEl.style.display = 'block';
+      return;
+    }
+
+    availEl.className   = 'mob-avail ok';
+    availEl.textContent = '✓ Available!';
+    availEl.style.display = 'block';
+
+    if (data.total) {
+      bookingData = { nightlyAvg:data.nightlyAvg, nights:data.nights, accommodation:data.accommodation, cleaningFee:data.cleaningFee, serviceFee:data.serviceFee, taxes:data.taxes, total:data.total };
+      updateMobPricing(true);
+      document.getElementById('mobile-price').textContent     = `$${data.total.toLocaleString()} total`;
+      document.getElementById('mobile-price-sub').textContent = `$${data.nightlyAvg.toLocaleString()}/night · ${data.nights} night${data.nights!==1?'s':''}`;
+    }
+    resBtn.style.display = 'block';
+  } catch(e) {
+    loadEl.style.display  = 'none';
+    availEl.className     = 'mob-avail ok';
+    availEl.textContent   = '✓ Proceed to checkout to confirm availability';
+    availEl.style.display = 'block';
+    resBtn.style.display  = 'block';
+  }
+}
+
+function updateMobPricing(show) {
+  if (!bookingData.total) return;
+  const b = bookingData;
+  document.getElementById('mob-nights-lbl').textContent = `$${b.nightlyAvg?.toLocaleString()} × ${b.nights} night${b.nights!==1?'s':''}`;
+  document.getElementById('mob-accom').textContent  = `$${b.accommodation?.toLocaleString()}`;
+  document.getElementById('mob-clean').textContent  = b.cleaningFee ? `$${b.cleaningFee.toLocaleString()}` : 'Included';
+  document.getElementById('mob-svc').textContent    = `$${b.serviceFee?.toLocaleString()}`;
+  document.getElementById('mob-taxes').textContent  = `$${b.taxes?.toLocaleString()}`;
+  document.getElementById('mob-total').textContent  = `$${b.total?.toLocaleString()}`;
+  if (show) document.getElementById('mob-price-section').style.display = 'block';
 }
 
 // ── Map ──

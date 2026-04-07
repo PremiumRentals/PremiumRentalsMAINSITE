@@ -122,19 +122,33 @@ async function getOpenApiListingData() {
   if (cached) return cached;
   try {
     const token = await getOpenApiToken();
-    // No fields filter — we need publicDescription nested sub-fields
-    const res  = await fetch(
-      'https://open-api.guesty.com/v1/listings?limit=100',
-      { headers: { Authorization: `Bearer ${token}` } }
-    );
-    const data    = await res.json();
-    const results = data.results || data.data || [];
+    // Fetch all listings from Open API — no fields filter so nested publicDescription sub-fields are returned
+    // Also fetch page 2 if needed (limit=100 per page)
+    let results = [];
+    let skip = 0;
+    while (true) {
+      const res  = await fetch(
+        `https://open-api.guesty.com/v1/listings?limit=100&skip=${skip}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await res.json();
+      const page = data.results || data.data || [];
+      results = results.concat(page);
+      if (page.length < 100) break;
+      skip += 100;
+    }
     const enriched = {};
     results.forEach(l => {
-      enriched[l._id] = { publicDescription: l.publicDescription || null };
+      const desc = l.publicDescription || {};
+      enriched[l._id] = {
+        publicDescription: (desc.summary || desc.space || desc.access || desc.neighborhood)
+          ? desc : null
+      };
     });
     const descCount = Object.values(enriched).filter(e => e.publicDescription).length;
-    console.log(`Open API enrichment: ${results.length} fetched, ${descCount} with publicDescription`);
+    // Log a sample to verify field structure
+    const sample = results.slice(0,2).map(l => ({ id: l._id, descKeys: Object.keys(l.publicDescription||{}), summaryLen: (l.publicDescription?.summary||'').length }));
+    console.log(`Open API enrichment: ${results.length} listings, ${descCount} with description. Sample: ${JSON.stringify(sample)}`);
     setCache('openapi_listing_data', enriched, 60 * 60 * 1000);
     return enriched;
   } catch(e) {
@@ -387,7 +401,6 @@ app.post('/api/website/sync-pricing', async (req, res) => {
 });
 
 // ── Route 6: Reviews (Open API) ──
-// Supports ?listingId= to fetch reviews for a specific listing directly from Guesty
 app.get('/api/website/reviews', async (req, res) => {
   try {
     const listingId = req.query.listingId;
@@ -395,20 +408,30 @@ app.get('/api/website/reviews', async (req, res) => {
     const cached    = getCache(cacheKey);
     if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
 
-    const token  = await getOpenApiToken();
-    const params = new URLSearchParams({ limit: '200', fields: 'rating,publicReview,reviewer,listingId,createdAt' });
-    if (listingId) params.set('listingId', listingId);
-
+    const token = await getOpenApiToken();
+    // Fetch all reviews first (no listingId filter) — Guesty's listingId param may not match BE-API IDs
     const response = await fetch(
-      `https://open-api.guesty.com/v1/reviews?${params}`,
+      'https://open-api.guesty.com/v1/reviews?limit=200&fields=rating,publicReview,reviewer,listingId,listing,createdAt',
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data       = await response.json();
     const allReviews = data.results || data.data || [];
     const fourPlus   = allReviews.filter(r => r.rating >= 4 && r.publicReview?.trim().length > 20);
-    console.log(`Reviews fetched: ${allReviews.length} total, ${fourPlus.length} qualifying${listingId ? ` for listing ${listingId}` : ' (all)'}`);
-    setCache(cacheKey, fourPlus, 60 * 60 * 1000);
-    res.json({ success: true, count: fourPlus.length, reviews: fourPlus });
+
+    // Flexible ID matching: reviews may store listing ID in different fields
+    const matchId = (r, id) =>
+      r.listingId === id ||
+      r.listing?._id === id ||
+      r.listing?.id  === id ||
+      r.listingId === id.toString();
+
+    const filtered = listingId ? fourPlus.filter(r => matchId(r, listingId)) : fourPlus;
+    const sampleIds = [...new Set(allReviews.slice(0,20).map(r => r.listingId || r.listing?._id).filter(Boolean))].slice(0,5);
+    console.log(`Reviews: ${allReviews.length} total, ${fourPlus.length} qualifying, ${filtered.length} for listing ${listingId||'all'}. Sample listingIds: ${JSON.stringify(sampleIds)}`);
+    // Cache all reviews globally AND per-listing for fast subsequent lookups
+    setCache('reviews_all', fourPlus, 60 * 60 * 1000);
+    if (listingId) setCache(cacheKey, filtered, 60 * 60 * 1000);
+    res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length, sampleIds });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 

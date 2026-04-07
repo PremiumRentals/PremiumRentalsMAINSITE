@@ -166,7 +166,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <div><div class="stat-num">92%</div><div class="stat-lbl">Avg. Occupancy Rate</div></div>
     <div><div class="stat-num">38%</div><div class="stat-lbl">More Revenue vs. DIY</div></div>
     <div><div class="stat-num">$4.2K</div><div class="stat-lbl">Avg. Monthly Revenue</div></div>
-    <div><div class="stat-num">80+</div><div class="stat-lbl">Properties Managed</div></div>
+    <div><div class="stat-num" id="owner-stat-props">80+</div><div class="stat-lbl">Properties Managed</div></div>
   </div>
 </div>
 
@@ -285,7 +285,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   <div class="cta-box">
     <p class="section-label" style="text-align:center">Ready to Get Started?</p>
     <h2 class="serif">Let's Maximize Your Property's Potential</h2>
-    <p>Join 80+ property owners who trust Premium Rentals to manage their investment with care, technology, and a track record of exceptional results.</p>
+    <p>Join <span id="owner-cta-props">80+</span> property owners who trust Premium Rentals to manage their investment with care, technology, and a track record of exceptional results.</p>
     <div style="display:flex;gap:16px;justify-content:center;flex-wrap:wrap">
       <a href="/#contact" class="btn-primary">Get a Free Analysis</a>
       <a href="tel:2088073302" class="btn-outline" style="color:var(--dark);border-color:#e0ddd8">📞 208-807-3302</a>
@@ -310,6 +310,21 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
   </div>
 </footer>
 
+<script>
+(async () => {
+  try {
+    const res  = await fetch('https://premiumrentalsmainsite-production.up.railway.app/api/website/listings');
+    const data = await res.json();
+    if (data.success && data.count) {
+      const label = data.count + '+';
+      const el1 = document.getElementById('owner-stat-props');
+      const el2 = document.getElementById('owner-cta-props');
+      if (el1) el1.textContent = label;
+      if (el2) el2.textContent = label;
+    }
+  } catch(e) { /* keep fallback text */ }
+})();
+</script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>
 </html>

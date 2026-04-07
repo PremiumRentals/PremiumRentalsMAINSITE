@@ -368,7 +368,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
         <div class="owner-stat"><div class="owner-stat-num">92%</div><div class="owner-stat-lbl">Avg. Occupancy Rate</div></div>
         <div class="owner-stat"><div class="owner-stat-num">38%</div><div class="owner-stat-lbl">More Revenue vs. DIY</div></div>
         <div class="owner-stat"><div class="owner-stat-num">$4.2K</div><div class="owner-stat-lbl">Avg. Monthly Revenue</div></div>
-        <div class="owner-stat"><div class="owner-stat-num">80+</div><div class="owner-stat-lbl">Properties Managed</div></div>
+        <div class="owner-stat"><div class="owner-stat-num" id="stat-props-owner">80+</div><div class="owner-stat-lbl">Properties Managed</div></div>
       </div>
       <a href="owners.html" class="btn-primary" style="display:inline-block">Learn More</a>
     </div>
@@ -468,7 +468,12 @@ async function loadListings() {
     buildLocationDropdown();
     const shuffled = [...allListings].sort(() => Math.random() - 0.5);
     renderListings(shuffled.slice(0, 6));
-    if (allListings.length) document.getElementById('stat-props').textContent = allListings.length + '+';
+    if (allListings.length) {
+      const label = allListings.length + '+';
+      document.getElementById('stat-props').textContent = label;
+      const ownerEl = document.getElementById('stat-props-owner');
+      if (ownerEl) ownerEl.textContent = label;
+    }
   } catch(e) {
     console.warn('API not connected — showing placeholders');
     renderPlaceholders();

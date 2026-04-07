@@ -115,26 +115,43 @@ const listingFeesCache = {};
 // ── Listing coordinates (Open API) ──
 // BE-API listings don't include lat/lng for the map
 // Fetched from Open API once per hour and merged into listings response
-async function getListingCoords() {
-  const cached = getCache('listing_coords');
+// ── Open API listing enrichment (coords + full description) ──
+// BE-API listings lack lat/lng and full publicDescription sub-fields
+// Fetched from Open API once per hour and merged into listings response
+async function getOpenApiListingData() {
+  const cached = getCache('openapi_listing_data');
   if (cached) return cached;
   try {
-    const token  = await getOpenApiToken();
-    const res    = await fetch('https://open-api.guesty.com/v1/listings?limit=100&fields=_id,address', {
-      headers: { Authorization: `Bearer ${token}` }
+    const token = await getOpenApiToken();
+    const res   = await fetch(
+      'https://open-api.guesty.com/v1/listings?limit=100&fields=_id,address,publicDescription',
+      { headers: { Authorization: `Bearer ${token}` } }
+    );
+    const data    = await res.json();
+    const results = data.results || data.data || [];
+    const enriched = {};
+    let sampleLog = [];
+    results.forEach(l => {
+      const addr = l.address || {};
+      // Guesty may use lat/lng, latitude/longitude, or nested geoCode
+      const lat = addr.lat ?? addr.latitude ?? addr.geoCode?.lat ?? null;
+      const lng = addr.lng ?? addr.longitude ?? addr.geoCode?.lng ?? null;
+      enriched[l._id] = {
+        lat: lat ? parseFloat(lat) : null,
+        lng: lng ? parseFloat(lng) : null,
+        publicDescription: l.publicDescription || null
+      };
+      if (sampleLog.length < 3) sampleLog.push({
+        id: l._id,
+        lat, lng,
+        descFields: Object.keys(l.publicDescription || {})
+      });
     });
-    const data   = await res.json();
-    const coords = {};
-    (data.results || []).forEach(l => {
-      if (l.address?.lat && l.address?.lng) {
-        coords[l._id] = { lat: l.address.lat, lng: l.address.lng };
-      }
-    });
-    setCache('listing_coords', coords, 60 * 60 * 1000);
-    console.log(`Listing coords cached: ${Object.keys(coords).length} with lat/lng`);
-    return coords;
+    console.log(`Open API enrichment: ${results.length} listings fetched, sample: ${JSON.stringify(sampleLog)}`);
+    setCache('openapi_listing_data', enriched, 60 * 60 * 1000);
+    return enriched;
   } catch(e) {
-    console.warn('Could not fetch listing coords:', e.message);
+    console.warn('Could not fetch Open API listing data:', e.message);
     return {};
   }
 }
@@ -246,19 +263,28 @@ app.get('/api/website/listings', async (req, res) => {
     });
     const data    = await response.json();
     const results = data.results || [];
-    // Enrich with Open API coordinates (BE-API doesn't include lat/lng)
+    // Enrich with Open API data (coords + full publicDescription)
     try {
-      const coords = await getListingCoords();
-      const enriched = Object.keys(coords).length;
+      const enriched = await getOpenApiListingData();
+      let coordCount = 0, descCount = 0;
       results.forEach(l => {
-        if (coords[l._id] && (!l.address?.lat || !l.address?.lng)) {
+        const e = enriched[l._id];
+        if (!e) return;
+        // Merge coordinates
+        if (e.lat && e.lng && (!l.address?.lat || !l.address?.lng)) {
           l.address = l.address || {};
-          l.address.lat = coords[l._id].lat;
-          l.address.lng = coords[l._id].lng;
+          l.address.lat = e.lat;
+          l.address.lng = e.lng;
+          coordCount++;
+        }
+        // Merge full publicDescription (BE-API only returns summary)
+        if (e.publicDescription) {
+          l.publicDescription = Object.assign({}, l.publicDescription || {}, e.publicDescription);
+          descCount++;
         }
       });
-      console.log(`Coords merged: ${enriched} available, applied to listings`);
-    } catch(e) { console.warn('Coords merge failed:', e.message); }
+      console.log(`Enriched: ${coordCount} with coords, ${descCount} with full description`);
+    } catch(e) { console.warn('Enrichment merge failed:', e.message); }
     setCache('listings_all', results, 5 * 60 * 1000);
     res.json({ success: true, count: results.length, listings: results, cached: false });
   } catch(e) {
@@ -665,6 +691,22 @@ app.post('/api/website/reserve', async (req, res) => {
     console.error('Reserve error:', e.message);
     res.status(500).json({ success: false, error: e.message });
   }
+});
+
+// ── Debug: coords ──
+app.get('/api/debug/coords', async (req, res) => {
+  try {
+    delete cache['openapi_listing_data'];
+    const data = await getOpenApiListingData();
+    const entries = Object.entries(data);
+    const withCoords = entries.filter(([,v]) => v.lat && v.lng).length;
+    const withDesc   = entries.filter(([,v]) => v.publicDescription).length;
+    const sample = entries.slice(0, 5).map(([id, v]) => ({
+      id, lat: v.lat, lng: v.lng,
+      descFields: Object.keys(v.publicDescription || {})
+    }));
+    res.json({ total: entries.length, withCoords, withDesc, sample });
+  } catch(e) { res.status(500).json({ error: e.message }); }
 });
 
 // ── Health check ──

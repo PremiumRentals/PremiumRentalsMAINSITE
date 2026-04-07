@@ -56,6 +56,9 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .filter-btn:hover{background:#1e3329}
 .filter-clear{background:transparent;color:var(--mid);border:1px solid #e0ddd8;padding:10px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all .25s;white-space:nowrap}
 .filter-clear:hover{border-color:var(--gold);color:var(--gold)}
+.filter-saved{background:transparent;color:var(--mid);border:1px solid #e0ddd8;padding:10px 16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;cursor:pointer;transition:all .25s;white-space:nowrap}
+.filter-saved:hover{border-color:#c0392b;color:#c0392b}
+.filter-saved.active{background:#c0392b;border-color:#c0392b;color:#fff}
 .results-count{font-size:13px;color:var(--mid);margin-left:auto;padding-bottom:1px}
 .main-layout{display:grid;grid-template-columns:1fr 440px;height:calc(100vh - 72px - 57px - 130px);min-height:600px}
 .cards-col{overflow-y:auto;padding:28px 32px 40px;background:var(--light)}
@@ -165,6 +168,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
     </div>
     <button class="filter-btn" onclick="applyFilters()">Search</button>
     <button class="filter-clear" onclick="clearFilters()">Clear</button>
+    <button class="filter-saved" id="saved-toggle" onclick="toggleSavedView()">♡ Saved</button>
     <span class="results-count" id="results-count"></span>
   </div>
 </div>
@@ -259,6 +263,7 @@ async function loadListings() {
 
     if (locParam || checkinParam || guestsParam) applyFilters();
     else renderAll();
+    updateSavedBtn();
 
   } catch(e) {
     console.warn('Could not load listings:', e.message);
@@ -316,13 +321,13 @@ function clearFilters() {
 
 function renderAll() {
   document.getElementById('results-count').textContent = `${filteredListings.length} properties`;
-  renderCards();
-  renderMapPins();
+  renderCards(filteredListings);
+  renderMapPins(filteredListings);
 }
 
-function renderCards() {
+function renderCards(listings) {
   const grid = document.getElementById('properties-grid');
-  if (!filteredListings.length) {
+  if (!listings.length) {
     grid.innerHTML = `
       <div class="empty-state">
         <h3 class="serif">No properties found</h3>
@@ -331,16 +336,18 @@ function renderCards() {
       </div>`;
     return;
   }
-  grid.innerHTML = filteredListings.map(l => {
+  const saved = getSaved();
+  grid.innerHTML = listings.map(l => {
     const photo = l.pictures?.[0]?.original || l.pictures?.[0]?.thumbnail || 'https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=75';
     const city  = [l.address?.city, l.address?.state].filter(Boolean).join(', ');
     const name  = l.title || l.nickname || 'Luxury Property';
     const desc  = l.publicDescription?.summary || '';
+    const isSaved = saved.includes(l._id);
     return `
       <a class="prop-card" id="card-${l._id}" href="property.html?id=${l._id}">
         <div class="prop-img-wrap">
           <img src="${photo}" alt="${name}" loading="lazy" onerror="this.src='https://images.unsplash.com/photo-1512917774080-9991f1c4c750?w=400&q=75'">
-          <button class="prop-fav" onclick="event.preventDefault();event.stopPropagation();toggleFav(this)">♡</button>
+          <button class="prop-fav" data-id="${l._id}" onclick="event.preventDefault();event.stopPropagation();toggleFav(this,'${l._id}')" style="${isSaved?'color:#c0392b':''}">${isSaved?'♥':'♡'}</button>
         </div>
         <div class="prop-body">
           <div>
@@ -362,12 +369,12 @@ function renderCards() {
   }).join('');
 }
 
-function renderMapPins() {
+function renderMapPins(listings) {
   markers.forEach(m => m.setMap(null)); markers = [];
   if (!map) return;
   const bounds = new google.maps.LatLngBounds();
   let validCoords = 0;
-  filteredListings.forEach(l => {
+  listings.forEach(l => {
     const lat = l.address?.lat, lng = l.address?.lng;
     if (!lat || !lng) return;
     validCoords++;
@@ -400,10 +407,66 @@ function highlightCard(id) {
   if (card) { card.classList.add('highlighted'); card.scrollIntoView({behavior:'smooth',block:'nearest'}); }
 }
 
-function toggleFav(btn) {
-  const on = btn.textContent === '♥';
-  btn.textContent = on ? '♡' : '♥';
-  btn.style.color = on ? '' : '#e74c3c';
+// ── Saved listings (localStorage) ──
+const SAVED_KEY = 'pr_saved_listings';
+let showingSaved = false;
+function getSaved(){ try{ return JSON.parse(localStorage.getItem(SAVED_KEY)||'[]'); }catch(e){ return []; } }
+function setSaved(arr){ localStorage.setItem(SAVED_KEY, JSON.stringify(arr)); updateSavedBtn(); }
+
+function updateSavedBtn(){
+  const saved = getSaved();
+  const btn = document.getElementById('saved-toggle');
+  if(!btn) return;
+  if(showingSaved){
+    btn.classList.add('active');
+    btn.textContent = `♥ Saved (${saved.length})`;
+  } else {
+    btn.classList.remove('active');
+    btn.textContent = saved.length ? `♡ Saved (${saved.length})` : '♡ Saved';
+  }
+}
+
+function toggleFav(btn, listingId){
+  const saved = getSaved();
+  const idx = saved.indexOf(listingId);
+  if(idx === -1){ saved.push(listingId); btn.textContent='♥'; btn.style.color='#c0392b'; }
+  else { saved.splice(idx,1); btn.textContent='♡'; btn.style.color=''; }
+  setSaved(saved);
+  if(showingSaved) applySavedFilter();
+}
+
+function toggleSavedView(){
+  showingSaved = !showingSaved;
+  updateSavedBtn();
+  if(showingSaved) applySavedFilter();
+  else renderAll();
+}
+
+function applySavedFilter(){
+  const saved = getSaved();
+  if(!saved.length){
+    document.getElementById('properties-grid').innerHTML = `
+      <div class="empty-state">
+        <h3 class="serif">No saved properties</h3>
+        <p>Tap the ♡ on any property to save it here.</p>
+        <button onclick="toggleSavedView()" style="background:var(--gold);color:#fff;border:none;padding:10px 24px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;margin-top:12px">Browse All</button>
+      </div>`;
+    document.getElementById('results-count').textContent = '0 saved';
+    return;
+  }
+  const savedListings = allListings.filter(l => saved.includes(l._id));
+  document.getElementById('results-count').textContent = `${savedListings.length} saved`;
+  renderCards(savedListings);
+  renderMapPins(savedListings);
+}
+
+function initFavButtons(){
+  const saved = getSaved();
+  document.querySelectorAll('.prop-fav').forEach(btn => {
+    const id = btn.dataset.id;
+    if(saved.includes(id)){ btn.textContent='♥'; btn.style.color='#c0392b'; }
+  });
+  updateSavedBtn();
 }
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>

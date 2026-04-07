@@ -345,17 +345,23 @@ app.post('/api/website/sync-pricing', async (req, res) => {
 app.get('/api/website/reviews', async (req, res) => {
   try {
     const cached = getCache('reviews');
-    if (cached) return res.json({ success: true, count: cached.length, reviews: cached, cached: true });
+    if (cached) {
+      const listingId = req.query.listingId;
+      const filtered  = listingId ? cached.filter(r => r.listingId === listingId) : cached;
+      return res.json({ success: true, count: filtered.length, reviews: filtered, total: cached.length, cached: true });
+    }
     const token    = await getOpenApiToken();
     const response = await fetch(
-      'https://open-api.guesty.com/v1/reviews?limit=50&fields=rating,publicReview,reviewer,listingId,createdAt',
+      'https://open-api.guesty.com/v1/reviews?limit=200&fields=rating,publicReview,reviewer,listingId,createdAt',
       { headers: { Authorization: `Bearer ${token}` } }
     );
     const data       = await response.json();
     const allReviews = data.results || data.data || [];
-    const fiveStars  = allReviews.filter(r => r.rating >= 5 && r.publicReview?.trim().length > 20);
-    setCache('reviews', fiveStars, 60 * 60 * 1000);
-    res.json({ success: true, count: fiveStars.length, reviews: fiveStars });
+    const fourPlus   = allReviews.filter(r => r.rating >= 4 && r.publicReview?.trim().length > 20);
+    const listingId  = req.query.listingId;
+    const filtered   = listingId ? fourPlus.filter(r => r.listingId === listingId) : fourPlus;
+    setCache('reviews', fourPlus, 60 * 60 * 1000);
+    res.json({ success: true, count: filtered.length, reviews: filtered, total: fourPlus.length });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });
 
@@ -366,6 +372,18 @@ app.post('/api/website/contact', async (req, res) => {
     const { error } = await supabase.from('website_contacts')
       .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
     if (error) throw error;
+    // Notify via Formspree (non-blocking)
+    fetch('https://formspree.io/f/xeepnaeo', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify({
+        name: `${firstName || ''} ${lastName || ''}`.trim(),
+        email: email || '',
+        _subject: `New Inquiry — ${interest || 'General'} — Premium Rentals`,
+        interest: interest || '',
+        message: message || ''
+      })
+    }).catch(() => {}); // fire-and-forget, never block the response
     res.json({ success: true });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

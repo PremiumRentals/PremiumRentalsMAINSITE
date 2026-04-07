@@ -11,6 +11,8 @@
 </script>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+<link rel="icon" type="image/svg+xml" href="/favicon.svg">
+<link rel="shortcut icon" href="/favicon.svg">
 <meta name="description" content="Luxury vacation rental in Idaho's Treasure Valley. Book directly for the best rate. Hot tubs, pools, and premium amenities.">
 <meta name="robots" content="index, follow">
 <link rel="canonical" href="https://premiumrentals.com/properties.html">
@@ -18,12 +20,12 @@
 <meta property="og:site_name" content="Premium Rentals">
 <meta property="og:title" content="Luxury Vacation Rental — Premium Rentals Idaho">
 <meta property="og:description" content="Luxury vacation rental in Idaho's Treasure Valley. Book directly for the best rate. Hot tubs, pools, and premium amenities.">
-<meta property="og:image" content="https://premiumrentals.com/og-image.jpg">
+<meta property="og:image" content="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80">
 <meta property="og:url" content="https://premiumrentals.com/properties.html">
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="Luxury Vacation Rental — Premium Rentals Idaho">
 <meta name="twitter:description" content="Luxury vacation rental in Idaho's Treasure Valley. Book directly for the best rate. Hot tubs, pools, and premium amenities.">
-<meta name="twitter:image" content="https://premiumrentals.com/og-image.jpg">
+<meta name="twitter:image" content="https://images.unsplash.com/photo-1613490493576-7fde63acd811?w=1200&q=80">
 <title>Luxury Vacation Rental — Premium Rentals Idaho</title>
 <link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,500;0,600;1,400&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
 <style>
@@ -58,7 +60,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .gm-close:hover{border-color:var(--dark);background:var(--dark);color:#fff}
 .gm-grid{display:grid;grid-template-columns:1fr 1fr;gap:6px;padding:6px 5% 60px;max-width:1400px;margin:0 auto}
 .gm-photo{overflow:hidden;border-radius:4px;cursor:zoom-in;background:#f0ede8;aspect-ratio:4/3}
-.gm-photo:first-child{grid-column:1/3;aspect-ratio:16/9}
+.gm-photo:nth-child(3n+1){grid-column:1/3;aspect-ratio:16/9}
 .gm-photo img{width:100%;height:100%;object-fit:cover;transition:transform .3s;display:block}
 .gm-photo:hover img{transform:scale(1.02)}
 /* Single photo viewer (opened from grid) */
@@ -73,7 +75,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 .lb-counter{position:absolute;bottom:20px;left:50%;transform:translateX(-50%);color:rgba(255,255,255,.7);font-size:13px;background:rgba(0,0,0,.4);padding:4px 12px;border-radius:12px}
 @media(max-width:600px){
   .gm-grid{grid-template-columns:1fr;gap:4px;padding:4px 0 60px}
-  .gm-photo:first-child{grid-column:1;aspect-ratio:4/3}
+  .gm-photo:nth-child(3n+1){grid-column:1;aspect-ratio:4/3}
   .gm-photo{border-radius:0}
   .lb-img-wrap{padding:0 40px}
 }
@@ -202,6 +204,13 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .footer-bot a{color:rgba(255,255,255,.3);text-decoration:none}
 .footer-bot a:hover{color:var(--gold)}
 #podium-website-widget{z-index:149!important}
+.review-card{background:var(--light);border:1px solid #eeede9;border-radius:8px;padding:20px}
+.review-stars{color:#C9A96E;font-size:13px;margin-bottom:8px;letter-spacing:1px}
+.review-text{font-size:14px;color:var(--mid);line-height:1.7;margin-bottom:12px;display:-webkit-box;-webkit-line-clamp:4;-webkit-box-orient:vertical;overflow:hidden}
+.review-text.expanded{-webkit-line-clamp:unset;overflow:visible}
+.review-author{font-size:12px;font-weight:600;color:var(--dark)}
+.review-date{font-size:11px;color:var(--mid);margin-top:2px}
+@media(max-width:640px){#reviews-grid{grid-template-columns:1fr}}
 @media(max-width:900px){#podium-website-widget{display:none!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.content-wrap{grid-template-columns:1fr 340px;gap:40px}}
@@ -292,6 +301,18 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:var(--light);border:1px solid #ddd"></div>Available</div>
         <div class="cal-legend-item"><div class="cal-legend-dot" style="background:#fafafa;border:1px solid #eee"></div>Unavailable</div>
       </div>
+    </div>
+    <div class="section-block" id="reviews-section" style="display:none">
+      <h2 class="block-title serif">Guest Reviews</h2>
+      <div id="reviews-summary" style="display:flex;align-items:center;gap:12px;margin-bottom:20px">
+        <div id="reviews-avg" style="font-family:'Playfair Display',serif;font-size:36px;font-weight:600;color:var(--dark)"></div>
+        <div>
+          <div id="reviews-stars" style="color:#C9A96E;font-size:18px;letter-spacing:2px"></div>
+          <div id="reviews-count" style="font-size:13px;color:var(--mid);margin-top:2px"></div>
+        </div>
+      </div>
+      <div id="reviews-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:16px"></div>
+      <button id="reviews-more-btn" onclick="showMoreReviews()" style="display:none;margin-top:16px;background:transparent;border:1px solid var(--dark);padding:12px 24px;border-radius:2px;font-family:'Inter',sans-serif;font-size:13px;font-weight:600;cursor:pointer;transition:all .2s" onmouseover="this.style.borderColor='var(--gold)';this.style.color='var(--gold)'" onmouseout="this.style.borderColor='var(--dark)';this.style.color='var(--dark)'">Show more reviews</button>
     </div>
     <div class="section-block">
       <h2 class="block-title serif">Location</h2>
@@ -933,7 +954,58 @@ function toggleFav(){
   btn.style.borderColor = favOn ? '#e74c3c' : '';
 }
 
+// ── Reviews ──
+let allPropertyReviews = [], reviewsShown = 6;
+
+async function loadReviews() {
+  if (!listingId) return;
+  try {
+    const res  = await fetch(`${API_BASE}/api/website/reviews?listingId=${listingId}`);
+    const data = await res.json();
+    if (!data.success || !data.reviews?.length) return;
+    allPropertyReviews = data.reviews;
+    const section = document.getElementById('reviews-section');
+    section.style.display = 'block';
+    // Summary stats
+    const avg = (allPropertyReviews.reduce((s,r) => s + (r.rating||0), 0) / allPropertyReviews.length).toFixed(2);
+    const stars = '★'.repeat(Math.round(parseFloat(avg))) + '☆'.repeat(5 - Math.round(parseFloat(avg)));
+    document.getElementById('reviews-avg').textContent = avg;
+    document.getElementById('reviews-stars').textContent = stars;
+    document.getElementById('reviews-count').textContent = `${allPropertyReviews.length} review${allPropertyReviews.length !== 1 ? 's' : ''}`;
+    renderReviews();
+  } catch(e) { /* silently skip if reviews fail */ }
+}
+
+function renderReviews() {
+  const toShow = allPropertyReviews.slice(0, reviewsShown);
+  document.getElementById('reviews-grid').innerHTML = toShow.map(r => {
+    const name    = r.reviewer?.firstName || r.reviewer?.name || 'Guest';
+    const initial = r.reviewer?.lastName?.[0] || '';
+    const stars   = '★'.repeat(r.rating||5);
+    const date    = r.createdAt ? new Date(r.createdAt).toLocaleDateString('en-US',{month:'long',year:'numeric'}) : '';
+    return `<div class="review-card">
+      <div class="review-stars">${stars}</div>
+      <p class="review-text">${r.publicReview?.replace(/</g,'&lt;').replace(/>/g,'&gt;') || ''}</p>
+      <div class="review-author">${name}${initial ? ' ' + initial + '.' : ''}</div>
+      ${date ? `<div class="review-date">${date}</div>` : ''}
+    </div>`;
+  }).join('');
+  const moreBtn = document.getElementById('reviews-more-btn');
+  if (allPropertyReviews.length > reviewsShown) {
+    moreBtn.style.display = 'block';
+    moreBtn.textContent   = `Show all ${allPropertyReviews.length} reviews`;
+  } else {
+    moreBtn.style.display = 'none';
+  }
+}
+
+function showMoreReviews() {
+  reviewsShown = allPropertyReviews.length;
+  renderReviews();
+}
+
 loadListing();
+loadReviews();
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

@@ -1451,10 +1451,13 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const reservationId = resData._id;
     const guestId = resData.guestId || resData.guest?._id;
 
-    // Step 5: Attach payment method to guest
-    if (guestId) {
+    // Step 5: Attach payment method — cards go through Guesty, ACH charged directly via Stripe
+    const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
+    const isAch = pm.type === 'us_bank_account';
+
+    if (!isAch && guestId) {
+      // Card: attach to Guesty guest so Guesty handles billing
       try {
-        const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
         await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
@@ -1464,7 +1467,28 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
             ...(paymentProviderId ? { paymentProviderId } : {})
           })
         });
-      } catch(e) { console.warn('Payment method attach warning:', e.message); }
+      } catch(e) { console.warn('Guesty card attach warning:', e.message); }
+    }
+
+    if (isAch) {
+      // ACH: Guesty doesn't support bank accounts — charge directly via Stripe
+      const totalCents = Math.round(parseFloat(quote.total || 0) * 100);
+      if (!totalCents) throw new Error('Quote total is required for ACH payment. Please set pricing on the quote.');
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount: totalCents,
+        currency: 'usd',
+        customer: customerId,
+        payment_method: stripePaymentMethodId,
+        payment_method_types: ['us_bank_account'],
+        off_session: true,
+        confirm: true,
+        description: `Admin quote ${id} — ${quote.listing_name || 'Property'} ${quote.check_in} to ${quote.check_out}`,
+        metadata: { quoteId: id, reservationId, listingId: quote.listing_id }
+      });
+      console.log('ACH PaymentIntent:', paymentIntent.id, paymentIntent.status);
+      if (paymentIntent.status === 'requires_action' || paymentIntent.last_payment_error) {
+        throw new Error('Bank payment could not be initiated. Please try again or use a card.');
+      }
     }
 
     // Step 6: Mark admin quote as accepted

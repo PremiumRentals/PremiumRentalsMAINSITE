@@ -289,7 +289,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
       <div class="ach-warning" id="ach-warning">
         ⚠ ACH bank transfers require check-in at least 4 days from today to allow funds to clear. Your check-in date is too soon — please use a credit/debit card instead.
       </div>
-      <p style="font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:16px" id="ach-intro">Securely link your US bank account via Stripe Financial Connections. Your bank credentials are never shared with us. No fees for ACH.</p>
+      <p style="font-size:13px;color:var(--mid);line-height:1.6;margin-bottom:16px" id="ach-intro">Securely link your US bank account via Stripe. A bank login window will open — this may take 15–30 seconds. Your credentials are never shared with us. No extra fees for ACH transfers.</p>
       <button class="ach-link-btn" id="ach-link-btn" onclick="linkBankAccount()">🏦 Link Bank Account</button>
       <div class="ach-linked" id="ach-linked"></div>
       <div class="ach-mandate" id="ach-mandate">
@@ -406,13 +406,24 @@ function initPaymentTabs() {
   if (!pricing.quoteId) return;
   const showCards = params.get('acceptCards') !== '0';
   const showAch   = params.get('acceptAch')   === '1';
+
   if (showCards && showAch) {
+    // Both enabled — show tabs
     document.getElementById('pm-tab-wrap').style.display = 'block';
   } else if (!showCards && showAch) {
-    document.getElementById('pm-tab-wrap').style.display = 'block';
-    selectPaymentTab('ach');
+    // ACH only — skip tabs, show ACH form directly, hide card entirely
+    document.getElementById('pm-tab-wrap').style.display = 'none';
+    document.getElementById('card-form-wrap').style.display = 'none';
+    document.getElementById('ach-form-wrap').style.display = 'block';
+    paymentTab = 'ach';
+    const checkInDate = new Date((checkIn || '') + 'T12:00:00');
+    const minDate = new Date(); minDate.setDate(minDate.getDate() + 4); minDate.setHours(0,0,0,0);
+    const tooSoon = checkInDate < minDate;
+    document.getElementById('ach-warning').style.display  = tooSoon ? 'block' : 'none';
+    document.getElementById('ach-intro').style.display    = tooSoon ? 'none'  : 'block';
+    document.getElementById('ach-link-btn').disabled      = tooSoon;
   }
-  // cards-only or default: no tabs, card form stays visible
+  // cards-only (default): no tabs, card form stays visible as-is
 }
 
 function selectPaymentTab(tab) {
@@ -440,7 +451,7 @@ async function linkBankAccount() {
   const email = document.getElementById('g-email').value.trim();
   if (!first || !last)              return showError('Please enter your full name before linking your bank account.');
   if (!email || !email.includes('@')) return showError('Please enter your email before linking your bank account.');
-  btn.disabled = true; btn.textContent = 'Opening…';
+  btn.disabled = true; btn.textContent = '⏳ Connecting to your bank…';
   try {
     const siRes  = await fetch(`${API_BASE}/api/website/create-setup-intent`, {
       method:'POST', headers:{'Content-Type':'application/json'},
@@ -449,6 +460,7 @@ async function linkBankAccount() {
     const siData = await siRes.json();
     if (!siData.success) throw new Error(siData.error || 'Could not initialize bank linking.');
     achClientSecret = siData.clientSecret;
+    btn.textContent = '🏦 Bank window opening — please wait…';
 
     const { setupIntent, error } = await stripe.collectBankAccountForSetup({
       clientSecret: achClientSecret,

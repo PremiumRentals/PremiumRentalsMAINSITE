@@ -1537,7 +1537,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       try {
         const guestUpdateBody = {
           firstName, lastName, email,
-          ...(phone ? { phones: [{ phone: formatPhone(phone), isPrimary: true }] } : {})
+          ...(phone ? { phone: formatPhone(phone) } : {})
         };
         const guRes = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}`, {
           method:  'PUT',
@@ -1549,20 +1549,18 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guest update warning:', e.message); }
     }
 
-    // Step 7b: Add service fee as a Guesty finance invoice item (V1 money override doesn't support it)
+    // Step 7b: Add service fee as a reservation invoice item
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     if (serviceFeeAmt > 0 && reservationId) {
       try {
-        const sfRes = await fetch('https://open-api.guesty.com/v1/finance/invoice-items', {
+        const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/invoice-items`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({
-            reservationId,
-            amount:     serviceFeeAmt,
-            currency:   'USD',
-            type:       'MANAGEMENT_FEE',
-            normalType: 'MANAGEMENT_FEE',
-            title:      'Service Fee'
+            amount:   serviceFeeAmt,
+            currency: 'USD',
+            type:     'MANAGEMENT_FEE',
+            title:    'Service Fee'
           })
         });
         const sfText = await sfRes.text();
@@ -1591,7 +1589,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           body:    JSON.stringify({
             amount:   totalAmt,
             currency: 'USD',
-            type:     'BANK_TRANSFER',
+            method:   'BANK_TRANSFER',
             note:     `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
           })
         });

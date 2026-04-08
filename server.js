@@ -1260,9 +1260,9 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        // Guesty V1: fold service fee into fareAccommodation (only reliable writable money field).
+        // Guesty V1: fareAccommodation + fareCleaning only; service fee via BOOKING_FEE additional fee.
         const guestyMoney = {};
-        const _accom = (parseFloat(accommodationTotal) || 0) + (parseFloat(serviceFee) || 0);
+        const _accom = parseFloat(accommodationTotal) || 0;
         if (_accom > 0) guestyMoney.fareAccommodation = _accom;
         if (cleaningFee !== null && cleaningFee !== undefined) {
           const c = parseFloat(cleaningFee);
@@ -1467,15 +1467,12 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       catch(e) { throw new Error(`${label} — Guesty non-JSON response: ${text.slice(0, 300)}`); }
     };
 
-    // Build V1 money override: fareAccommodation (includes service fee) + fareCleaning.
-    // Guesty V1 only reliably stores fareAccommodation and fareCleaning. fareServiceFee,
-    // fareManagementFee, fareTax, and /additional-fees are all silently ignored or 404.
-    // Workaround: fold service fee into fareAccommodation so taxes auto-scale on the correct base.
+    // Build V1 money override: fareAccommodation + fareCleaning.
+    // Service fee is applied separately via the pre-configured BOOKING_FEE additional fee.
     const buildMoneyV1 = (q) => {
       const m = {};
       const accom = parseFloat(q.accommodation_total) || 0;
-      const svc   = parseFloat(q.service_fee)         || 0;
-      if (accom + svc > 0) m.fareAccommodation = accom + svc;
+      if (accom > 0) m.fareAccommodation = accom;
       if (q.cleaning_fee !== null && q.cleaning_fee !== undefined) {
         const clean = parseFloat(q.cleaning_fee);
         if (!isNaN(clean)) m.fareCleaning = clean;
@@ -1548,6 +1545,42 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const guText = await guRes.text();
         console.log('Guest update response:', guText.slice(0, 200));
       } catch(e) { console.warn('Guest update warning:', e.message); }
+    }
+
+    // Step 7b: Apply the pre-configured BOOKING_FEE (Service Fee) to the reservation.
+    // The fee was configured on the Guesty account/listing. We look it up by secondIdentifier
+    // to get its _id, then apply it to the reservation with the admin-quoted amount.
+    const serviceFeeAmt = parseFloat(quote.service_fee || 0);
+    if (serviceFeeAmt > 0 && reservationId) {
+      try {
+        // Fetch additional fees configured for this listing
+        const feesRes  = await fetch(`https://open-api.guesty.com/v1/additional-fees?listingId=${listingId}`, {
+          headers: { Authorization: `Bearer ${openToken}` }
+        });
+        const feesText = await feesRes.text();
+        console.log('Additional fees list:', feesText.slice(0, 400));
+        let feeId = null;
+        try {
+          const feesData = JSON.parse(feesText);
+          const fees = feesData.results || feesData.data || feesData;
+          const match = (Array.isArray(fees) ? fees : []).find(f =>
+            f.secondIdentifier === 'BOOKING_FEE' || f.name?.toLowerCase().includes('service')
+          );
+          feeId = match?._id;
+        } catch(e) { /* parse failed — log already printed */ }
+
+        if (feeId) {
+          const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
+            method:  'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ feeId, amount: serviceFeeAmt })
+          });
+          const afText = await afRes.text();
+          console.log('Service fee apply response:', afText.slice(0, 300));
+        } else {
+          console.log('No BOOKING_FEE found in listing fees — fee list:', feesText.slice(0, 300));
+        }
+      } catch(e) { console.warn('Service fee apply warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing

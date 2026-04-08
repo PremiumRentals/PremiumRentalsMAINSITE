@@ -1549,23 +1549,20 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guest update warning:', e.message); }
     }
 
-    // Step 7b: Add service fee as a reservation invoice item
+    // Step 7b: Try to set service fee via a follow-up PATCH on the money object.
+    // fareServiceFee is rejected by the V3 API but may work on V1 as a standalone update.
+    // Kept separate from the main reservation body so a failure here doesn't break pricing.
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     if (serviceFeeAmt > 0 && reservationId) {
       try {
-        const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/invoice-items`, {
-          method:  'POST',
+        const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
+          method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({
-            amount:   serviceFeeAmt,
-            currency: 'USD',
-            type:     'MANAGEMENT_FEE',
-            title:    'Service Fee'
-          })
+          body:    JSON.stringify({ money: { fareServiceFee: serviceFeeAmt, currency: 'USD' } })
         });
         const sfText = await sfRes.text();
-        console.log('Service fee invoice item response:', sfText.slice(0, 200));
-      } catch(e) { console.warn('Service fee invoice item warning:', e.message); }
+        console.log('Service fee patch response:', sfText.slice(0, 200));
+      } catch(e) { console.warn('Service fee patch warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing

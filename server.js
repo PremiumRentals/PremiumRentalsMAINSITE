@@ -1557,7 +1557,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ secondIdentifier: 'SERVICE', amount: serviceFeeAmt })
+          body:    JSON.stringify({ secondIdentifier: 'BOOKING_FEE', amount: serviceFeeAmt })
         });
         const afText = await afRes.text();
         console.log('Service fee additional-fee response:', afText.slice(0, 300));

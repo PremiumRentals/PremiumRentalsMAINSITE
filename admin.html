@@ -285,10 +285,6 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
             <label>Taxes</label>
             <input type="number" id="q-taxes" placeholder="e.g. 80" min="0" oninput="calcTotal()">
           </div>
-          <div class="field">
-            <label>Coupon Code <span style="text-transform:none;font-weight:400">(optional)</span></label>
-            <input type="text" id="q-coupon" placeholder="Optional code" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
-          </div>
         </div>
         <div class="total-row">
           <div class="total-label">Estimated Total</div>
@@ -694,7 +690,6 @@ function resetForm() {
   document.getElementById('q-cleaning').value= '';
   document.getElementById('q-svcfee').value  = '';
   document.getElementById('q-taxes').value   = '';
-  document.getElementById('q-coupon').value  = '';
   document.getElementById('q-notes').value   = '';
   document.getElementById('q-total').textContent = '—';
   document.getElementById('q-msg').textContent   = '';
@@ -720,7 +715,6 @@ async function createQuote() {
   const cleaning = parseFloat(document.getElementById('q-cleaning').value) || null;
   const svcfee   = parseFloat(document.getElementById('q-svcfee').value)   || null;
   const taxes    = parseFloat(document.getElementById('q-taxes').value)    || null;
-  const coupon   = document.getElementById('q-coupon').value.trim().toUpperCase() || null;
 
   msgEl.textContent = 'Creating quote...';
   try {
@@ -738,7 +732,6 @@ async function createQuote() {
         cleaningFee:  cleaning,
         serviceFee:   svcfee,
         taxes,
-        couponCode:   coupon,
         holdType:     selectedHoldType,
         holdHours:    selectedHoldHours,
         notes: document.getElementById('q-notes').value,
@@ -749,7 +742,7 @@ async function createQuote() {
     const d = await r.json();
     if (!d.success) { msgEl.textContent = d.error || 'Error creating quote'; msgEl.className='form-msg form-err'; return; }
     msgEl.textContent = '';
-    const quoteUrl = `${SITE}/quote/${d.quote.id}`;
+    const quoteUrl = `${SITE}/quote?id=${d.quote.id}`;
     showSuccessModal(quoteUrl);
     resetForm();
   } catch(e) { msgEl.textContent = 'Network error'; msgEl.className='form-msg form-err'; }
@@ -784,7 +777,7 @@ async function loadQuotes() {
       return;
     }
     el.innerHTML = quotes.map(q => {
-      const url = `${SITE}/quote/${q.id}`;
+      const url = `${SITE}/quote?id=${q.id}`;
       const statusClass = { pending:'status-pending', accepted:'status-accepted', cancelled:'status-cancelled', expired:'status-expired' }[q.status] || 'status-pending';
       const nights = q.nights || '?';
       const ci = q.check_in ? new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';

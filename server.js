@@ -1456,6 +1456,13 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     // If no hold exists, create a new reservation via V1 API with money override.
     let reservationId, guestId, confirmationCode;
 
+    // Helper: parse Guesty response safely (V1 sometimes returns plain-text errors)
+    const parseGuestyRes = async (fetchRes, label) => {
+      const text = await fetchRes.text();
+      try { return JSON.parse(text); }
+      catch(e) { throw new Error(`${label} — Guesty non-JSON response: ${text.slice(0, 300)}`); }
+    };
+
     if (quote.guesty_reservation_id) {
       // Confirm the existing hold — pricing is already correct from quote creation
       try {
@@ -1464,7 +1471,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({ status: 'confirmed' })
         });
-        const patchData = await patchRes.json();
+        const patchData = await parseGuestyRes(patchRes, 'confirm hold');
         if (patchData._id) {
           reservationId    = patchData._id;
           guestId          = patchData.guestId || patchData.guest?._id;
@@ -1487,18 +1494,22 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) }
       };
       const moneyV1 = {};
-      if (quote.accommodation_total) moneyV1.fareAccommodation = parseFloat(quote.accommodation_total);
-      if (quote.cleaning_fee)        moneyV1.fareCleaning       = parseFloat(quote.cleaning_fee);
-      if (quote.taxes)               moneyV1.fareTax            = parseFloat(quote.taxes);
+      const accomAmt = parseFloat(quote.accommodation_total);
+      const cleanAmt = parseFloat(quote.cleaning_fee);
+      const taxAmt   = parseFloat(quote.taxes);
+      if (!isNaN(accomAmt) && accomAmt > 0) moneyV1.fareAccommodation = accomAmt;
+      if (!isNaN(cleanAmt) && cleanAmt > 0) moneyV1.fareCleaning       = cleanAmt;
+      if (!isNaN(taxAmt)   && taxAmt   > 0) moneyV1.fareTax            = taxAmt;
       if (Object.keys(moneyV1).length) newResBody.money = { ...moneyV1, currency: 'USD' };
+      console.log('Creating new Guesty V1 reservation body:', JSON.stringify(newResBody).slice(0, 400));
 
       const newResRes  = await fetch('https://open-api.guesty.com/v1/reservations', {
         method:  'POST',
         headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
         body:    JSON.stringify(newResBody)
       });
-      const newResData = await newResRes.json();
-      if (!newResData._id) throw new Error(newResData.message || newResData.error || 'Guesty reservation failed');
+      const newResData = await parseGuestyRes(newResRes, 'create reservation');
+      if (!newResData._id) throw new Error(newResData.message || newResData.error || JSON.stringify(newResData).slice(0, 200));
       reservationId    = newResData._id;
       guestId          = newResData.guestId || newResData.guest?._id;
       confirmationCode = newResData.confirmationCode || reservationId;

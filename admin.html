@@ -286,8 +286,8 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
         <div class="panel-title">Pricing</div>
         <div class="section-grid" style="margin-bottom:12px">
           <div class="field">
-            <label>Nightly Rate</label>
-            <input type="number" id="q-rate" placeholder="e.g. 250" min="0" oninput="onRateChange()">
+            <label>Total Accommodation</label>
+            <input type="number" id="q-rate" placeholder="e.g. 8400" min="0" oninput="onAccomChange()">
             <div class="price-hint" id="q-rate-hint">Auto-filled from Guesty when dates set</div>
           </div>
           <div class="field">
@@ -635,41 +635,45 @@ async function fetchStandardPricing() {
     const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${admCI}&checkOut=${admCO}&guests=${guests}`);
     const d = await r.json();
     if (d.available && d.nightlyAvg) {
-      document.getElementById('q-rate-hint').textContent =
-        `Guesty: $${d.nightlyAvg}/night · Cleaning: $${d.cleaningFee||0} · Svc: $${d.serviceFee||0} · Taxes: $${d.taxes||0}`;
-      // Always overwrite with Guesty values
-      document.getElementById('q-rate').value     = d.nightlyAvg;
+      const nights = parseInt(document.getElementById('q-nights').value) || 1;
+      const accom  = Math.round(d.nightlyAvg * nights * 100) / 100;
+      document.getElementById('q-rate').value     = accom;
       document.getElementById('q-cleaning').value = d.cleaningFee || 0;
       document.getElementById('q-svcfee').value   = d.serviceFee  || 0;
-      document.getElementById('q-taxes').value    = d.taxes || 0;
-      // Store fee ratios so rate changes can recalculate them proportionally
-      const accom = d.nightlyAvg * (parseInt(document.getElementById('q-nights').value) || 1);
+      // Store svc ratio so manual accommodation changes can proportionally recalc service fee
       guesty_svc_ratio = accom > 0 ? (d.serviceFee || 0) / accom : 0;
-      guesty_tax_ratio = accom > 0 ? (d.taxes || 0) / accom : 0;
       calcTotal();
+      // Show avg nightly rate as hint after calcTotal sets taxes
+      document.getElementById('q-rate-hint').textContent =
+        `$${d.nightlyAvg.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}/night avg (Guesty)`;
     } else if (!d.available) {
       document.getElementById('q-rate-hint').textContent = '⚠ Property not available for these dates';
     }
   } catch(e) {}
 }
 
-function onRateChange() {
-  const rate   = parseFloat(document.getElementById('q-rate').value) || 0;
+function onAccomChange() {
+  const accom  = parseFloat(document.getElementById('q-rate').value) || 0;
   const nights = parseFloat(document.getElementById('q-nights').value) || 0;
-  if (rate > 0 && nights > 0 && guesty_svc_ratio > 0) {
-    document.getElementById('q-svcfee').value = Math.round(rate * nights * guesty_svc_ratio);
+  // Proportionally recalc service fee if we have a Guesty ratio
+  if (accom > 0 && guesty_svc_ratio > 0) {
+    document.getElementById('q-svcfee').value = Math.round(accom * guesty_svc_ratio * 100) / 100;
+  }
+  // Update avg nightly hint
+  const hint = document.getElementById('q-rate-hint');
+  if (accom > 0 && nights > 0) {
+    const avg = accom / nights;
+    hint.textContent = `$${avg.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}/night avg`;
   }
   calcTotal();
 }
 
 function calcTotal() {
-  const nights   = parseFloat(document.getElementById('q-nights').value)  || 0;
-  const rate     = parseFloat(document.getElementById('q-rate').value)    || 0;
+  const accom   = parseFloat(document.getElementById('q-rate').value)    || 0;
   const cleaning = parseFloat(document.getElementById('q-cleaning').value)|| 0;
   const svcfee   = parseFloat(document.getElementById('q-svcfee').value)  || 0;
   const el = document.getElementById('q-total');
-  if (!nights || !rate) { el.textContent = '—'; return; }
-  const accom  = rate * nights;
+  if (!accom) { el.textContent = '—'; return; }
   const taxes  = Math.round((accom + cleaning + svcfee) * 0.08 * 100) / 100;
   document.getElementById('q-taxes').value = taxes.toFixed(2);
   const total  = accom + cleaning + svcfee + taxes;
@@ -729,7 +733,10 @@ async function createQuote() {
   const listingName  = opt.dataset.name  || opt.textContent;
   const listingPhoto = opt.dataset.photo || '';
 
-  const rate     = parseFloat(document.getElementById('q-rate').value)     || null;
+  const accomTotal = parseFloat(document.getElementById('q-rate').value) || null;
+  const nights_    = parseInt(document.getElementById('q-nights').value) || 1;
+  // Server expects customNightlyRate (per-night); convert from total
+  const rate     = accomTotal ? Math.round((accomTotal / nights_) * 100) / 100 : null;
   const cleaning = parseFloat(document.getElementById('q-cleaning').value) || null;
   const svcfee   = parseFloat(document.getElementById('q-svcfee').value)   || null;
   const taxes    = parseFloat(document.getElementById('q-taxes').value)    || null;

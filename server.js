@@ -1588,10 +1588,9 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({
+            paymentMethod: { method: 'BANK_TRANSFER' },
             amount:        totalAmt,
-            currency:      'USD',
-            method:        'WIRE_TRANSFER',
-            paymentMethod: 'WIRE_TRANSFER',
+            paidAt:        new Date().toISOString(),
             note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
           })
         });

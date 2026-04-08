@@ -1199,16 +1199,18 @@ app.get('/api/admin/listings', requireAdmin, async (req, res) => {
   try {
     const listings = getCache('listings_all') || [];
     if (listings.length) return res.json({ success: true, listings: listings.map(l => ({
-      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture
+      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture,
+      accommodates: l.accommodates || null
     }))});
     // Trigger a fresh fetch if cache empty
     const token = await getBeApiToken();
-    const r = await fetch('https://booking.guesty.com/api/listings?limit=100&fields=_id,title,nickname,address,picture', {
+    const r = await fetch('https://booking.guesty.com/api/listings?limit=100&fields=_id,title,nickname,address,picture,accommodates', {
       headers: { Authorization: `Bearer ${token}`, accept: 'application/json' }
     });
     const data = await r.json();
     res.json({ success: true, listings: (data.results || []).map(l => ({
-      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture
+      _id: l._id, title: l.title, nickname: l.nickname, address: l.address, picture: l.picture,
+      accommodates: l.accommodates || null
     }))});
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1339,11 +1341,35 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
 app.put('/api/admin/quotes/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const allowed = ['status', 'notes', 'custom_nightly_rate', 'accommodation_total', 'cleaning_fee', 'taxes', 'total'];
+    const allowed = ['status', 'notes', 'custom_nightly_rate', 'accommodation_total', 'cleaning_fee', 'service_fee', 'taxes', 'total', 'accept_cards', 'accept_ach'];
     const updates = {};
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
     const { data, error } = await supabase.from('admin_quotes').update(updates).eq('id', id).select().single();
     if (error) throw error;
+
+    // Sync pricing to Guesty hold if it exists and quote is still pending
+    const pricingChanged = updates.accommodation_total !== undefined || updates.cleaning_fee !== undefined;
+    if (pricingChanged && data.guesty_reservation_id && data.status === 'pending') {
+      try {
+        const token = await getOpenApiToken();
+        const moneyBody = {};
+        const accom = parseFloat(data.accommodation_total) || 0;
+        if (accom > 0) moneyBody.fareAccommodation = accom;
+        if (data.cleaning_fee !== null && data.cleaning_fee !== undefined) {
+          const c = parseFloat(data.cleaning_fee);
+          if (!isNaN(c)) moneyBody.fareCleaning = c;
+        }
+        if (Object.keys(moneyBody).length) {
+          const syncRes = await fetch(`https://open-api.guesty.com/v1/reservations/${data.guesty_reservation_id}`, {
+            method: 'PUT',
+            headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ money: { ...moneyBody, currency: 'USD' } })
+          });
+          console.log('Guesty hold pricing sync:', syncRes.status, data.guesty_reservation_id);
+        }
+      } catch(e) { console.warn('Could not sync pricing to Guesty hold:', e.message); }
+    }
+
     res.json({ success: true, quote: data });
   } catch(e) { res.status(500).json({ error: e.message }); }
 });
@@ -1378,6 +1404,12 @@ app.get('/api/quote/:id', async (req, res) => {
       .eq('id', req.params.id)
       .single();
     if (error || !data) return res.status(404).json({ error: 'Quote not found' });
+    // Track view — silent fail if columns don't exist yet
+    // Run in background, don't await so it doesn't slow the response
+    supabase.from('admin_quotes').update({
+      view_count:    (data.view_count || 0) + 1,
+      last_viewed_at: new Date().toISOString()
+    }).eq('id', req.params.id).then(() => {}).catch(() => {});
     // Don't expose internal fields
     const { guesty_reservation_id, ...pub } = data;
     res.json({ success: true, quote: pub });

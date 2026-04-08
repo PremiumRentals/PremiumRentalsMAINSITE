@@ -107,6 +107,24 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .bd-total .bd-value{font-family:'Playfair Display',serif;font-size:17px;color:var(--dark)}
 .bd-notes{font-size:12px;color:var(--mid);font-style:italic;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
 .bd-resid{font-size:11px;color:var(--mid);margin-top:6px;letter-spacing:.3px}
+.view-chip{font-size:11px;color:var(--mid);margin-top:5px;letter-spacing:.2px}
+.avail-warn{display:none;background:#fff8e7;border:1px solid #ffc107;border-radius:6px;padding:10px 14px;font-size:13px;color:#856404;margin-bottom:16px;line-height:1.5}
+.avail-warn.show{display:block}
+.quote-edit{display:none;border-top:1px solid var(--border);margin-top:14px;padding-top:14px}
+.quote-edit.open{display:block}
+.edit-grid{display:grid;grid-template-columns:1fr 1fr;gap:10px 20px;margin-bottom:12px}
+.edit-field{display:flex;flex-direction:column;gap:4px}
+.edit-field label{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid)}
+.edit-field input,.edit-field textarea{padding:8px 12px;border:1px solid var(--border);border-radius:5px;font-family:'Inter',sans-serif;font-size:13px;color:var(--dark);outline:none;transition:border-color .2s;background:#fff}
+.edit-field input:focus,.edit-field textarea:focus{border-color:var(--gold)}
+.edit-field textarea{resize:vertical;min-height:56px}
+.edit-field.full{grid-column:1/-1}
+.edit-total{font-size:13px;color:var(--dark);font-weight:600;padding:8px 0 10px;border-top:1px solid var(--border);margin-top:4px}
+.edit-actions{display:flex;gap:8px;align-items:center;margin-top:2px}
+.edit-save-btn{padding:8px 18px;background:var(--gold);color:var(--dark);border:none;border-radius:5px;font-size:12px;font-weight:700;cursor:pointer;font-family:'Inter',sans-serif;transition:opacity .2s}
+.edit-save-btn:hover{opacity:.85}
+.edit-cancel-btn{padding:8px 14px;background:transparent;color:var(--mid);border:1px solid var(--border);border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
+.edit-msg{font-size:12px;color:var(--mid);margin-left:6px}
 .empty-state{text-align:center;padding:60px 20px;color:var(--mid)}
 .empty-icon{font-size:40px;margin-bottom:12px}
 .empty-text{font-size:14px}
@@ -280,6 +298,9 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
           </div>
         </div>
       </div>
+
+      <!-- Availability warning (non-blocking) -->
+      <div class="avail-warn" id="q-avail-warn"></div>
 
       <!-- Pricing -->
       <div class="panel">
@@ -578,7 +599,7 @@ async function loadListings() {
     sel.innerHTML = '<option value="">Select property...</option>' +
       listings.map(l => {
         const displayName = (l.nickname || l.title || 'Untitled').replace(/"/g, '&quot;');
-        return `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${displayName}">${displayName}</option>`;
+        return `<option value="${l._id}" data-photo="${l.picture?.thumbnail||l.picture?.regular||''}" data-name="${displayName}" data-accommodates="${l.accommodates||''}">${displayName}</option>`;
       }).join('');
   } catch(e) { console.error('Could not load listings', e); }
 }
@@ -603,6 +624,7 @@ function onListingChange() {
 
 function onGuestsChange() {
   if (admCI && admCO && document.getElementById('q-listing').value) fetchStandardPricing();
+  else checkGuestWarn();
 }
 
 async function loadAvailabilityForCal(listingId) {
@@ -627,10 +649,29 @@ async function loadAvailabilityForCal(listingId) {
   }
 }
 
+function showAvailWarn(msg) {
+  const el = document.getElementById('q-avail-warn');
+  if (msg) { el.innerHTML = '⚠ ' + msg; el.classList.add('show'); }
+  else { el.innerHTML = ''; el.classList.remove('show'); }
+}
+
+function checkGuestWarn() {
+  const sel = document.getElementById('q-listing');
+  const opt = sel.options[sel.selectedIndex];
+  const maxGuests = parseInt(opt?.dataset.accommodates) || 0;
+  const guests    = parseInt(document.getElementById('q-guests').value) || 0;
+  if (maxGuests > 0 && guests > maxGuests) {
+    showAvailWarn(`This property accommodates up to ${maxGuests} guests. You entered ${guests}. The quote can still be sent but the guest may not be able to complete the booking.`);
+    return true;
+  }
+  return false;
+}
+
 async function fetchStandardPricing() {
   const listingId = document.getElementById('q-listing').value;
   const guests    = document.getElementById('q-guests').value || 1;
   if (!listingId || !admCI || !admCO) return;
+  showAvailWarn(''); // Clear previous warning
   try {
     const r = await fetch(`${API}/api/website/availability/${listingId}?checkIn=${admCI}&checkOut=${admCO}&guests=${guests}`);
     const d = await r.json();
@@ -640,14 +681,25 @@ async function fetchStandardPricing() {
       document.getElementById('q-rate').value     = accom;
       document.getElementById('q-cleaning').value = d.cleaningFee || 0;
       document.getElementById('q-svcfee').value   = d.serviceFee  || 0;
-      // Store svc ratio so manual accommodation changes can proportionally recalc service fee
       guesty_svc_ratio = accom > 0 ? (d.serviceFee || 0) / accom : 0;
       calcTotal();
-      // Show avg nightly rate as hint after calcTotal sets taxes
       document.getElementById('q-rate-hint').textContent =
         `$${d.nightlyAvg.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2})}/night avg (Guesty)`;
+      checkGuestWarn(); // Still warn on guest count even if dates are available
     } else if (!d.available) {
-      document.getElementById('q-rate-hint').textContent = '⚠ Property not available for these dates';
+      document.getElementById('q-rate-hint').textContent = 'Dates not available — enter pricing manually';
+      const reason = d.error || d.message || '';
+      const minNightMatch = reason.match(/min.*?(\d+)/i) || reason.match(/(\d+).*night/i);
+      const nights = parseInt(document.getElementById('q-nights').value) || 0;
+      let warnMsg = `Guesty shows these dates as unavailable`;
+      if (minNightMatch) {
+        warnMsg = `This property requires a minimum of ${minNightMatch[1]} nights. You selected ${nights}. The quote can still be sent but the guest may not be able to complete the booking.`;
+      } else if (reason) {
+        warnMsg = `Guesty: "${reason.slice(0, 120)}". The quote can still be created manually.`;
+      } else {
+        warnMsg += ` (possibly booked or below minimum stay). You can still enter custom pricing manually.`;
+      }
+      showAvailWarn(warnMsg);
     }
   } catch(e) {}
 }
@@ -716,6 +768,7 @@ function resetForm() {
   document.getElementById('q-total').textContent = '—';
   document.getElementById('q-msg').textContent   = '';
   document.getElementById('q-rate-hint').textContent = 'Auto-filled from Guesty when dates set';
+  showAvailWarn('');
   document.getElementById('q-accept-cards').checked = true;
   document.getElementById('q-accept-ach').checked   = true;
   admCalInit();
@@ -810,6 +863,17 @@ function filterQuotes(filter) {
   renderQuotes();
 }
 
+function relTime(iso) {
+  if (!iso) return null;
+  const diff = Date.now() - new Date(iso).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 1)  return 'just now';
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24)  return `${hrs}h ago`;
+  return `${Math.floor(hrs/24)}d ago`;
+}
+
 function renderQuotes() {
   const el = document.getElementById('quotes-list');
   const archiveStatuses = ['expired', 'cancelled'];
@@ -826,10 +890,17 @@ function renderQuotes() {
     const ci = q.check_in ? new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
     const co = q.check_out ? new Date(q.check_out+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
     const total = q.total ? '$' + fmt(q.total) : '—';
-    const accom   = parseFloat(q.accommodation_total || 0);
-    const clean   = parseFloat(q.cleaning_fee || 0);
-    const svc     = parseFloat(q.service_fee || 0);
-    const tax     = parseFloat(q.taxes || 0);
+    const accom = parseFloat(q.accommodation_total || 0);
+    const clean = parseFloat(q.cleaning_fee || 0);
+    const svc   = parseFloat(q.service_fee || 0);
+    const tax   = parseFloat(q.taxes || 0);
+    // View tracking chip
+    const views = q.view_count || 0;
+    const lastSeen = relTime(q.last_viewed_at);
+    const viewChip = views > 0
+      ? `👁 ${views} view${views>1?'s':''} · last opened ${lastSeen}`
+      : `👁 Not yet opened`;
+    // Breakdown rows
     const bdRows = [
       accom > 0 ? `<div class="bd-row"><span class="bd-label">Accommodation · ${nights} nights</span><span class="bd-value">$${fmt(accom)}</span></div>` : '',
       clean > 0 ? `<div class="bd-row"><span class="bd-label">Cleaning fee</span><span class="bd-value">$${fmt(clean)}</span></div>` : '',
@@ -839,13 +910,49 @@ function renderQuotes() {
     const cancelBtn = (q.status === 'pending')
       ? `<button class="icon-btn" title="Cancel" onclick="cancelQuote('${q.id}', this)" style="color:#e57373">✕</button>`
       : '';
-    return `<div class="quote-card">
+    const editBtn = (q.status === 'pending')
+      ? `<button class="icon-btn" title="Edit quote" onclick="toggleEdit('${q.id}')">✎</button>`
+      : '';
+    // Edit form (inline, hidden by default)
+    const editForm = q.status === 'pending' ? `
+      <div class="quote-edit" id="ed-${q.id}">
+        <div class="edit-grid">
+          <div class="edit-field">
+            <label>Total Accommodation</label>
+            <input type="number" id="ef-accom-${q.id}" value="${accom||''}" min="0" oninput="calcEditTotal('${q.id}')">
+          </div>
+          <div class="edit-field">
+            <label>Cleaning Fee</label>
+            <input type="number" id="ef-clean-${q.id}" value="${clean||''}" min="0" oninput="calcEditTotal('${q.id}')">
+          </div>
+          <div class="edit-field">
+            <label>Service Fee</label>
+            <input type="number" id="ef-svc-${q.id}" value="${svc||''}" min="0" oninput="calcEditTotal('${q.id}')">
+          </div>
+          <div class="edit-field">
+            <label>Taxes (auto 8%)</label>
+            <input type="number" id="ef-tax-${q.id}" value="${tax||''}" min="0" readonly style="background:#f8f6f2;color:var(--mid)">
+          </div>
+          <div class="edit-field full">
+            <label>Notes</label>
+            <textarea id="ef-notes-${q.id}" rows="2">${(q.notes||'').replace(/</g,'&lt;')}</textarea>
+          </div>
+        </div>
+        <div class="edit-total" id="ef-total-${q.id}">Total: ${total}</div>
+        <div class="edit-actions">
+          <button class="edit-save-btn" onclick="saveEdit('${q.id}')">Save Changes</button>
+          <button class="edit-cancel-btn" onclick="toggleEdit('${q.id}')">Cancel</button>
+          <span class="edit-msg" id="ef-msg-${q.id}"></span>
+        </div>
+      </div>` : '';
+    return `<div class="quote-card" id="card-${q.id}">
       <div class="quote-card-main">
         <img class="quote-thumb" src="${q.listing_photo || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22><rect fill=%22%23f0ede8%22 width=%221%22 height=%221%22/></svg>'}" alt="">
         <div class="quote-info">
           <div class="quote-prop">${q.listing_name || 'Property'}</div>
           <div class="quote-guest">${q.guest_first_name || ''} ${q.guest_last_name || ''} · ${q.guest_email || ''}</div>
           <div class="quote-dates">${ci} → ${co} · ${nights} nights${q.hold_type ? ' · ' + q.hold_type : ''}</div>
+          <div class="view-chip">${viewChip}</div>
         </div>
         <div class="quote-meta">
           <div class="quote-total">${total}</div>
@@ -853,6 +960,7 @@ function renderQuotes() {
         </div>
         <div class="quote-actions">
           <button class="expand-btn" id="exp-${q.id}" title="View breakdown" onclick="toggleBreakdown('${q.id}')">▾</button>
+          ${editBtn}
           <button class="icon-btn" title="Copy link" onclick="copyLink('${url}', this)">⧉</button>
           ${cancelBtn}
         </div>
@@ -868,6 +976,7 @@ function renderQuotes() {
         ${q.notes ? `<div class="bd-notes">"${q.notes}"</div>` : ''}
         ${q.guesty_reservation_id ? `<div class="bd-resid">Guesty reservation: ${q.guesty_reservation_id}</div>` : ''}
       </div>
+      ${editForm}
     </div>`;
   }).join('');
 }
@@ -875,8 +984,72 @@ function renderQuotes() {
 function toggleBreakdown(id) {
   const bd  = document.getElementById('bd-' + id);
   const btn = document.getElementById('exp-' + id);
+  // Close edit form if open
+  const ed = document.getElementById('ed-' + id);
+  if (ed?.classList.contains('open')) { ed.classList.remove('open'); }
   const open = bd.classList.toggle('open');
   btn.style.transform = open ? 'rotate(180deg)' : '';
+}
+
+function toggleEdit(id) {
+  const ed  = document.getElementById('ed-' + id);
+  const bd  = document.getElementById('bd-' + id);
+  if (!ed) return;
+  // Close breakdown if open
+  if (bd?.classList.contains('open')) {
+    bd.classList.remove('open');
+    const btn = document.getElementById('exp-' + id);
+    if (btn) btn.style.transform = '';
+  }
+  ed.classList.toggle('open');
+}
+
+function calcEditTotal(id) {
+  const accom  = parseFloat(document.getElementById('ef-accom-' + id)?.value) || 0;
+  const clean  = parseFloat(document.getElementById('ef-clean-' + id)?.value) || 0;
+  const svc    = parseFloat(document.getElementById('ef-svc-'   + id)?.value) || 0;
+  const taxes  = Math.round((accom + clean + svc) * 0.08 * 100) / 100;
+  const taxEl  = document.getElementById('ef-tax-' + id);
+  const totEl  = document.getElementById('ef-total-' + id);
+  if (taxEl) taxEl.value = taxes.toFixed(2);
+  const total  = accom + clean + svc + taxes;
+  if (totEl) totEl.textContent = 'Total: $' + total.toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+
+async function saveEdit(id) {
+  const msgEl = document.getElementById('ef-msg-' + id);
+  const accom = parseFloat(document.getElementById('ef-accom-' + id)?.value) || 0;
+  const clean = parseFloat(document.getElementById('ef-clean-' + id)?.value) || 0;
+  const svc   = parseFloat(document.getElementById('ef-svc-'   + id)?.value) || 0;
+  const tax   = parseFloat(document.getElementById('ef-tax-'   + id)?.value) || 0;
+  const notes = document.getElementById('ef-notes-' + id)?.value || '';
+  const total = accom + clean + svc + tax;
+  const q     = allQuotes.find(x => x.id === id);
+  const nights = q?.nights || 1;
+  msgEl.textContent = 'Saving…'; msgEl.style.color = 'var(--mid)';
+  try {
+    const r = await fetch(`${API}/api/admin/quotes/${id}`, {
+      method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        accommodation_total: accom || null,
+        custom_nightly_rate: accom ? Math.round((accom / nights) * 100) / 100 : null,
+        cleaning_fee: clean || null,
+        service_fee:  svc  || null,
+        taxes:        tax  || null,
+        total:        total || null,
+        notes:        notes || null
+      })
+    });
+    const d = await r.json();
+    if (!d.success) throw new Error(d.error || 'Save failed');
+    msgEl.textContent = '✓ Saved'; msgEl.style.color = '#2e7d32';
+    // Update local data and re-render
+    const idx = allQuotes.findIndex(x => x.id === id);
+    if (idx >= 0) allQuotes[idx] = { ...allQuotes[idx], ...d.quote };
+    setTimeout(() => { renderQuotes(); }, 1200);
+  } catch(e) {
+    msgEl.textContent = e.message; msgEl.style.color = '#c62828';
+  }
 }
 
 async function copyLink(url, btn) {

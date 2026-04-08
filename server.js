@@ -1589,9 +1589,26 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
     }
 
+    // Step 7b: Add service fee as invoice item (AFE / BOOKING_FEE) on the reservation
+    if (reservationId && svcFeeAmt > 0) {
+      try {
+        const invRes  = await fetch(`https://open-api.guesty.com/v1/invoice-items/reservation/${reservationId}`, {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            title:            'Service Fee',
+            amount:           svcFeeAmt,
+            normalType:       'AFE',
+            secondIdentifier: 'BOOKING_FEE'
+          })
+        });
+        const invText = await invRes.text();
+        console.log('Invoice item (service fee) response:', invRes.status, invText.slice(0, 300));
+      } catch(e) { console.warn('Invoice item warning:', e.message); }
+    }
+
     // Step 7d: ACH — record the bank transfer payment in Guesty so the reservation shows as paid.
-    // We GET the reservation first to find Guesty's actual balance due, since fareTax can't be
-    // overridden via V1 and Guesty auto-calculates it — making its total differ from our quote.
+    // We GET the reservation first to find Guesty's actual balance due (after invoice items added).
     if (isAch && reservationId) {
       try {
         // Fetch Guesty's calculated balance due

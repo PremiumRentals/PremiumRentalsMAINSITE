@@ -125,7 +125,10 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .adm-cal-d{text-align:center;padding:7px 2px;font-size:13px;border-radius:4px;cursor:pointer;transition:background .1s;line-height:1}
 .adm-cal-d.empty{cursor:default}
 .adm-cal-d.avail:hover{background:#f0ede8}
-.adm-cal-d.blocked{color:#ccc;text-decoration:line-through;cursor:not-allowed}
+.adm-cal-d.blocked{color:#e0b8b8;text-decoration:line-through;cursor:pointer}
+.adm-cal-d.blocked:hover{background:#fdf0f0}
+.adm-cal-d.co-only{color:#c9a96e;font-style:italic;cursor:pointer}
+.adm-cal-d.co-only:hover{background:#f0ede8}
 .adm-cal-d.past{color:#ccc;cursor:not-allowed}
 .adm-cal-d.ci,.adm-cal-d.co{background:var(--gold)!important;color:#fff!important;font-weight:700;border-radius:4px}
 .adm-cal-d.in-range{background:rgba(201,169,110,.15);color:var(--dark)}
@@ -450,14 +453,16 @@ function admMonthHTML(year, month, today) {
     const isCoOnly = admCheckoutOnlyDates.has(ds);
     const inRange  = admCI && admCO && ds > admCI && ds < admCO;
     let cls = 'adm-cal-d';
-    if (isPast || isBlocked) cls += isPast ? ' past' : ' blocked';
-    else if (isCoOnly && admCalMode !== 'checkout') cls += ' blocked';
+    if (isPast) cls += ' past';
+    else if (isBlocked && !(isCoOnly)) cls += ' blocked';
+    else if (isCoOnly && admCalMode !== 'checkout') cls += ' co-only';
     else cls += ' avail';
     if (ds === admCI)  cls += ' ci';
     else if (ds === admCO) cls += ' co';
     else if (inRange)  cls += ' in-range';
     if (ds === todayStr) cls += ' today';
-    const canClick = (!isPast && !isBlocked) || (!isPast && isCoOnly && admCalMode === 'checkout');
+    // Admin can select any non-past date (blocked info is informational only)
+    const canClick = !isPast;
     html += `<div class="${cls}"${canClick ? ` data-date="${ds}" data-coonly="${isCoOnly}"` : ''}>${d}</div>`;
   }
   return html + '</div></div>';

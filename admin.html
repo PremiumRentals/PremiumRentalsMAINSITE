@@ -393,6 +393,15 @@ function admCalInit() {
   admCalYear = now.getFullYear(); admCalMonth = now.getMonth();
   admCI = null; admCO = null; admCalMode = 'checkin';
   admBlockedDates = new Set(); admCheckoutOnlyDates = new Set();
+  // One-time event delegation — survives innerHTML replacements
+  const container = document.getElementById('adm-cal-months');
+  if (container && !container._admListener) {
+    container.addEventListener('click', function(e) {
+      const el = e.target.closest('[data-date]');
+      if (el) admSelectDate(el.dataset.date, el.dataset.coonly === 'true');
+    });
+    container._admListener = true;
+  }
   admRenderCal();
 }
 
@@ -449,7 +458,7 @@ function admMonthHTML(year, month, today) {
     else if (inRange)  cls += ' in-range';
     if (ds === todayStr) cls += ' today';
     const canClick = (!isPast && !isBlocked) || (!isPast && isCoOnly && admCalMode === 'checkout');
-    html += `<div class="${cls}"${canClick ? ` onclick="admSelectDate('${ds}',${isCoOnly})"` : ''}>${d}</div>`;
+    html += `<div class="${cls}"${canClick ? ` data-date="${ds}" data-coonly="${isCoOnly}"` : ''}>${d}</div>`;
   }
   return html + '</div></div>';
 }

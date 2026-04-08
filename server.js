@@ -1597,24 +1597,13 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Invoice item warning:', e.message); }
     }
 
-    // Step 7d: ACH — record the bank transfer payment in Guesty so the reservation shows as paid.
-    // We GET the reservation first to find Guesty's actual balance due (after invoice items added).
+    // Step 7d: ACH — record the bank transfer payment in Guesty for the exact quoted total.
+    // Use quote.total directly — the invoice item (service fee) has already been applied,
+    // so Guesty's total should match. Fetching balance due immediately after invoice item
+    // creation returns a stale (pre-service-fee) value due to Guesty async recalculation.
     if (isAch && reservationId) {
       try {
-        // Fetch Guesty's calculated balance due
-        let paymentAmount = parseFloat(quote.total || 0);
-        try {
-          const resChk  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}?fields=money`, {
-            headers: { Authorization: `Bearer ${openToken}` }
-          });
-          const resChkData = await resChk.json();
-          const balanceDue = resChkData.money?.balanceDue;
-          if (typeof balanceDue === 'number' && balanceDue > 0) {
-            paymentAmount = balanceDue;
-            console.log(`Guesty balance due: $${balanceDue} (quote total: $${quote.total})`);
-          }
-        } catch(e) { console.warn('Could not fetch balance due, using quote total:', e.message); }
-
+        const paymentAmount = parseFloat(quote.total || 0);
         const payRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/payments`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
@@ -1622,11 +1611,11 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
             paymentMethod: { method: 'BANK_TRANSFER' },
             amount:        paymentAmount,
             paidAt:        new Date().toISOString(),
-            note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'} (quoted total $${quote.total})`
+            note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
           })
         });
         const payText = await payRes.text();
-        console.log('Payment record response:', payText.slice(0, 300));
+        console.log('Payment record response:', payRes.status, payText.slice(0, 300));
       } catch(e) { console.warn('Payment record warning:', e.message); }
     }
 

@@ -635,13 +635,8 @@ async function fetchStandardPricing() {
 function onRateChange() {
   const rate   = parseFloat(document.getElementById('q-rate').value) || 0;
   const nights = parseFloat(document.getElementById('q-nights').value) || 0;
-  if (rate > 0 && nights > 0) {
-    if (guesty_svc_ratio > 0) {
-      document.getElementById('q-svcfee').value = Math.round(rate * nights * guesty_svc_ratio);
-    }
-    if (guesty_tax_ratio > 0) {
-      document.getElementById('q-taxes').value = Math.round(rate * nights * guesty_tax_ratio);
-    }
+  if (rate > 0 && nights > 0 && guesty_svc_ratio > 0) {
+    document.getElementById('q-svcfee').value = Math.round(rate * nights * guesty_svc_ratio);
   }
   calcTotal();
 }
@@ -651,11 +646,13 @@ function calcTotal() {
   const rate     = parseFloat(document.getElementById('q-rate').value)    || 0;
   const cleaning = parseFloat(document.getElementById('q-cleaning').value)|| 0;
   const svcfee   = parseFloat(document.getElementById('q-svcfee').value)  || 0;
-  const taxes    = parseFloat(document.getElementById('q-taxes').value)   || 0;
   const el = document.getElementById('q-total');
   if (!nights || !rate) { el.textContent = '—'; return; }
-  const total = (rate * nights) + cleaning + svcfee + taxes;
-  el.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 0, maximumFractionDigits: 0 });
+  const accom  = rate * nights;
+  const taxes  = Math.round((accom + cleaning + svcfee) * 0.08 * 100) / 100;
+  document.getElementById('q-taxes').value = taxes.toFixed(2);
+  const total  = accom + cleaning + svcfee + taxes;
+  el.textContent = '$' + total.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 }
 
 function setHoldType(type) {

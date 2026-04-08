@@ -1260,10 +1260,9 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        // Guesty V1 money override: accommodation + cleaning only.
-        // Service fee added separately via /additional-fees after reservation is created.
+        // Guesty V1: fold service fee into fareAccommodation (only reliable writable money field).
         const guestyMoney = {};
-        const _accom = parseFloat(accommodationTotal) || 0;
+        const _accom = (parseFloat(accommodationTotal) || 0) + (parseFloat(serviceFee) || 0);
         if (_accom > 0) guestyMoney.fareAccommodation = _accom;
         if (cleaningFee !== null && cleaningFee !== undefined) {
           const c = parseFloat(cleaningFee);
@@ -1468,13 +1467,15 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       catch(e) { throw new Error(`${label} — Guesty non-JSON response: ${text.slice(0, 300)}`); }
     };
 
-    // Build V1 money override: fareAccommodation + fareCleaning only.
-    // Service fee is added separately via /additional-fees endpoint (secondIdentifier: BOOKING_FEE).
-    // fareCleaning sent even when $0 to override Guesty's listing default.
+    // Build V1 money override: fareAccommodation (includes service fee) + fareCleaning.
+    // Guesty V1 only reliably stores fareAccommodation and fareCleaning. fareServiceFee,
+    // fareManagementFee, fareTax, and /additional-fees are all silently ignored or 404.
+    // Workaround: fold service fee into fareAccommodation so taxes auto-scale on the correct base.
     const buildMoneyV1 = (q) => {
       const m = {};
       const accom = parseFloat(q.accommodation_total) || 0;
-      if (accom > 0) m.fareAccommodation = accom;
+      const svc   = parseFloat(q.service_fee)         || 0;
+      if (accom + svc > 0) m.fareAccommodation = accom + svc;
       if (q.cleaning_fee !== null && q.cleaning_fee !== undefined) {
         const clean = parseFloat(q.cleaning_fee);
         if (!isNaN(clean)) m.fareCleaning = clean;
@@ -1547,21 +1548,6 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const guText = await guRes.text();
         console.log('Guest update response:', guText.slice(0, 200));
       } catch(e) { console.warn('Guest update warning:', e.message); }
-    }
-
-    // Step 7b: Add service fee as a Guesty predefined additional fee (secondIdentifier: BOOKING_FEE).
-    // Guesty auto-applies taxes to this fee per the listing's tax settings, giving the correct total.
-    const serviceFeeAmt = parseFloat(quote.service_fee || 0);
-    if (serviceFeeAmt > 0 && reservationId) {
-      try {
-        const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
-          method:  'POST',
-          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ secondIdentifier: 'BOOKING_FEE', amount: serviceFeeAmt })
-        });
-        const afText = await afRes.text();
-        console.log('Service fee additional-fee response:', afText.slice(0, 300));
-      } catch(e) { console.warn('Service fee additional-fee warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing

@@ -95,6 +95,25 @@ async function getBeApiToken() {
   return beApiToken;
 }
 
+// ── Booking Fee ID cache (BOOKING_FEE additional fee from Guesty account) ──
+let cachedBookingFeeId = null;
+async function getBookingFeeId(openToken) {
+  if (cachedBookingFeeId) return cachedBookingFeeId;
+  try {
+    const res  = await fetch('https://open-api.guesty.com/v1/additional-fees/account', {
+      headers: { Authorization: `Bearer ${openToken}` }
+    });
+    const data = await res.json();
+    const fees = Array.isArray(data) ? data : (data.results || data.data || []);
+    const match = fees.find(f => f.type === 'BOOKING_FEE' || f.name?.toLowerCase().includes('service'));
+    if (match?._id) {
+      cachedBookingFeeId = match._id;
+      console.log('Cached BOOKING_FEE id:', cachedBookingFeeId);
+    }
+  } catch(e) { console.warn('Could not fetch BOOKING_FEE id:', e.message); }
+  return cachedBookingFeeId;
+}
+
 // ── Cache Layer ──
 const cache = {};
 function getCache(key) {
@@ -1260,7 +1279,7 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        // Guesty V1: fareAccommodation + fareCleaning only; service fee via BOOKING_FEE additional fee.
+        // Guesty V1 money: accommodation + cleaning. Service fee via additionalFees top-level field.
         const guestyMoney = {};
         const _accom = parseFloat(accommodationTotal) || 0;
         if (_accom > 0) guestyMoney.fareAccommodation = _accom;
@@ -1269,6 +1288,12 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
           if (!isNaN(c)) guestyMoney.fareCleaning = c;
         }
         if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
+        // Include BOOKING_FEE at admin-quoted fixed amount (overrides the 13.5% default)
+        const holdFeeId  = await getBookingFeeId(token);
+        const holdSvcAmt = parseFloat(serviceFee) || 0;
+        if (holdFeeId && holdSvcAmt > 0) {
+          guestBody.additionalFees = [{ _id: holdFeeId, amount: holdSvcAmt }];
+        }
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -1480,12 +1505,17 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       return Object.keys(m).length ? { ...m, currency: 'USD' } : null;
     };
 
+    // Pre-fetch the BOOKING_FEE id once for use in both paths below
+    const bookingFeeId  = await getBookingFeeId(openToken);
+    const svcFeeAmt     = parseFloat(quote.service_fee || 0);
+
     if (quote.guesty_reservation_id) {
       // Confirm the existing hold AND fix its pricing in one PUT
       try {
         const putBody = { status: 'confirmed' };
         const moneyFix = buildMoneyV1(quote);
         if (moneyFix) putBody.money = moneyFix;
+        if (bookingFeeId && svcFeeAmt > 0) putBody.additionalFees = [{ _id: bookingFeeId, amount: svcFeeAmt }];
         const patchRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${quote.guesty_reservation_id}`, {
           method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
@@ -1515,6 +1545,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       };
       const moneyNew = buildMoneyV1(quote);
       if (moneyNew) newResBody.money = moneyNew;
+      if (bookingFeeId && svcFeeAmt > 0) newResBody.additionalFees = [{ _id: bookingFeeId, amount: svcFeeAmt }];
       console.log('Creating new Guesty V1 reservation body:', JSON.stringify(newResBody).slice(0, 400));
 
       const newResRes  = await fetch('https://open-api.guesty.com/v1/reservations', {
@@ -1545,44 +1576,6 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const guText = await guRes.text();
         console.log('Guest update response:', guText.slice(0, 200));
       } catch(e) { console.warn('Guest update warning:', e.message); }
-    }
-
-    // Step 7b: Apply BOOKING_FEE (Service Fee) to reservation.
-    // Fetch account-level fees from correct endpoint, find BOOKING_FEE by type, apply to reservation.
-    const serviceFeeAmt = parseFloat(quote.service_fee || 0);
-    if (serviceFeeAmt > 0 && reservationId) {
-      try {
-        // Get account-level additional fees
-        const feesRes  = await fetch('https://open-api.guesty.com/v1/additional-fees/account', {
-          headers: { Authorization: `Bearer ${openToken}` }
-        });
-        const feesText = await feesRes.text();
-        console.log('Account fees response:', feesText.slice(0, 500));
-
-        let feeId = null;
-        try {
-          const feesData = JSON.parse(feesText);
-          const fees = feesData.results || feesData.data || feesData;
-          const match = (Array.isArray(fees) ? fees : []).find(f =>
-            f.type === 'BOOKING_FEE' || f.secondIdentifier === 'BOOKING_FEE' ||
-            f.name?.toLowerCase().includes('service')
-          );
-          if (match) {
-            feeId = match._id;
-            console.log('Found BOOKING_FEE:', match.name, feeId);
-          }
-        } catch(e) { console.warn('Fee parse error:', e.message); }
-
-        if (feeId) {
-          const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
-            method:  'POST',
-            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ feeId, amount: serviceFeeAmt })
-          });
-          const afText = await afRes.text();
-          console.log('Service fee apply response:', afText.slice(0, 300));
-        }
-      } catch(e) { console.warn('Service fee apply warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing

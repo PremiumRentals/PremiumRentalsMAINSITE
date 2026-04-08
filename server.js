@@ -1229,7 +1229,8 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
       ? accommodationTotal + (cleaningFee || 0) + (serviceFee || 0) + (taxes || 0)
       : null;
 
-    const expiresAt = holdHours
+    // Inquiry quotes never expire — only reserved holds have an expiry
+    const expiresAt = (holdType === 'reserved' && holdHours)
       ? new Date(Date.now() + holdHours * 60 * 60 * 1000).toISOString()
       : null;
 
@@ -1361,7 +1362,12 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const { data: quote, error: qErr } = await supabase
       .from('admin_quotes').select('*').eq('id', id).single();
     if (qErr || !quote) return res.status(404).json({ error: 'Quote not found' });
-    if (quote.status !== 'pending') return res.status(400).json({ error: 'Quote is no longer available' });
+    // Booked/cancelled quotes can't be re-used; expired reserved quotes can still be booked
+    if (quote.status === 'booked') return res.status(400).json({ error: 'This quote has already been booked.' });
+    if (quote.status === 'cancelled') return res.status(400).json({ error: 'This quote has been cancelled.' });
+    // Check if dates have already passed
+    const checkInDate = new Date(quote.check_in + 'T12:00:00');
+    if (checkInDate < new Date()) return res.status(400).json({ error: 'These dates have already passed.' });
 
     const openToken = await getOpenApiToken();
     const listingId = quote.listing_id;

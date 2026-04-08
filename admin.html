@@ -122,14 +122,15 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .adm-cal-month-title{font-size:12px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);text-align:center;margin-bottom:10px}
 .adm-cal-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:2px}
 .adm-cal-dn{text-align:center;font-size:9px;font-weight:700;letter-spacing:.5px;color:var(--mid);padding:4px 0;text-transform:uppercase}
-.adm-cal-d{text-align:center;padding:7px 2px;font-size:13px;border-radius:4px;cursor:pointer;transition:background .1s;line-height:1}
+.adm-cal-d{text-align:center;padding:7px 2px;font-size:13px;border-radius:4px;cursor:pointer;transition:background .1s;line-height:1;color:var(--dark)}
 .adm-cal-d.empty{cursor:default}
+.adm-cal-d.avail{color:var(--dark)}
 .adm-cal-d.avail:hover{background:#f0ede8}
-.adm-cal-d.blocked{color:#e0b8b8;text-decoration:line-through;cursor:pointer}
-.adm-cal-d.blocked:hover{background:#fdf0f0}
+.adm-cal-d.blocked{color:#bbb;text-decoration:line-through;cursor:pointer}
+.adm-cal-d.blocked:hover{background:#f5f5f5;color:#999}
 .adm-cal-d.co-only{color:#c9a96e;font-style:italic;cursor:pointer}
 .adm-cal-d.co-only:hover{background:#f0ede8}
-.adm-cal-d.past{color:#ccc;cursor:not-allowed}
+.adm-cal-d.past{color:#ddd;cursor:not-allowed}
 .adm-cal-d.ci,.adm-cal-d.co{background:var(--gold)!important;color:#fff!important;font-weight:700;border-radius:4px}
 .adm-cal-d.in-range{background:rgba(201,169,110,.15);color:var(--dark)}
 .adm-cal-d.today{font-weight:700}.adm-cal-d.today::after{content:'';display:block;width:4px;height:4px;border-radius:50%;background:var(--gold);margin:1px auto 0}
@@ -269,7 +270,7 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
         <div class="section-grid" style="margin-bottom:12px">
           <div class="field">
             <label>Nightly Rate</label>
-            <input type="number" id="q-rate" placeholder="e.g. 250" min="0" oninput="calcTotal()">
+            <input type="number" id="q-rate" placeholder="e.g. 250" min="0" oninput="onRateChange()">
             <div class="price-hint" id="q-rate-hint">Auto-filled from Guesty when dates set</div>
           </div>
           <div class="field">
@@ -286,7 +287,7 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
           </div>
           <div class="field">
             <label>Coupon Code <span style="text-transform:none;font-weight:400">(optional)</span></label>
-            <input type="text" id="q-coupon" placeholder="e.g. TRAVELLIKETIFF" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
+            <input type="text" id="q-coupon" placeholder="Optional code" style="text-transform:uppercase" oninput="this.value=this.value.toUpperCase()">
           </div>
         </div>
         <div class="total-row">
@@ -301,13 +302,13 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
         <div class="field" style="margin-bottom:16px">
           <label>Hold Type</label>
           <div class="hold-pills">
-            <div class="hold-pill active" onclick="setHoldType('inquiry')" id="hold-inquiry">Inquiry (soft hold)</div>
+            <div class="hold-pill active" onclick="setHoldType('inquiry')" id="hold-inquiry">Inquiry</div>
             <div class="hold-pill" onclick="setHoldType('reserved')" id="hold-reserved">Reserved (blocks calendar)</div>
           </div>
-          <div class="price-hint" style="margin-top:8px" id="hold-desc">Soft hold — dates stay available until guest confirms</div>
+          <div class="price-hint" style="margin-top:8px" id="hold-desc">Link stays active until dates pass or another booking fills them. Guest can book any time.</div>
         </div>
-        <div class="field">
-          <label>Expires After</label>
+        <div class="field" id="hold-expiry-row" style="display:none">
+          <label>Calendar Hold Expires After</label>
           <div class="hold-pills">
             <div class="hold-pill" onclick="setHoldHours(12)" id="hold-12">12 hours</div>
             <div class="hold-pill active" onclick="setHoldHours(24)" id="hold-24">24 hours</div>
@@ -333,7 +334,7 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
             </div>
           </label>
           <label style="display:flex;align-items:flex-start;gap:12px;cursor:pointer">
-            <input type="checkbox" id="q-accept-ach" style="width:16px;height:16px;margin-top:2px;cursor:pointer;accent-color:var(--gold)">
+            <input type="checkbox" id="q-accept-ach" checked style="width:16px;height:16px;margin-top:2px;cursor:pointer;accent-color:var(--gold)">
             <div>
               <div style="font-size:14px;font-weight:600;color:var(--dark)">ACH Bank Transfer</div>
               <div style="font-size:12px;color:var(--mid);margin-top:2px">US bank accounts · requires 4+ days before check-in · no extra fees</div>
@@ -381,6 +382,7 @@ const SITE = 'https://premiumrentals.com';
 let token = localStorage.getItem('pr_admin_token');
 let listings = [];
 let selectedHoldType = 'inquiry';
+let guesty_svc_ratio = 0, guesty_tax_ratio = 0; // fee ratios for proportional recalc
 let selectedHoldHours = 24;
 let modalLink = '';
 
@@ -618,15 +620,34 @@ async function fetchStandardPricing() {
     if (d.available && d.nightlyAvg) {
       document.getElementById('q-rate-hint').textContent =
         `Guesty: $${d.nightlyAvg}/night · Cleaning: $${d.cleaningFee||0} · Svc: $${d.serviceFee||0} · Taxes: $${d.taxes||0}`;
-      if (!document.getElementById('q-rate').value)     document.getElementById('q-rate').value     = d.nightlyAvg;
-      if (!document.getElementById('q-cleaning').value) document.getElementById('q-cleaning').value = d.cleaningFee || 0;
-      if (!document.getElementById('q-svcfee').value)   document.getElementById('q-svcfee').value   = d.serviceFee  || 0;
-      if (!document.getElementById('q-taxes').value)    document.getElementById('q-taxes').value    = d.taxes || 0;
+      // Always overwrite with Guesty values
+      document.getElementById('q-rate').value     = d.nightlyAvg;
+      document.getElementById('q-cleaning').value = d.cleaningFee || 0;
+      document.getElementById('q-svcfee').value   = d.serviceFee  || 0;
+      document.getElementById('q-taxes').value    = d.taxes || 0;
+      // Store fee ratios so rate changes can recalculate them proportionally
+      const accom = d.nightlyAvg * (parseInt(document.getElementById('q-nights').value) || 1);
+      guesty_svc_ratio = accom > 0 ? (d.serviceFee || 0) / accom : 0;
+      guesty_tax_ratio = accom > 0 ? (d.taxes || 0) / accom : 0;
       calcTotal();
     } else if (!d.available) {
       document.getElementById('q-rate-hint').textContent = '⚠ Property not available for these dates';
     }
   } catch(e) {}
+}
+
+function onRateChange() {
+  const rate   = parseFloat(document.getElementById('q-rate').value) || 0;
+  const nights = parseFloat(document.getElementById('q-nights').value) || 0;
+  if (rate > 0 && nights > 0) {
+    if (guesty_svc_ratio > 0) {
+      document.getElementById('q-svcfee').value = Math.round(rate * nights * guesty_svc_ratio);
+    }
+    if (guesty_tax_ratio > 0) {
+      document.getElementById('q-taxes').value = Math.round(rate * nights * guesty_tax_ratio);
+    }
+  }
+  calcTotal();
 }
 
 function calcTotal() {
@@ -647,10 +668,11 @@ function setHoldType(type) {
     document.getElementById(`hold-${t}`).classList.toggle('active', t === type);
   });
   const desc = {
-    inquiry: 'Soft hold — dates stay available until guest confirms',
-    reserved: 'Hard hold — dates blocked immediately, released if guest doesn\'t confirm in time'
+    inquiry:  'Link stays active until dates pass or another booking fills them. Guest can book any time.',
+    reserved: 'Dates blocked immediately on the calendar. Hold releases automatically after the time below.'
   };
   document.getElementById('hold-desc').textContent = desc[type];
+  document.getElementById('hold-expiry-row').style.display = type === 'reserved' ? 'block' : 'none';
 }
 
 function setHoldHours(h) {
@@ -678,7 +700,7 @@ function resetForm() {
   document.getElementById('q-msg').textContent   = '';
   document.getElementById('q-rate-hint').textContent = 'Auto-filled from Guesty when dates set';
   document.getElementById('q-accept-cards').checked = true;
-  document.getElementById('q-accept-ach').checked   = false;
+  document.getElementById('q-accept-ach').checked   = true;
   admCalInit();
 }
 

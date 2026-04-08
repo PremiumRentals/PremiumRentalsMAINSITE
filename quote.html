@@ -141,13 +141,17 @@ body{font-family:'Inter',sans-serif;background:var(--light);color:var(--dark);mi
     <!-- Greeting -->
     <div class="greeting">
       <div class="greeting-name" id="greeting-name"></div>
-      <div class="greeting-text">We've prepared a custom quote for your stay. Review the details below and reserve your dates before this offer expires.</div>
+      <div class="greeting-text" id="greeting-text">We've prepared a custom quote for your stay. Review the details below and complete your reservation when you're ready.</div>
     </div>
 
-    <!-- Expiry bar -->
+    <!-- Expiry bar (reserved quotes only) -->
     <div class="expiry-bar" id="expiry-bar" style="display:none">
       <div class="expiry-icon">⏱</div>
-      <div class="expiry-text">This quote expires in <span class="expiry-countdown" id="expiry-countdown"></span>. Reserve now to lock in your dates.</div>
+      <div class="expiry-text">Dates held for you — expires in <span class="expiry-countdown" id="expiry-countdown"></span>. Reserve now to lock in your booking.</div>
+    </div>
+    <!-- Availability notice (inquiry quotes) -->
+    <div id="avail-notice" style="display:none;margin:0 0 16px;padding:12px 16px;background:#fff8ec;border:1px solid #f0d080;border-radius:8px;font-size:13px;color:#7a5c00">
+      <strong>Heads up:</strong> These dates are not exclusively held for you. If you'd like to confirm availability before booking, please <a href="mailto:info@premiumrentals.com" style="color:var(--gold)">contact us</a>.
     </div>
 
     <!-- Property -->
@@ -267,13 +271,17 @@ function render(q) {
     document.getElementById('greeting-name').textContent = `Welcome, ${q.guest_first_name}.`;
   }
 
-  // Expiry countdown
-  if (q.expires_at && q.status === 'pending') {
+  // Expiry countdown — only for reserved holds
+  if (q.hold_type === 'reserved' && q.expires_at) {
     const diff = new Date(q.expires_at) - Date.now();
     if (diff > 0) {
       document.getElementById('expiry-bar').style.display = 'flex';
       startCountdown(new Date(q.expires_at));
     }
+  }
+  // Availability notice — for inquiry quotes (dates not held)
+  if (q.hold_type === 'inquiry' || !q.hold_type) {
+    document.getElementById('avail-notice').style.display = 'block';
   }
 
   // Property

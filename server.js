@@ -1580,18 +1580,33 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
     }
 
-    // Step 7d: ACH — record the bank transfer payment in Guesty so the reservation shows as paid
+    // Step 7d: ACH — record the bank transfer payment in Guesty so the reservation shows as paid.
+    // We GET the reservation first to find Guesty's actual balance due, since fareTax can't be
+    // overridden via V1 and Guesty auto-calculates it — making its total differ from our quote.
     if (isAch && reservationId) {
       try {
-        const totalAmt = parseFloat(quote.total || 0);
+        // Fetch Guesty's calculated balance due
+        let paymentAmount = parseFloat(quote.total || 0);
+        try {
+          const resChk  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}?fields=money`, {
+            headers: { Authorization: `Bearer ${openToken}` }
+          });
+          const resChkData = await resChk.json();
+          const balanceDue = resChkData.money?.balanceDue;
+          if (typeof balanceDue === 'number' && balanceDue > 0) {
+            paymentAmount = balanceDue;
+            console.log(`Guesty balance due: $${balanceDue} (quote total: $${quote.total})`);
+          }
+        } catch(e) { console.warn('Could not fetch balance due, using quote total:', e.message); }
+
         const payRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/payments`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({
             paymentMethod: { method: 'BANK_TRANSFER' },
-            amount:        totalAmt,
+            amount:        paymentAmount,
             paidAt:        new Date().toISOString(),
-            note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
+            note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'} (quoted total $${quote.total})`
           })
         });
         const payText = await payRes.text();

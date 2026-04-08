@@ -1197,6 +1197,14 @@ app.get('/api/admin/listings', requireAdmin, async (req, res) => {
 // ── Admin: List quotes ──
 app.get('/api/admin/quotes', requireAdmin, async (req, res) => {
   try {
+    // Auto-expire pending quotes whose check-out date has already passed
+    const today = new Date().toISOString().split('T')[0];
+    await supabase
+      .from('admin_quotes')
+      .update({ status: 'expired' })
+      .in('status', ['pending'])
+      .lt('check_out', today);
+
     const { data, error } = await supabase
       .from('admin_quotes')
       .select('*')
@@ -1255,7 +1263,6 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
         const guestyMoney = {};
         if (accommodationTotal)    guestyMoney.fareAccommodation = accommodationTotal;
         if (cleaningFee)           guestyMoney.fareCleaning       = cleaningFee;
-        if (serviceFee)            guestyMoney.fareServiceFee     = serviceFee;
         if (taxes)                 guestyMoney.fareTax            = taxes;
         if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
@@ -1365,9 +1372,9 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const { data: quote, error: qErr } = await supabase
       .from('admin_quotes').select('*').eq('id', id).single();
     if (qErr || !quote) return res.status(404).json({ error: 'Quote not found' });
-    if (quote.status === 'booked')     return res.status(400).json({ error: 'This quote has already been booked.' });
-    if (quote.status === 'cancelled')  return res.status(400).json({ error: 'This quote has been cancelled.' });
-    if (quote.status === 'accepted')   return res.status(400).json({ error: 'This quote has already been accepted.' });
+    if (quote.status === 'booked')    return res.status(400).json({ error: 'This quote has already been booked.' });
+    if (quote.status === 'cancelled') return res.status(400).json({ error: 'This quote has been cancelled.' });
+    if (quote.status === 'accepted')  return res.status(400).json({ error: 'This quote has already been accepted.' });
     const checkInDate = new Date(quote.check_in + 'T12:00:00');
     if (checkInDate < new Date()) return res.status(400).json({ error: 'These dates have already passed.' });
 
@@ -1380,44 +1387,53 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const email     = guestEmail     || quote.guest_email      || '';
     const phone     = guestPhone     || quote.guest_phone      || '';
 
-    // Step 1: Stripe customer
-    let customerId;
-    try {
-      const customers = await stripe.customers.list({ email, limit: 1 });
-      let customer = customers.data[0];
-      if (!customer) customer = await stripe.customers.create({ email, name: `${firstName} ${lastName}`.trim() });
-      customerId = customer.id;
-      await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: stripePaymentMethodId } });
-    } catch(e) { console.warn('Stripe customer warning:', e.message); }
-
-    // Step 2: Detect payment type + ACH 4-day validation
+    // Step 1: Detect payment method type + retrieve customer bound to PM
+    // Using pm.customer ensures we use the SAME customer that confirmed the mandate during SetupIntent
     const pm    = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
     const isAch = pm.type === 'us_bank_account';
+
+    // Step 2: Stripe customer — prefer the customer already bound to the PM (mandate holder)
+    let customerId = pm.customer || null;
+    if (!customerId) {
+      try {
+        const customers = await stripe.customers.list({ email, limit: 1 });
+        let customer = customers.data[0];
+        if (!customer) customer = await stripe.customers.create({ email, name: `${firstName} ${lastName}`.trim() });
+        customerId = customer.id;
+        // Attach PM to this customer so future charges can find the mandate
+        if (isAch) {
+          try { await stripe.paymentMethods.attach(stripePaymentMethodId, { customer: customerId }); } catch(_) {}
+        }
+      } catch(e) { console.warn('Stripe customer warning:', e.message); }
+    }
+
+    // Step 3: ACH 4-day check
     if (isAch) {
       const minDate = new Date(); minDate.setDate(minDate.getDate() + 4); minDate.setHours(0,0,0,0);
       if (checkInDate < minDate) return res.status(400).json({ error: 'ACH requires check-in at least 4 days from today. Please use a card or contact us.' });
     }
 
-    // Step 3: ACH — charge via Stripe FIRST before touching Guesty
-    // (Guesty does not support bank account payment methods)
+    // Step 4: ACH — charge via Stripe FIRST before touching Guesty
+    // Guesty does not support bank account payment methods; we bill via Stripe directly.
+    // Guest is present on the checkout page so this is an on-session charge (no off_session flag).
+    // The mandate was set during SetupIntent; Stripe automatically finds it via customer+PM.
     let stripePaymentIntentId = null;
     if (isAch) {
       const totalCents = Math.round(parseFloat(quote.total || 0) * 100);
       if (!totalCents) return res.status(400).json({ error: 'Quote must have a total set before ACH payment can be processed.' });
       const paymentIntent = await stripe.paymentIntents.create({
-        amount:   totalCents,
-        currency: 'usd',
-        customer: customerId,
+        amount:               totalCents,
+        currency:             'usd',
+        customer:             customerId,
         payment_method:       stripePaymentMethodId,
         payment_method_types: ['us_bank_account'],
-        off_session: true,
-        confirm:     true,
-        description: `Quote ${id} — ${quote.listing_name || 'Property'} ${checkIn}→${checkOut}`,
-        metadata:    { quoteId: id, listingId }
+        confirm:              true,
+        description:          `Quote ${id} — ${quote.listing_name || 'Property'} ${checkIn}→${checkOut}`,
+        metadata:             { quoteId: id, listingId }
       });
       console.log('ACH PaymentIntent', paymentIntent.id, paymentIntent.status);
-      // ACH debit is asynchronous — 'processing' means the debit was accepted by the bank network
-      // 'succeeded' = already settled (test mode). Both are valid.
+      // ACH debit is asynchronous — 'processing' = debit accepted by bank network (settles 1-3 days)
+      // 'succeeded' = already settled (Stripe test mode). Both are valid to proceed.
       const accepted = ['processing', 'succeeded'].includes(paymentIntent.status);
       if (!accepted) {
         const why = paymentIntent.last_payment_error?.message || `status: ${paymentIntent.status}`;
@@ -1426,7 +1442,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       stripePaymentIntentId = paymentIntent.id;
     }
 
-    // Step 4: Get Guesty payment provider (for card path)
+    // Step 5: Get Guesty payment provider (for card path)
     let paymentProviderId = null;
     try {
       const ppRes  = await fetch(`https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`, { headers: { Authorization: `Bearer ${openToken}` } });
@@ -1434,50 +1450,68 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       paymentProviderId = ppData.paymentProviderId || ppData._id;
     } catch(e) { console.warn('Could not get payment provider:', e.message); }
 
-    // Step 5: Create V3 quote to validate availability
-    const listingFees = await getListingFees(listingId);
-    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests: quote.guests || 1 }, { strict: true });
-    if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
-      // If ACH was already charged, note this for the user
-      const extra = isAch ? ' Your bank payment was not processed.' : '';
-      return res.status(400).json({ error: `Dates are no longer available.${extra}` });
-    }
-    const pricing    = extractV3Pricing(quoteData, listingFees);
-    const guestyQId  = quoteData._id;
-    const ratePlanId = pricing.ratePlanId;
+    // Step 6: Confirm or create Guesty reservation
+    // If the admin created a hold (guesty_reservation_id exists), confirm that reservation.
+    // This preserves the custom pricing set at quote creation time — no need to override.
+    // If no hold exists, create a new reservation via V1 API with money override.
+    let reservationId, guestId, confirmationCode;
 
-    // Step 6: Create Guesty reservation with custom pricing override
-    // fareServiceFee is not a valid V3 field — only fareAccommodation/fareCleaning/fareTax
-    const moneyOverride = {};
-    if (quote.accommodation_total) moneyOverride.fareAccommodation = parseFloat(quote.accommodation_total);
-    if (quote.cleaning_fee)        moneyOverride.fareCleaning       = parseFloat(quote.cleaning_fee);
-    if (quote.taxes)               moneyOverride.fareTax            = parseFloat(quote.taxes);
-    const reservationBody = {
-      status: 'confirmed',
-      reservedUntil: -1,
-      guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) },
-      quoteId:   guestyQId,
-      ratePlanId,
-      ...(paymentProviderId ? { paymentProviderId } : {}),
-      ...(Object.keys(moneyOverride).length ? { money: moneyOverride } : {})
-    };
-    const resRes = await fetch('https://open-api.guesty.com/v1/reservations-v3/quote', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify(reservationBody)
-    });
-    const resData = await resRes.json();
-    if (!resData._id) throw new Error(resData.message || resData.error || 'Guesty reservation failed');
-    const reservationId = resData._id;
-    const guestId       = resData.guestId || resData.guest?._id;
+    if (quote.guesty_reservation_id) {
+      // Confirm the existing hold — pricing is already correct from quote creation
+      try {
+        const patchRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${quote.guesty_reservation_id}`, {
+          method:  'PUT',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ status: 'confirmed' })
+        });
+        const patchData = await patchRes.json();
+        if (patchData._id) {
+          reservationId    = patchData._id;
+          guestId          = patchData.guestId || patchData.guest?._id;
+          confirmationCode = patchData.confirmationCode || reservationId;
+          console.log('Confirmed existing Guesty reservation:', reservationId);
+        } else {
+          console.warn('Could not confirm existing hold, will create new reservation:', JSON.stringify(patchData).slice(0, 200));
+        }
+      } catch(e) { console.warn('Guesty hold confirm error:', e.message); }
+    }
+
+    if (!reservationId) {
+      // No existing hold or confirm failed — create a new reservation via V1 API with money override
+      const newResBody = {
+        listingId,
+        checkInDateLocalized:  checkIn,
+        checkOutDateLocalized: checkOut,
+        status:      'confirmed',
+        guestsCount: quote.guests || 1,
+        guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) }
+      };
+      const moneyV1 = {};
+      if (quote.accommodation_total) moneyV1.fareAccommodation = parseFloat(quote.accommodation_total);
+      if (quote.cleaning_fee)        moneyV1.fareCleaning       = parseFloat(quote.cleaning_fee);
+      if (quote.taxes)               moneyV1.fareTax            = parseFloat(quote.taxes);
+      if (Object.keys(moneyV1).length) newResBody.money = { ...moneyV1, currency: 'USD' };
+
+      const newResRes  = await fetch('https://open-api.guesty.com/v1/reservations', {
+        method:  'POST',
+        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+        body:    JSON.stringify(newResBody)
+      });
+      const newResData = await newResRes.json();
+      if (!newResData._id) throw new Error(newResData.message || newResData.error || 'Guesty reservation failed');
+      reservationId    = newResData._id;
+      guestId          = newResData.guestId || newResData.guest?._id;
+      confirmationCode = newResData.confirmationCode || reservationId;
+      console.log('Created new Guesty reservation:', reservationId);
+    }
 
     // Step 7: Card only — attach PM to Guesty guest so Guesty handles billing
     if (!isAch && guestId) {
       try {
         await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
-          method: 'POST',
+          method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ provider: 'stripe', token: stripePaymentMethodId, isDefault: true, ...(paymentProviderId ? { paymentProviderId } : {}) })
+          body:    JSON.stringify({ provider: 'stripe', token: stripePaymentMethodId, isDefault: true, ...(paymentProviderId ? { paymentProviderId } : {}) })
         });
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
     }
@@ -1488,7 +1522,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       guesty_reservation_id: reservationId
     }).eq('id', id);
 
-    res.json({ success: true, reservationId, confirmationCode: resData.confirmationCode });
+    res.json({ success: true, reservationId, confirmationCode });
   } catch(e) {
     console.error('Quote reserve error:', e.message);
     res.status(500).json({ error: e.message });

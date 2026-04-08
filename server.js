@@ -1547,32 +1547,40 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guest update warning:', e.message); }
     }
 
-    // Step 7b: Apply the BOOKING_FEE (Service Fee) to the reservation.
-    // Fee is pre-configured on the Guesty account. Try two approaches:
-    // 1) POST to reservation additional-fees with secondIdentifier (now fee exists on account)
-    // 2) Fall back to BE-API token if Open API returns 404
+    // Step 7b: Apply BOOKING_FEE (Service Fee) to reservation.
+    // Fetch account-level fees from correct endpoint, find BOOKING_FEE by type, apply to reservation.
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     if (serviceFeeAmt > 0 && reservationId) {
       try {
-        const beToken  = await getBeApiToken();
-        // Try BE-API reservation update to add the fee
-        const afRes  = await fetch(`https://booking.guesty.com/api/2.0/reservations/${reservationId}/fees`, {
-          method:  'POST',
-          headers: { Authorization: `Bearer ${beToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ secondIdentifier: 'BOOKING_FEE', amount: serviceFeeAmt })
+        // Get account-level additional fees
+        const feesRes  = await fetch('https://open-api.guesty.com/v1/additional-fees/account', {
+          headers: { Authorization: `Bearer ${openToken}` }
         });
-        const afText = await afRes.text();
-        console.log('Service fee BE-API response:', afText.slice(0, 300));
+        const feesText = await feesRes.text();
+        console.log('Account fees response:', feesText.slice(0, 500));
 
-        // If BE-API didn't work, also try Open API with secondIdentifier
-        if (!afText.includes('"_id"')) {
-          const af2Res  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
+        let feeId = null;
+        try {
+          const feesData = JSON.parse(feesText);
+          const fees = feesData.results || feesData.data || feesData;
+          const match = (Array.isArray(fees) ? fees : []).find(f =>
+            f.type === 'BOOKING_FEE' || f.secondIdentifier === 'BOOKING_FEE' ||
+            f.name?.toLowerCase().includes('service')
+          );
+          if (match) {
+            feeId = match._id;
+            console.log('Found BOOKING_FEE:', match.name, feeId);
+          }
+        } catch(e) { console.warn('Fee parse error:', e.message); }
+
+        if (feeId) {
+          const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {
             method:  'POST',
             headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ secondIdentifier: 'BOOKING_FEE', amount: serviceFeeAmt })
+            body:    JSON.stringify({ feeId, amount: serviceFeeAmt })
           });
-          const af2Text = await af2Res.text();
-          console.log('Service fee OAPI response:', af2Text.slice(0, 300));
+          const afText = await afRes.text();
+          console.log('Service fee apply response:', afText.slice(0, 300));
         }
       } catch(e) { console.warn('Service fee apply warning:', e.message); }
     }

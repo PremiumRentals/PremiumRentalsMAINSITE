@@ -1532,7 +1532,45 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       console.log('Created new Guesty reservation:', reservationId);
     }
 
-    // Step 7: Card only — attach PM to Guesty guest so Guesty handles billing
+    // Step 7: Update guest contact info in Guesty (works for both new and confirmed hold)
+    if (guestId) {
+      try {
+        const guestUpdateBody = {
+          firstName, lastName, email,
+          ...(phone ? { phones: [{ phone: formatPhone(phone), isPrimary: true }] } : {})
+        };
+        const guRes = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}`, {
+          method:  'PUT',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify(guestUpdateBody)
+        });
+        const guText = await guRes.text();
+        console.log('Guest update response:', guText.slice(0, 200));
+      } catch(e) { console.warn('Guest update warning:', e.message); }
+    }
+
+    // Step 7b: Add service fee as a Guesty finance invoice item (V1 money override doesn't support it)
+    const serviceFeeAmt = parseFloat(quote.service_fee || 0);
+    if (serviceFeeAmt > 0 && reservationId) {
+      try {
+        const sfRes = await fetch('https://open-api.guesty.com/v1/finance/invoice-items', {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            reservationId,
+            amount:     serviceFeeAmt,
+            currency:   'USD',
+            type:       'MANAGEMENT_FEE',
+            normalType: 'MANAGEMENT_FEE',
+            title:      'Service Fee'
+          })
+        });
+        const sfText = await sfRes.text();
+        console.log('Service fee invoice item response:', sfText.slice(0, 200));
+      } catch(e) { console.warn('Service fee invoice item warning:', e.message); }
+    }
+
+    // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing
     if (!isAch && guestId) {
       try {
         await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
@@ -1543,24 +1581,23 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
     }
 
-    // Step 7b: ACH — record the bank transfer payment in Guesty so the reservation shows as paid
+    // Step 7d: ACH — record the bank transfer payment in Guesty so the reservation shows as paid
     if (isAch && reservationId) {
       try {
         const totalAmt = parseFloat(quote.total || 0);
-        const payRes  = await fetch('https://open-api.guesty.com/v1/accounting/payments', {
+        const payRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/payments`, {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({
-            reservationId,
             amount:   totalAmt,
             currency: 'USD',
             type:     'BANK_TRANSFER',
-            note:     `ACH bank transfer via Stripe — PaymentIntent ${stripePaymentIntentId || 'N/A'}`
+            note:     `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
           })
         });
-        const payData = await payRes.text();
-        console.log('Guesty payment record response:', payData.slice(0, 200));
-      } catch(e) { console.warn('Guesty payment record warning:', e.message); }
+        const payText = await payRes.text();
+        console.log('Payment record response:', payText.slice(0, 300));
+      } catch(e) { console.warn('Payment record warning:', e.message); }
     }
 
     // Step 8: Mark admin quote as accepted

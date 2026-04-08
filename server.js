@@ -1261,9 +1261,13 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
           }
         };
         // Guesty V1 money override: fareAccommodation + fareCleaning only (fareTax is not a valid V1 field)
+        // Include fareCleaning even when 0 to explicitly override Guesty's default cleaning fee
         const guestyMoney = {};
         if (accommodationTotal) guestyMoney.fareAccommodation = accommodationTotal;
-        if (cleaningFee)        guestyMoney.fareCleaning       = cleaningFee;
+        if (cleaningFee !== null && cleaningFee !== undefined) {
+          const c = parseFloat(cleaningFee);
+          if (!isNaN(c)) guestyMoney.fareCleaning = c;
+        }
         if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
           method: 'POST',
@@ -1451,8 +1455,8 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     } catch(e) { console.warn('Could not get payment provider:', e.message); }
 
     // Step 6: Confirm or create Guesty reservation
-    // If the admin created a hold (guesty_reservation_id exists), confirm that reservation.
-    // This preserves the custom pricing set at quote creation time — no need to override.
+    // If the admin created a hold (guesty_reservation_id exists), confirm it — but ALSO
+    // send the money override in the same PUT so pricing is corrected at confirmation time.
     // If no hold exists, create a new reservation via V1 API with money override.
     let reservationId, guestId, confirmationCode;
 
@@ -1463,13 +1467,31 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       catch(e) { throw new Error(`${label} — Guesty non-JSON response: ${text.slice(0, 300)}`); }
     };
 
+    // Build V1 money override: fareAccommodation + fareCleaning only
+    // fareTax is NOT accepted by Guesty V1 (Guesty calculates tax automatically)
+    // Include fareCleaning even when 0 — omitting it lets Guesty fall back to its default
+    const buildMoneyV1 = (q) => {
+      const m = {};
+      const accom = parseFloat(q.accommodation_total);
+      if (!isNaN(accom) && accom > 0) m.fareAccommodation = accom;
+      // Include cleaning even if $0 — null means "not set by admin", 0 means "no cleaning fee"
+      if (q.cleaning_fee !== null && q.cleaning_fee !== undefined) {
+        const clean = parseFloat(q.cleaning_fee);
+        if (!isNaN(clean)) m.fareCleaning = clean;
+      }
+      return Object.keys(m).length ? { ...m, currency: 'USD' } : null;
+    };
+
     if (quote.guesty_reservation_id) {
-      // Confirm the existing hold — pricing is already correct from quote creation
+      // Confirm the existing hold AND fix its pricing in one PUT
       try {
+        const putBody = { status: 'confirmed' };
+        const moneyFix = buildMoneyV1(quote);
+        if (moneyFix) putBody.money = moneyFix;
         const patchRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${quote.guesty_reservation_id}`, {
           method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ status: 'confirmed' })
+          body:    JSON.stringify(putBody)
         });
         const patchData = await parseGuestyRes(patchRes, 'confirm hold');
         if (patchData._id) {
@@ -1484,7 +1506,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     }
 
     if (!reservationId) {
-      // No existing hold or confirm failed — create a new reservation via V1 API with money override
+      // No existing hold or confirm failed — create a new reservation via V1 API
       const newResBody = {
         listingId,
         checkInDateLocalized:  checkIn,
@@ -1493,14 +1515,8 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         guestsCount: quote.guests || 1,
         guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) }
       };
-      // Guesty V1 money override: fareAccommodation + fareCleaning only
-      // fareTax is NOT a valid V1 field (Guesty calculates tax automatically)
-      const moneyV1 = {};
-      const accomAmt = parseFloat(quote.accommodation_total);
-      const cleanAmt = parseFloat(quote.cleaning_fee);
-      if (!isNaN(accomAmt) && accomAmt > 0) moneyV1.fareAccommodation = accomAmt;
-      if (!isNaN(cleanAmt) && cleanAmt > 0) moneyV1.fareCleaning       = cleanAmt;
-      if (Object.keys(moneyV1).length) newResBody.money = { ...moneyV1, currency: 'USD' };
+      const moneyNew = buildMoneyV1(quote);
+      if (moneyNew) newResBody.money = moneyNew;
       console.log('Creating new Guesty V1 reservation body:', JSON.stringify(newResBody).slice(0, 400));
 
       const newResRes  = await fetch('https://open-api.guesty.com/v1/reservations', {
@@ -1525,6 +1541,26 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           body:    JSON.stringify({ provider: 'stripe', token: stripePaymentMethodId, isDefault: true, ...(paymentProviderId ? { paymentProviderId } : {}) })
         });
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
+    }
+
+    // Step 7b: ACH — record the bank transfer payment in Guesty so the reservation shows as paid
+    if (isAch && reservationId) {
+      try {
+        const totalAmt = parseFloat(quote.total || 0);
+        const payRes  = await fetch('https://open-api.guesty.com/v1/accounting/payments', {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            reservationId,
+            amount:   totalAmt,
+            currency: 'USD',
+            type:     'BANK_TRANSFER',
+            note:     `ACH bank transfer via Stripe — PaymentIntent ${stripePaymentIntentId || 'N/A'}`
+          })
+        });
+        const payData = await payRes.text();
+        console.log('Guesty payment record response:', payData.slice(0, 200));
+      } catch(e) { console.warn('Guesty payment record warning:', e.message); }
     }
 
     // Step 8: Mark admin quote as accepted

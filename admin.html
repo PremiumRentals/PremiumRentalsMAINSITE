@@ -219,16 +219,7 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
             <div class="adm-cal-lbl" id="adm-cal-lbl"></div>
             <button class="adm-cal-nav" onclick="admCalNav(1)">›</button>
           </div>
-          <div class="adm-cal-months">
-            <div class="adm-cal-month">
-              <div class="adm-cal-month-title" id="adm-cal-m1-title"></div>
-              <div class="adm-cal-grid" id="adm-cal-grid1"></div>
-            </div>
-            <div class="adm-cal-month">
-              <div class="adm-cal-month-title" id="adm-cal-m2-title"></div>
-              <div class="adm-cal-grid" id="adm-cal-grid2"></div>
-            </div>
-          </div>
+          <div class="adm-cal-months" id="adm-cal-months"></div>
           <div class="adm-cal-hint" id="adm-cal-hint">Select check-in date</div>
           <div id="adm-cal-avail-status" style="display:none;padding:6px 16px;font-size:11px;background:#fff3cd;color:#856404;border-top:1px solid #ffc107"></div>
         </div>
@@ -413,20 +404,18 @@ function admCalNav(dir) {
 }
 
 function admRenderCal() {
-  const m2 = (admCalMonth + 1) % 12;
-  const y2 = admCalMonth === 11 ? admCalYear + 1 : admCalYear;
+  let m2 = admCalMonth + 1, y2 = admCalYear;
+  if (m2 > 11) { m2 = 0; y2++; }
   document.getElementById('adm-cal-lbl').textContent = `${MONTHS[admCalMonth]} ${admCalYear}  —  ${MONTHS[m2]} ${y2}`;
-  document.getElementById('adm-cal-m1-title').textContent = `${MONTHS[admCalMonth]} ${admCalYear}`;
-  document.getElementById('adm-cal-m2-title').textContent = `${MONTHS[m2]} ${y2}`;
   const today = new Date(); today.setHours(0,0,0,0);
-  document.getElementById('adm-cal-grid1').innerHTML = admRenderMonth(admCalYear, admCalMonth, today);
-  document.getElementById('adm-cal-grid2').innerHTML = admRenderMonth(y2, m2, today);
-  // Update hint
+  document.getElementById('adm-cal-months').innerHTML =
+    admMonthHTML(admCalYear, admCalMonth, today) + admMonthHTML(y2, m2, today);
+  // Hint
   const hintEl = document.getElementById('adm-cal-hint');
   if (!admCI)      hintEl.textContent = 'Select check-in date';
   else if (!admCO) hintEl.textContent = 'Now select check-out date';
   else             hintEl.textContent = `${admCI} → ${admCO}`;
-  // Update selected date displays
+  // Date display boxes
   const fmtD = ds => { const d = new Date(ds+'T12:00:00'); return `${MONTHS[d.getMonth()].slice(0,3)} ${d.getDate()}, ${d.getFullYear()}`; };
   const ciVal = document.getElementById('adm-ci-val');
   const coVal = document.getElementById('adm-co-val');
@@ -434,38 +423,35 @@ function admRenderCal() {
   else       { ciVal.textContent = 'Select date'; ciVal.classList.add('placeholder'); }
   if (admCO) { coVal.textContent = fmtD(admCO); coVal.classList.remove('placeholder'); }
   else       { coVal.textContent = 'Select date'; coVal.classList.add('placeholder'); }
-  // Active state on date boxes
   document.getElementById('adm-sel-ci').classList.toggle('active', admCalMode === 'checkin');
   document.getElementById('adm-sel-co').classList.toggle('active', admCalMode === 'checkout');
 }
 
-function admRenderMonth(year, month, today) {
+function admMonthHTML(year, month, today) {
   const todayStr = `${today.getFullYear()}-${String(today.getMonth()+1).padStart(2,'0')}-${String(today.getDate()).padStart(2,'0')}`;
   const first = new Date(year, month, 1).getDay();
   const total = new Date(year, month+1, 0).getDate();
-  let html = DAYS_S.map(d => `<div class="adm-cal-dn">${d}</div>`).join('');
+  let html = `<div class="adm-cal-month"><div class="adm-cal-month-title">${MONTHS[month]} ${year}</div><div class="adm-cal-grid">`;
+  html += DAYS_S.map(d => `<div class="adm-cal-dn">${d}</div>`).join('');
   for (let i = 0; i < first; i++) html += `<div class="adm-cal-d empty"></div>`;
   for (let d = 1; d <= total; d++) {
     const ds       = `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
     const isPast   = new Date(ds+'T12:00:00') < today;
     const isBlocked= admBlockedDates.has(ds);
     const isCoOnly = admCheckoutOnlyDates.has(ds);
-    const isCI     = ds === admCI;
-    const isCO     = ds === admCO;
     const inRange  = admCI && admCO && ds > admCI && ds < admCO;
-    const isToday  = ds === todayStr;
     let cls = 'adm-cal-d';
     if (isPast || isBlocked) cls += isPast ? ' past' : ' blocked';
     else if (isCoOnly && admCalMode !== 'checkout') cls += ' blocked';
     else cls += ' avail';
-    if (isCI) cls += ' ci';
-    else if (isCO) cls += ' co';
-    else if (inRange) cls += ' in-range';
-    if (isToday) cls += ' today';
+    if (ds === admCI)  cls += ' ci';
+    else if (ds === admCO) cls += ' co';
+    else if (inRange)  cls += ' in-range';
+    if (ds === todayStr) cls += ' today';
     const canClick = (!isPast && !isBlocked) || (!isPast && isCoOnly && admCalMode === 'checkout');
     html += `<div class="${cls}"${canClick ? ` onclick="admSelectDate('${ds}',${isCoOnly})"` : ''}>${d}</div>`;
   }
-  return html;
+  return html + '</div></div>';
 }
 
 function admSelectDate(ds, isCoOnly) {

@@ -72,9 +72,13 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .form-ok{color:#4caf50}
 
 /* ── Quotes List ── */
-.quote-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px 24px;display:flex;align-items:center;gap:20px;transition:box-shadow .2s}
+.quote-filter-tabs{display:flex;gap:8px;margin-bottom:16px}
+.qf-tab{padding:7px 18px;border-radius:20px;font-size:12px;font-weight:600;letter-spacing:.5px;text-transform:uppercase;cursor:pointer;border:1px solid var(--border);background:#fff;color:var(--mid);transition:all .2s}
+.qf-tab.active{background:var(--dark);color:#fff;border-color:var(--dark)}
+.quote-card{background:#fff;border:1px solid var(--border);border-radius:8px;padding:20px 24px;transition:box-shadow .2s}
 .quote-card:hover{box-shadow:0 2px 12px rgba(0,0,0,.08)}
 .quote-card+.quote-card{margin-top:10px}
+.quote-card-main{display:flex;align-items:center;gap:20px}
 .quote-thumb{width:72px;height:54px;border-radius:6px;object-fit:cover;background:#f0ede8;flex-shrink:0}
 .quote-info{flex:1;min-width:0}
 .quote-prop{font-size:14px;font-weight:600;color:var(--dark);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
@@ -90,6 +94,19 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .quote-actions{display:flex;gap:8px;align-items:center}
 .icon-btn{background:none;border:none;cursor:pointer;color:var(--mid);font-size:16px;padding:6px;border-radius:4px;transition:all .15s}
 .icon-btn:hover{background:#f0ede8;color:var(--dark)}
+.expand-btn{background:none;border:none;cursor:pointer;color:var(--mid);font-size:18px;padding:4px 6px;border-radius:4px;line-height:1;transition:transform .2s,background .15s}
+.expand-btn:hover{background:#f0ede8;color:var(--dark)}
+.quote-breakdown{display:none;border-top:1px solid var(--border);margin-top:14px;padding-top:14px}
+.quote-breakdown.open{display:block}
+.bd-grid{display:grid;grid-template-columns:1fr 1fr;gap:4px 32px}
+.bd-row{display:flex;justify-content:space-between;align-items:center;font-size:13px;padding:3px 0}
+.bd-label{color:var(--mid)}
+.bd-value{color:var(--dark);font-weight:500}
+.bd-total{grid-column:1/-1;border-top:1px solid var(--border);margin-top:6px;padding-top:8px}
+.bd-total .bd-label{color:var(--dark);font-weight:700;font-size:13px}
+.bd-total .bd-value{font-family:'Playfair Display',serif;font-size:17px;color:var(--dark)}
+.bd-notes{font-size:12px;color:var(--mid);font-style:italic;margin-top:10px;padding-top:8px;border-top:1px solid var(--border)}
+.bd-resid{font-size:11px;color:var(--mid);margin-top:6px;letter-spacing:.3px}
 .empty-state{text-align:center;padding:60px 20px;color:var(--mid)}
 .empty-icon{font-size:40px;margin-bottom:12px}
 .empty-text{font-size:14px}
@@ -350,6 +367,10 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
     <div id="page-quotes" style="display:none">
       <div class="page-title">All Quotes</div>
       <div class="page-sub">Manage and track your sent quotes</div>
+      <div class="quote-filter-tabs">
+        <button class="qf-tab active" data-filter="active" onclick="filterQuotes('active')">Active</button>
+        <button class="qf-tab" data-filter="archive" onclick="filterQuotes('archive')">Archive</button>
+      </div>
       <div id="quotes-list">
         <div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">Loading quotes...</div></div>
       </div>
@@ -762,25 +783,57 @@ function copyModalLink() {
 }
 
 // ── Quotes List ──
+let allQuotes = [];
+let activeFilter = 'active';
+
 async function loadQuotes() {
   const el = document.getElementById('quotes-list');
   el.innerHTML = '<div class="empty-state"><div class="empty-icon">⏳</div><div class="empty-text">Loading...</div></div>';
   try {
     const r = await fetch(`${API}/api/admin/quotes`, { headers: authHeaders() });
     const d = await r.json();
-    const quotes = d.quotes || [];
-    if (!quotes.length) {
-      el.innerHTML = '<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">No quotes yet. Create your first one.</div></div>';
-      return;
-    }
-    el.innerHTML = quotes.map(q => {
-      const url = `${SITE}/quote?id=${q.id}`;
-      const statusClass = { pending:'status-pending', accepted:'status-accepted', cancelled:'status-cancelled', expired:'status-expired' }[q.status] || 'status-pending';
-      const nights = q.nights || '?';
-      const ci = q.check_in ? new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
-      const co = q.check_out ? new Date(q.check_out+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
-      const total = q.total ? '$' + parseFloat(q.total).toLocaleString('en-US',{minimumFractionDigits:0}) : '—';
-      return `<div class="quote-card">
+    allQuotes = d.quotes || [];
+    renderQuotes();
+  } catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠</div><div class="empty-text">Error loading quotes</div></div>'; }
+}
+
+function filterQuotes(filter) {
+  activeFilter = filter;
+  document.querySelectorAll('.qf-tab').forEach(t => t.classList.toggle('active', t.dataset.filter === filter));
+  renderQuotes();
+}
+
+function renderQuotes() {
+  const el = document.getElementById('quotes-list');
+  const archiveStatuses = ['expired', 'cancelled'];
+  const filtered = allQuotes.filter(q => activeFilter === 'archive' ? archiveStatuses.includes(q.status) : !archiveStatuses.includes(q.status));
+  if (!filtered.length) {
+    el.innerHTML = `<div class="empty-state"><div class="empty-icon">📋</div><div class="empty-text">${activeFilter === 'archive' ? 'No archived quotes.' : 'No active quotes. Create your first one.'}</div></div>`;
+    return;
+  }
+  const fmt = n => parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  el.innerHTML = filtered.map(q => {
+    const url = `${SITE}/quote?id=${q.id}`;
+    const statusClass = { pending:'status-pending', accepted:'status-accepted', cancelled:'status-cancelled', expired:'status-expired' }[q.status] || 'status-pending';
+    const nights = q.nights || '?';
+    const ci = q.check_in ? new Date(q.check_in+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric',year:'numeric'}) : '';
+    const co = q.check_out ? new Date(q.check_out+'T12:00:00').toLocaleDateString('en-US',{month:'short',day:'numeric'}) : '';
+    const total = q.total ? '$' + fmt(q.total) : '—';
+    const accom   = parseFloat(q.accommodation_total || 0);
+    const clean   = parseFloat(q.cleaning_fee || 0);
+    const svc     = parseFloat(q.service_fee || 0);
+    const tax     = parseFloat(q.taxes || 0);
+    const bdRows = [
+      accom > 0 ? `<div class="bd-row"><span class="bd-label">Accommodation · ${nights} nights</span><span class="bd-value">$${fmt(accom)}</span></div>` : '',
+      clean > 0 ? `<div class="bd-row"><span class="bd-label">Cleaning fee</span><span class="bd-value">$${fmt(clean)}</span></div>` : '',
+      svc   > 0 ? `<div class="bd-row"><span class="bd-label">Service fee</span><span class="bd-value">$${fmt(svc)}</span></div>` : '',
+      tax   > 0 ? `<div class="bd-row"><span class="bd-label">Taxes (8%)</span><span class="bd-value">$${fmt(tax)}</span></div>` : '',
+    ].filter(Boolean).join('');
+    const cancelBtn = (q.status === 'pending')
+      ? `<button class="icon-btn" title="Cancel" onclick="cancelQuote('${q.id}', this)" style="color:#e57373">✕</button>`
+      : '';
+    return `<div class="quote-card">
+      <div class="quote-card-main">
         <img class="quote-thumb" src="${q.listing_photo || 'data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 1 1%22><rect fill=%22%23f0ede8%22 width=%221%22 height=%221%22/></svg>'}" alt="">
         <div class="quote-info">
           <div class="quote-prop">${q.listing_name || 'Property'}</div>
@@ -792,12 +845,31 @@ async function loadQuotes() {
           <div class="quote-status ${statusClass}">${q.status}</div>
         </div>
         <div class="quote-actions">
+          <button class="expand-btn" id="exp-${q.id}" title="View breakdown" onclick="toggleBreakdown('${q.id}')">▾</button>
           <button class="icon-btn" title="Copy link" onclick="copyLink('${url}', this)">⧉</button>
-          <button class="icon-btn" title="Cancel" onclick="cancelQuote('${q.id}', this)" style="color:#e57373">✕</button>
+          ${cancelBtn}
         </div>
-      </div>`;
-    }).join('');
-  } catch(e) { el.innerHTML = '<div class="empty-state"><div class="empty-icon">⚠</div><div class="empty-text">Error loading quotes</div></div>'; }
+      </div>
+      <div class="quote-breakdown" id="bd-${q.id}">
+        <div class="bd-grid">
+          ${bdRows}
+          <div class="bd-row bd-total">
+            <span class="bd-label">Total</span>
+            <span class="bd-value">${total}</span>
+          </div>
+        </div>
+        ${q.notes ? `<div class="bd-notes">"${q.notes}"</div>` : ''}
+        ${q.guesty_reservation_id ? `<div class="bd-resid">Guesty reservation: ${q.guesty_reservation_id}</div>` : ''}
+      </div>
+    </div>`;
+  }).join('');
+}
+
+function toggleBreakdown(id) {
+  const bd  = document.getElementById('bd-' + id);
+  const btn = document.getElementById('exp-' + id);
+  const open = bd.classList.toggle('open');
+  btn.style.transform = open ? 'rotate(180deg)' : '';
 }
 
 async function copyLink(url, btn) {
@@ -808,7 +880,7 @@ async function copyLink(url, btn) {
 }
 
 async function cancelQuote(id, btn) {
-  if (!confirm('Cancel this quote? This cannot be undone.')) return;
+  if (!confirm('Cancel this quote? It will move to Archive.')) return;
   try {
     await fetch(`${API}/api/admin/quotes/${id}`, { method: 'DELETE', headers: authHeaders() });
     loadQuotes();

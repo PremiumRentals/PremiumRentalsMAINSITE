@@ -1553,21 +1553,22 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     if (serviceFeeAmt > 0 && reservationId) {
       try {
-        // Fetch additional fees configured for this listing
-        const feesRes  = await fetch(`https://open-api.guesty.com/v1/additional-fees?listingId=${listingId}`, {
+        // Fetch account-level additional fees (fee was configured across OAPI/BE-API/Booking Engine)
+        const feesRes  = await fetch('https://open-api.guesty.com/v1/additional-fees', {
           headers: { Authorization: `Bearer ${openToken}` }
         });
         const feesText = await feesRes.text();
-        console.log('Additional fees list:', feesText.slice(0, 400));
+        console.log('Additional fees list:', feesText.slice(0, 600));
         let feeId = null;
         try {
           const feesData = JSON.parse(feesText);
-          const fees = feesData.results || feesData.data || feesData;
-          const match = (Array.isArray(fees) ? fees : []).find(f =>
+          const fees = feesData.results || feesData.data || (Array.isArray(feesData) ? feesData : []);
+          const match = fees.find(f =>
             f.secondIdentifier === 'BOOKING_FEE' || f.name?.toLowerCase().includes('service')
           );
           feeId = match?._id;
-        } catch(e) { /* parse failed — log already printed */ }
+          if (match) console.log('Found fee:', match.name, match.secondIdentifier, match._id);
+        } catch(e) { console.warn('Fee list parse error:', e.message); }
 
         if (feeId) {
           const afRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/additional-fees`, {

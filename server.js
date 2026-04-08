@@ -1469,7 +1469,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     };
 
     // Build V1 money override: fareAccommodation + fareCleaning only.
-    // Service fee is added separately via /additional-fees endpoint (secondIdentifier: SERVICE).
+    // Service fee is added separately via /additional-fees endpoint (secondIdentifier: BOOKING_FEE).
     // fareCleaning sent even when $0 to override Guesty's listing default.
     const buildMoneyV1 = (q) => {
       const m = {};
@@ -1549,7 +1549,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guest update warning:', e.message); }
     }
 
-    // Step 7b: Add service fee as a Guesty predefined additional fee (secondIdentifier: SERVICE).
+    // Step 7b: Add service fee as a Guesty predefined additional fee (secondIdentifier: BOOKING_FEE).
     // Guesty auto-applies taxes to this fee per the listing's tax settings, giving the correct total.
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     if (serviceFeeAmt > 0 && reservationId) {

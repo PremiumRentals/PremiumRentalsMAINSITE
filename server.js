@@ -1365,10 +1365,9 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const { data: quote, error: qErr } = await supabase
       .from('admin_quotes').select('*').eq('id', id).single();
     if (qErr || !quote) return res.status(404).json({ error: 'Quote not found' });
-    // Booked/cancelled quotes can't be re-used; expired reserved quotes can still be booked
-    if (quote.status === 'booked') return res.status(400).json({ error: 'This quote has already been booked.' });
-    if (quote.status === 'cancelled') return res.status(400).json({ error: 'This quote has been cancelled.' });
-    // Check if dates have already passed
+    if (quote.status === 'booked')     return res.status(400).json({ error: 'This quote has already been booked.' });
+    if (quote.status === 'cancelled')  return res.status(400).json({ error: 'This quote has been cancelled.' });
+    if (quote.status === 'accepted')   return res.status(400).json({ error: 'This quote has already been accepted.' });
     const checkInDate = new Date(quote.check_in + 'T12:00:00');
     if (checkInDate < new Date()) return res.status(400).json({ error: 'These dates have already passed.' });
 
@@ -1391,21 +1390,43 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       await stripe.customers.update(customerId, { invoice_settings: { default_payment_method: stripePaymentMethodId } });
     } catch(e) { console.warn('Stripe customer warning:', e.message); }
 
-    // Step 1b: ACH 4-day validation
-    try {
-      const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
-      if (pm.type === 'us_bank_account') {
-        const checkInDate = new Date(checkIn + 'T12:00:00');
-        const minDate     = new Date();
-        minDate.setDate(minDate.getDate() + 4);
-        minDate.setHours(0, 0, 0, 0);
-        if (checkInDate < minDate) {
-          return res.status(400).json({ error: 'ACH bank transfers require check-in at least 4 days from today to allow funds to clear. Please use a credit/debit card or contact us.' });
-        }
-      }
-    } catch(e) { console.warn('Could not validate ACH timing:', e.message); }
+    // Step 2: Detect payment type + ACH 4-day validation
+    const pm    = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
+    const isAch = pm.type === 'us_bank_account';
+    if (isAch) {
+      const minDate = new Date(); minDate.setDate(minDate.getDate() + 4); minDate.setHours(0,0,0,0);
+      if (checkInDate < minDate) return res.status(400).json({ error: 'ACH requires check-in at least 4 days from today. Please use a card or contact us.' });
+    }
 
-    // Step 2: Get payment provider
+    // Step 3: ACH — charge via Stripe FIRST before touching Guesty
+    // (Guesty does not support bank account payment methods)
+    let stripePaymentIntentId = null;
+    if (isAch) {
+      const totalCents = Math.round(parseFloat(quote.total || 0) * 100);
+      if (!totalCents) return res.status(400).json({ error: 'Quote must have a total set before ACH payment can be processed.' });
+      const paymentIntent = await stripe.paymentIntents.create({
+        amount:   totalCents,
+        currency: 'usd',
+        customer: customerId,
+        payment_method:       stripePaymentMethodId,
+        payment_method_types: ['us_bank_account'],
+        off_session: true,
+        confirm:     true,
+        description: `Quote ${id} — ${quote.listing_name || 'Property'} ${checkIn}→${checkOut}`,
+        metadata:    { quoteId: id, listingId }
+      });
+      console.log('ACH PaymentIntent', paymentIntent.id, paymentIntent.status);
+      // ACH debit is asynchronous — 'processing' means the debit was accepted by the bank network
+      // 'succeeded' = already settled (test mode). Both are valid.
+      const accepted = ['processing', 'succeeded'].includes(paymentIntent.status);
+      if (!accepted) {
+        const why = paymentIntent.last_payment_error?.message || `status: ${paymentIntent.status}`;
+        return res.status(400).json({ error: `Bank payment could not be initiated (${why}). Please try again or use a card.` });
+      }
+      stripePaymentIntentId = paymentIntent.id;
+    }
+
+    // Step 4: Get Guesty payment provider (for card path)
     let paymentProviderId = null;
     try {
       const ppRes  = await fetch(`https://open-api.guesty.com/v1/payment-providers/provider-by-listing?listingId=${listingId}`, { headers: { Authorization: `Bearer ${openToken}` } });
@@ -1413,30 +1434,29 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       paymentProviderId = ppData.paymentProviderId || ppData._id;
     } catch(e) { console.warn('Could not get payment provider:', e.message); }
 
-    // Step 3: Create V3 quote for date validation
+    // Step 5: Create V3 quote to validate availability
     const listingFees = await getListingFees(listingId);
     const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests: quote.guests || 1 }, { strict: true });
     if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
-      return res.status(400).json({ error: 'Dates are no longer available' });
+      // If ACH was already charged, note this for the user
+      const extra = isAch ? ' Your bank payment was not processed.' : '';
+      return res.status(400).json({ error: `Dates are no longer available.${extra}` });
     }
     const pricing    = extractV3Pricing(quoteData, listingFees);
-    const quoteId    = quoteData._id;
+    const guestyQId  = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
 
-    // Step 4: Create reservation, applying admin's custom pricing if set
+    // Step 6: Create Guesty reservation with custom pricing override
+    // fareServiceFee is not a valid V3 field — only fareAccommodation/fareCleaning/fareTax
     const moneyOverride = {};
     if (quote.accommodation_total) moneyOverride.fareAccommodation = parseFloat(quote.accommodation_total);
     if (quote.cleaning_fee)        moneyOverride.fareCleaning       = parseFloat(quote.cleaning_fee);
-    if (quote.service_fee)         moneyOverride.fareServiceFee     = parseFloat(quote.service_fee);
     if (quote.taxes)               moneyOverride.fareTax            = parseFloat(quote.taxes);
     const reservationBody = {
       status: 'confirmed',
       reservedUntil: -1,
-      guest: {
-        firstName, lastName, email,
-        ...(phone ? { phone: formatPhone(phone) } : {})
-      },
-      quoteId,
+      guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) },
+      quoteId:   guestyQId,
       ratePlanId,
       ...(paymentProviderId ? { paymentProviderId } : {}),
       ...(Object.keys(moneyOverride).length ? { money: moneyOverride } : {})
@@ -1447,51 +1467,22 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       body: JSON.stringify(reservationBody)
     });
     const resData = await resRes.json();
-    if (!resData._id) throw new Error(resData.message || resData.error || 'Reservation failed');
+    if (!resData._id) throw new Error(resData.message || resData.error || 'Guesty reservation failed');
     const reservationId = resData._id;
-    const guestId = resData.guestId || resData.guest?._id;
+    const guestId       = resData.guestId || resData.guest?._id;
 
-    // Step 5: Attach payment method — cards go through Guesty, ACH charged directly via Stripe
-    const pm = await stripe.paymentMethods.retrieve(stripePaymentMethodId);
-    const isAch = pm.type === 'us_bank_account';
-
+    // Step 7: Card only — attach PM to Guesty guest so Guesty handles billing
     if (!isAch && guestId) {
-      // Card: attach to Guesty guest so Guesty handles billing
       try {
         await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
           method: 'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({
-            provider: 'stripe', token: stripePaymentMethodId,
-            isDefault: true,
-            ...(paymentProviderId ? { paymentProviderId } : {})
-          })
+          body: JSON.stringify({ provider: 'stripe', token: stripePaymentMethodId, isDefault: true, ...(paymentProviderId ? { paymentProviderId } : {}) })
         });
       } catch(e) { console.warn('Guesty card attach warning:', e.message); }
     }
 
-    if (isAch) {
-      // ACH: Guesty doesn't support bank accounts — charge directly via Stripe
-      const totalCents = Math.round(parseFloat(quote.total || 0) * 100);
-      if (!totalCents) throw new Error('Quote total is required for ACH payment. Please set pricing on the quote.');
-      const paymentIntent = await stripe.paymentIntents.create({
-        amount: totalCents,
-        currency: 'usd',
-        customer: customerId,
-        payment_method: stripePaymentMethodId,
-        payment_method_types: ['us_bank_account'],
-        off_session: true,
-        confirm: true,
-        description: `Admin quote ${id} — ${quote.listing_name || 'Property'} ${quote.check_in} to ${quote.check_out}`,
-        metadata: { quoteId: id, reservationId, listingId: quote.listing_id }
-      });
-      console.log('ACH PaymentIntent:', paymentIntent.id, paymentIntent.status);
-      if (paymentIntent.status === 'requires_action' || paymentIntent.last_payment_error) {
-        throw new Error('Bank payment could not be initiated. Please try again or use a card.');
-      }
-    }
-
-    // Step 6: Mark admin quote as accepted
+    // Step 8: Mark admin quote as accepted
     await supabase.from('admin_quotes').update({
       status: 'accepted',
       guesty_reservation_id: reservationId

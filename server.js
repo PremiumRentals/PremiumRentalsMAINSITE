@@ -1260,10 +1260,10 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
+        // Guesty V1 money override: fareAccommodation + fareCleaning only (fareTax is not a valid V1 field)
         const guestyMoney = {};
-        if (accommodationTotal)    guestyMoney.fareAccommodation = accommodationTotal;
-        if (cleaningFee)           guestyMoney.fareCleaning       = cleaningFee;
-        if (taxes)                 guestyMoney.fareTax            = taxes;
+        if (accommodationTotal) guestyMoney.fareAccommodation = accommodationTotal;
+        if (cleaningFee)        guestyMoney.fareCleaning       = cleaningFee;
         if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
           method: 'POST',
@@ -1493,13 +1493,13 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         guestsCount: quote.guests || 1,
         guest: { firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) }
       };
+      // Guesty V1 money override: fareAccommodation + fareCleaning only
+      // fareTax is NOT a valid V1 field (Guesty calculates tax automatically)
       const moneyV1 = {};
       const accomAmt = parseFloat(quote.accommodation_total);
       const cleanAmt = parseFloat(quote.cleaning_fee);
-      const taxAmt   = parseFloat(quote.taxes);
       if (!isNaN(accomAmt) && accomAmt > 0) moneyV1.fareAccommodation = accomAmt;
       if (!isNaN(cleanAmt) && cleanAmt > 0) moneyV1.fareCleaning       = cleanAmt;
-      if (!isNaN(taxAmt)   && taxAmt   > 0) moneyV1.fareTax            = taxAmt;
       if (Object.keys(moneyV1).length) newResBody.money = { ...moneyV1, currency: 'USD' };
       console.log('Creating new Guesty V1 reservation body:', JSON.stringify(newResBody).slice(0, 400));
 

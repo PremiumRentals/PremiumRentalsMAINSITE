@@ -1260,10 +1260,12 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        // Guesty V1 money override: fareAccommodation + fareCleaning only (fareTax is not a valid V1 field)
-        // Include fareCleaning even when 0 to explicitly override Guesty's default cleaning fee
+        // Guesty V1: fold service fee into accommodation (fareServiceFee is silently ignored by V1).
+        // fareCleaning sent even when $0 to override Guesty's listing default.
         const guestyMoney = {};
-        if (accommodationTotal) guestyMoney.fareAccommodation = accommodationTotal;
+        const _accom = parseFloat(accommodationTotal) || 0;
+        const _svc   = parseFloat(serviceFee)         || 0;
+        if (_accom + _svc > 0) guestyMoney.fareAccommodation = _accom + _svc;
         if (cleaningFee !== null && cleaningFee !== undefined) {
           const c = parseFloat(cleaningFee);
           if (!isNaN(c)) guestyMoney.fareCleaning = c;
@@ -1467,14 +1469,18 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       catch(e) { throw new Error(`${label} — Guesty non-JSON response: ${text.slice(0, 300)}`); }
     };
 
-    // Build V1 money override: fareAccommodation + fareCleaning only
-    // fareTax is NOT accepted by Guesty V1 (Guesty calculates tax automatically)
-    // Include fareCleaning even when 0 — omitting it lets Guesty fall back to its default
+    // Build V1 money override.
+    // fareServiceFee / fareManagementFee / fareTax are not writable via V1 PUT
+    // (Guesty accepts the request but silently ignores those fields and auto-calculates them).
+    // Workaround: fold service fee into fareAccommodation so Guesty's base is correct and
+    // auto-calculated taxes scale on the right amount.
+    // fareCleaning is sent even when $0 to override Guesty's listing default.
     const buildMoneyV1 = (q) => {
       const m = {};
-      const accom = parseFloat(q.accommodation_total);
-      if (!isNaN(accom) && accom > 0) m.fareAccommodation = accom;
-      // Include cleaning even if $0 — null means "not set by admin", 0 means "no cleaning fee"
+      const accom  = parseFloat(q.accommodation_total) || 0;
+      const svcFee = parseFloat(q.service_fee)         || 0;
+      const accomWithSvc = accom + svcFee;
+      if (accomWithSvc > 0) m.fareAccommodation = accomWithSvc;
       if (q.cleaning_fee !== null && q.cleaning_fee !== undefined) {
         const clean = parseFloat(q.cleaning_fee);
         if (!isNaN(clean)) m.fareCleaning = clean;
@@ -1547,29 +1553,6 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const guText = await guRes.text();
         console.log('Guest update response:', guText.slice(0, 200));
       } catch(e) { console.warn('Guest update warning:', e.message); }
-    }
-
-    // Step 7b: Patch service fee + taxes as separate V1 money updates.
-    // Try both fareServiceFee and fareManagementFee — V1 field name varies by account config.
-    const serviceFeeAmt = parseFloat(quote.service_fee || 0);
-    const taxesAmt      = parseFloat(quote.taxes || 0);
-    if ((serviceFeeAmt > 0 || taxesAmt > 0) && reservationId) {
-      try {
-        const moneyPatch = { currency: 'USD' };
-        if (serviceFeeAmt > 0) {
-          moneyPatch.fareServiceFee    = serviceFeeAmt;
-          moneyPatch.fareManagementFee = serviceFeeAmt; // alternate V1 field name
-        }
-        if (taxesAmt > 0) moneyPatch.fareTax = taxesAmt;
-        const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
-          method:  'PUT',
-          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ money: moneyPatch })
-        });
-        const sfData = await sfRes.json();
-        // Log the money object specifically so we can see what Guesty actually stored
-        console.log('Money after patch:', JSON.stringify(sfData.money || sfData.error || sfData).slice(0, 600));
-      } catch(e) { console.warn('Service fee + tax patch warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing

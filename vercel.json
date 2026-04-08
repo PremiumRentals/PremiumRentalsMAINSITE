@@ -21,9 +21,17 @@
     }
   ],
   "redirects": [
-    { "source": "/index",      "destination": "/", "permanent": true },
-    { "source": "/index.html", "destination": "/", "permanent": true },
-    { "source": "/home",       "destination": "/", "permanent": true }
+    { "source": "/index",             "destination": "/",            "permanent": true },
+    { "source": "/index.html",        "destination": "/",            "permanent": true },
+    { "source": "/home",              "destination": "/",            "permanent": true },
+    { "source": "/properties.html",   "destination": "/properties",  "permanent": true },
+    { "source": "/property.html",     "destination": "/property",    "permanent": true },
+    { "source": "/owners.html",       "destination": "/owners",      "permanent": true },
+    { "source": "/privacy.html",      "destination": "/privacy",     "permanent": true },
+    { "source": "/terms.html",        "destination": "/terms",       "permanent": true },
+    { "source": "/cancellation.html", "destination": "/cancellation","permanent": true },
+    { "source": "/checkout.html",     "destination": "/checkout",    "permanent": true },
+    { "source": "/confirmation.html", "destination": "/confirmation","permanent": true }
   ],
   "rewrites": [
     { "source": "/property/:id", "destination": "/api/og/:id" },

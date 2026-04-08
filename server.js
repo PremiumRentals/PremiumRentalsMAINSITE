@@ -1550,22 +1550,25 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     }
 
     // Step 7b: Patch service fee + taxes as separate V1 money updates.
-    // fareServiceFee confirmed working on V1 standalone PATCH.
-    // fareTax also attempted — if rejected, taxes remain Guesty-calculated.
+    // Try both fareServiceFee and fareManagementFee — V1 field name varies by account config.
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
     const taxesAmt      = parseFloat(quote.taxes || 0);
     if ((serviceFeeAmt > 0 || taxesAmt > 0) && reservationId) {
       try {
         const moneyPatch = { currency: 'USD' };
-        if (serviceFeeAmt > 0) moneyPatch.fareServiceFee = serviceFeeAmt;
-        if (taxesAmt > 0)      moneyPatch.fareTax        = taxesAmt;
+        if (serviceFeeAmt > 0) {
+          moneyPatch.fareServiceFee    = serviceFeeAmt;
+          moneyPatch.fareManagementFee = serviceFeeAmt; // alternate V1 field name
+        }
+        if (taxesAmt > 0) moneyPatch.fareTax = taxesAmt;
         const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
           method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({ money: moneyPatch })
         });
-        const sfText = await sfRes.text();
-        console.log('Service fee + tax patch response:', sfText.slice(0, 200));
+        const sfData = await sfRes.json();
+        // Log the money object specifically so we can see what Guesty actually stored
+        console.log('Money after patch:', JSON.stringify(sfData.money || sfData.error || sfData).slice(0, 600));
       } catch(e) { console.warn('Service fee + tax patch warning:', e.message); }
     }
 

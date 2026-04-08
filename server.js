@@ -1252,9 +1252,12 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        if (accommodationTotal) {
-          guestBody.money = { fareAccommodation: accommodationTotal, currency: 'USD' };
-        }
+        const guestyMoney = {};
+        if (accommodationTotal)    guestyMoney.fareAccommodation = accommodationTotal;
+        if (cleaningFee)           guestyMoney.fareCleaning       = cleaningFee;
+        if (serviceFee)            guestyMoney.fareServiceFee     = serviceFee;
+        if (taxes)                 guestyMoney.fareTax            = taxes;
+        if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -1420,8 +1423,12 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
     const quoteId    = quoteData._id;
     const ratePlanId = pricing.ratePlanId;
 
-    // Step 4: Create reservation with custom pricing override if admin set a custom rate
-    const accommodationOverride = quote.accommodation_total || pricing.accommodation;
+    // Step 4: Create reservation, applying admin's custom pricing if set
+    const moneyOverride = {};
+    if (quote.accommodation_total) moneyOverride.fareAccommodation = parseFloat(quote.accommodation_total);
+    if (quote.cleaning_fee)        moneyOverride.fareCleaning       = parseFloat(quote.cleaning_fee);
+    if (quote.service_fee)         moneyOverride.fareServiceFee     = parseFloat(quote.service_fee);
+    if (quote.taxes)               moneyOverride.fareTax            = parseFloat(quote.taxes);
     const reservationBody = {
       status: 'confirmed',
       reservedUntil: -1,
@@ -1431,7 +1438,8 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       },
       quoteId,
       ratePlanId,
-      ...(paymentProviderId ? { paymentProviderId } : {})
+      ...(paymentProviderId ? { paymentProviderId } : {}),
+      ...(Object.keys(moneyOverride).length ? { money: moneyOverride } : {})
     };
     const resRes = await fetch('https://open-api.guesty.com/v1/reservations-v3/quote', {
       method: 'POST',

@@ -358,7 +358,7 @@ const API_BASE  = 'https://premiumrentalsmainsite-production.up.railway.app';
 const STRIPE_PK = 'pk_live_AuGRIlxNGEHObUs4UzQJYAkU';
 
 const params    = new URLSearchParams(window.location.search);
-const listingId = params.get('id');
+const listingId = params.get('id') || params.get('listingId');
 const checkIn   = params.get('checkIn');
 const checkOut  = params.get('checkOut');
 const maxGuests = parseInt(params.get('maxGuests') || '99');

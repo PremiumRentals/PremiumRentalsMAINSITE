@@ -1279,7 +1279,7 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
             ...(guestPhone ? { phone: formatPhone(guestPhone) } : {})
           }
         };
-        // Guesty V1 money: accommodation + cleaning. Service fee via additionalFees top-level field.
+        // Guesty V1 money: accommodation + cleaning only. Service fee added via invoice item after creation.
         const guestyMoney = {};
         const _accom = parseFloat(accommodationTotal) || 0;
         if (_accom > 0) guestyMoney.fareAccommodation = _accom;
@@ -1288,12 +1288,6 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
           if (!isNaN(c)) guestyMoney.fareCleaning = c;
         }
         if (Object.keys(guestyMoney).length) guestBody.money = { ...guestyMoney, currency: 'USD' };
-        // Include BOOKING_FEE at admin-quoted fixed amount (overrides the 13.5% default)
-        const holdFeeId  = await getBookingFeeId(token);
-        const holdSvcAmt = parseFloat(serviceFee) || 0;
-        if (holdFeeId && holdSvcAmt > 0) {
-          guestBody.additionalFees = [{ _id: holdFeeId, amount: holdSvcAmt }];
-        }
         const gRes = await fetch('https://open-api.guesty.com/v1/reservations', {
           method: 'POST',
           headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
@@ -1505,9 +1499,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       return Object.keys(m).length ? { ...m, currency: 'USD' } : null;
     };
 
-    // Pre-fetch the BOOKING_FEE id once for use in both paths below
-    const bookingFeeId  = await getBookingFeeId(openToken);
-    const svcFeeAmt     = parseFloat(quote.service_fee || 0);
+    const svcFeeAmt = parseFloat(quote.service_fee || 0);
 
     if (quote.guesty_reservation_id) {
       // Confirm the existing hold AND fix its pricing in one PUT
@@ -1515,7 +1507,6 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const putBody = { status: 'confirmed' };
         const moneyFix = buildMoneyV1(quote);
         if (moneyFix) putBody.money = moneyFix;
-        if (bookingFeeId && svcFeeAmt > 0) putBody.additionalFees = [{ _id: bookingFeeId, amount: svcFeeAmt }];
         const patchRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${quote.guesty_reservation_id}`, {
           method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
@@ -1545,7 +1536,6 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       };
       const moneyNew = buildMoneyV1(quote);
       if (moneyNew) newResBody.money = moneyNew;
-      if (bookingFeeId && svcFeeAmt > 0) newResBody.additionalFees = [{ _id: bookingFeeId, amount: svcFeeAmt }];
       console.log('Creating new Guesty V1 reservation body:', JSON.stringify(newResBody).slice(0, 400));
 
       const newResRes  = await fetch('https://open-api.guesty.com/v1/reservations', {

@@ -1549,20 +1549,24 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       } catch(e) { console.warn('Guest update warning:', e.message); }
     }
 
-    // Step 7b: Try to set service fee via a follow-up PATCH on the money object.
-    // fareServiceFee is rejected by the V3 API but may work on V1 as a standalone update.
-    // Kept separate from the main reservation body so a failure here doesn't break pricing.
+    // Step 7b: Patch service fee + taxes as separate V1 money updates.
+    // fareServiceFee confirmed working on V1 standalone PATCH.
+    // fareTax also attempted — if rejected, taxes remain Guesty-calculated.
     const serviceFeeAmt = parseFloat(quote.service_fee || 0);
-    if (serviceFeeAmt > 0 && reservationId) {
+    const taxesAmt      = parseFloat(quote.taxes || 0);
+    if ((serviceFeeAmt > 0 || taxesAmt > 0) && reservationId) {
       try {
+        const moneyPatch = { currency: 'USD' };
+        if (serviceFeeAmt > 0) moneyPatch.fareServiceFee = serviceFeeAmt;
+        if (taxesAmt > 0)      moneyPatch.fareTax        = taxesAmt;
         const sfRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
           method:  'PUT',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ money: { fareServiceFee: serviceFeeAmt, currency: 'USD' } })
+          body:    JSON.stringify({ money: moneyPatch })
         });
         const sfText = await sfRes.text();
-        console.log('Service fee patch response:', sfText.slice(0, 200));
-      } catch(e) { console.warn('Service fee patch warning:', e.message); }
+        console.log('Service fee + tax patch response:', sfText.slice(0, 200));
+      } catch(e) { console.warn('Service fee + tax patch warning:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest so Guesty handles billing
@@ -1584,10 +1588,11 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           method:  'POST',
           headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
           body:    JSON.stringify({
-            amount:   totalAmt,
-            currency: 'USD',
-            method:   'BANK_TRANSFER',
-            note:     `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
+            amount:        totalAmt,
+            currency:      'USD',
+            method:        'WIRE_TRANSFER',
+            paymentMethod: 'WIRE_TRANSFER',
+            note:          `ACH bank transfer via Stripe — ${stripePaymentIntentId || 'N/A'}`
           })
         });
         const payText = await payRes.text();

@@ -360,8 +360,9 @@ function render(q) {
   } else if (q.accommodation_total) {
     lines.push({ label: 'Accommodation', val: FMT_MONEY(q.accommodation_total) });
   }
-  if (q.cleaning_fee) lines.push({ label: 'Cleaning fee', val: FMT_MONEY(q.cleaning_fee) });
-  if (q.taxes) lines.push({ label: 'Taxes & fees', val: FMT_MONEY(q.taxes) });
+  if (q.cleaning_fee) lines.push({ label: 'Cleaning fee',  val: FMT_MONEY(q.cleaning_fee) });
+  if (q.service_fee)  lines.push({ label: 'Service fee',   val: FMT_MONEY(q.service_fee) });
+  if (q.taxes)        lines.push({ label: 'Taxes & fees',  val: FMT_MONEY(q.taxes) });
 
   document.getElementById('price-lines').innerHTML = lines.map(l =>
     `<div class="price-line"><span class="price-line-label">${l.label}</span><span class="price-line-val">${l.val}</span></div>`

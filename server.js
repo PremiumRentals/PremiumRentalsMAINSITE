@@ -263,7 +263,7 @@ function getApplicableRatePlan(quote) {
     const na = rp.notApplicable;
     if (!na) return true;
     return !Object.values(na).some(v => v === true);
-  }) || ratePlans[0];
+  }) || null;
 }
 
 // ── Extract pricing from Open API V3 quote ──
@@ -432,7 +432,7 @@ app.get('/api/website/availability/:listingId', async (req, res) => {
     if (cached) return res.json({ success: true, ...cached, cached: true });
 
     const openToken = await getOpenApiToken();
-    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests });
+    const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests }, { strict: true });
 
     if (qStatus < 200 || qStatus > 299 || !quoteData._id) {
       return res.json({

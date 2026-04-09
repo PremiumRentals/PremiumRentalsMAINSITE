@@ -384,18 +384,50 @@ function buildLocationDropdown() {
   });
 }
 
-function applyFilters() {
-  const loc    = document.getElementById('f-location').value.toLowerCase().trim();
-  const beds   = parseInt(document.getElementById('f-beds').value) || 0;
-  const guests = parseInt(document.getElementById('f-guests').value) || 0;
-  filteredListings = allListings.filter(l => {
+async function applyFilters() {
+  const loc     = document.getElementById('f-location').value.toLowerCase().trim();
+  const checkIn = document.getElementById('f-checkin').value;
+  const checkOut= document.getElementById('f-checkout').value;
+  const beds    = parseInt(document.getElementById('f-beds').value) || 0;
+  const guests  = parseInt(document.getElementById('f-guests').value) || 0;
+
+  // Always apply non-date filters first
+  let candidates = allListings.filter(l => {
     const city  = (l.address?.city||'').toLowerCase();
     const state = (l.address?.state||'').toLowerCase();
-    const full  = `${city}, ${state}`;
-    return (!loc || full.includes(loc) || city.includes(loc)) &&
+    return (!loc || `${city}, ${state}`.includes(loc) || city.includes(loc)) &&
            (!beds   || (l.bedrooms    ||0) >= beds) &&
            (!guests || (l.accommodates||0) >= guests);
   });
+
+  if (!checkIn || !checkOut) {
+    filteredListings = candidates;
+    renderAll();
+    return;
+  }
+
+  // Availability check required — batch requests to Guesty
+  const countEl = document.getElementById('results-count');
+  const grid    = document.getElementById('properties-grid');
+  countEl.textContent = 'Checking availability…';
+  grid.innerHTML = `<div style="padding:60px 20px;text-align:center;color:var(--mid);font-size:14px">Checking availability for your dates…</div>`;
+
+  const available = [];
+  const BATCH = 6;
+  for (let i = 0; i < candidates.length; i += BATCH) {
+    const batch = candidates.slice(i, i + BATCH);
+    const results = await Promise.all(batch.map(async l => {
+      try {
+        const r = await fetch(`${API_BASE}/api/website/availability/${l._id}?checkIn=${encodeURIComponent(checkIn)}&checkOut=${encodeURIComponent(checkOut)}&guests=${guests||1}`);
+        const d = await r.json();
+        return d.available === true ? l : null;
+      } catch { return null; }
+    }));
+    results.forEach(l => { if (l) available.push(l); });
+    countEl.textContent = `Checking… ${Math.min(i + BATCH, candidates.length)} of ${candidates.length}`;
+  }
+
+  filteredListings = available;
   renderAll();
 }
 

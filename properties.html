@@ -127,7 +127,8 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
   .prop-meta{margin-bottom:6px;gap:8px}
   .prop-footer{padding-top:8px}
   .footer-grid{grid-template-columns:1fr 1fr}
-  .filters-bar{overflow:hidden}
+  .filters-bar{transition:max-height .3s ease, padding .3s ease, border-color .3s ease;max-height:300px;overflow:hidden}
+  .filters-bar.filter-collapsed{max-height:0;padding-top:0;padding-bottom:0;border-bottom-color:transparent}
 }
 </style>
 </head>
@@ -598,7 +599,28 @@ function initFavButtons(){
   updateSavedBtn();
 }
 
-// Search bar stays sticky — no hide/show on scroll
+// ── Mobile: collapse filter bar on scroll down, restore only near top ──
+(function() {
+  const bar = document.querySelector('.filters-bar');
+  let lastY = 0, ticking = false;
+  window.addEventListener('scroll', () => {
+    if (window.innerWidth > 640 || !bar) return;
+    if (!ticking) {
+      requestAnimationFrame(() => {
+        const y = window.scrollY;
+        if (y > lastY && y > 80) {
+          bar.classList.add('filter-collapsed');      // scrolling down → hide
+        } else if (y < 120) {
+          bar.classList.remove('filter-collapsed');   // near top → always show
+        }
+        // mid-page upward scroll: do nothing (bar stays hidden until near top)
+        lastY = y;
+        ticking = false;
+      });
+      ticking = true;
+    }
+  }, { passive: true });
+})();
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

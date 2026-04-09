@@ -1515,7 +1515,7 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         payment_method:       stripePaymentMethodId,
         payment_method_types: ['card'],
         confirm:              true,
-        off_session:          false,
+        off_session:          true,   // MIT: customer authorised at checkout; avoids 3DS blocking
         description:          `Quote ${id} — ${quote.listing_name || 'Property'} ${checkIn}→${checkOut}`,
         metadata:             { quoteId: id, listingId }
       });
@@ -1580,6 +1580,19 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
           guestId          = patchData.guestId || patchData.guest?._id;
           confirmationCode = patchData.confirmationCode || reservationId;
           console.log('Confirmed existing Guesty reservation:', reservationId);
+          // Follow-up: separate money-only PUT — Guesty sometimes ignores money when status
+          // and money are combined in one request. Belt-and-suspenders to ensure edited prices land.
+          const moneyFix2 = buildMoneyV1(quote);
+          if (moneyFix2) {
+            try {
+              const moneyPutRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
+                method:  'PUT',
+                headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ money: moneyFix2 })
+              });
+              console.log('Money override follow-up:', moneyPutRes.status, (await moneyPutRes.text()).slice(0, 200));
+            } catch(e2) { console.warn('Money override follow-up warning:', e2.message); }
+          }
         } else {
           console.warn('Could not confirm existing hold, will create new reservation:', JSON.stringify(patchData).slice(0, 200));
         }

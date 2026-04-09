@@ -885,6 +885,7 @@ function renderQuotes() {
     return;
   }
   const fmt = n => parseFloat(n||0).toLocaleString('en-US',{minimumFractionDigits:2,maximumFractionDigits:2});
+  const todayStr = new Date().toISOString().slice(0,10);
   el.innerHTML = filtered.map(q => {
     const url = `${SITE}/quote?id=${q.id}`;
     const statusClass = { pending:'status-pending', accepted:'status-accepted', cancelled:'status-cancelled', expired:'status-expired' }[q.status] || 'status-pending';
@@ -922,11 +923,11 @@ function renderQuotes() {
           <div class="edit-section">Dates &amp; Guest</div>
           <div class="edit-field">
             <label>Check-In</label>
-            <input type="date" id="ef-checkin-${q.id}" value="${q.check_in||''}" oninput="onEditDatesChange('${q.id}')">
+            <input type="date" id="ef-checkin-${q.id}" value="${q.check_in||''}" min="${todayStr}" oninput="onEditDatesChange('${q.id}')">
           </div>
           <div class="edit-field">
             <label>Check-Out</label>
-            <input type="date" id="ef-checkout-${q.id}" value="${q.check_out||''}" oninput="onEditDatesChange('${q.id}')">
+            <input type="date" id="ef-checkout-${q.id}" value="${q.check_out||''}" min="${todayStr}" oninput="onEditDatesChange('${q.id}')">
           </div>
           <div class="edit-field">
             <label>First Name</label>
@@ -962,6 +963,7 @@ function renderQuotes() {
             <textarea id="ef-notes-${q.id}" rows="2">${(q.notes||'').replace(/</g,'&lt;')}</textarea>
           </div>
         </div>
+        <div id="ef-date-warn-${q.id}" style="display:none;padding:8px 12px;border-radius:4px;font-size:12px;margin:4px 0 8px;line-height:1.5"></div>
         <div class="edit-total" id="ef-total-${q.id}">Total: ${total}</div>
         <div class="edit-actions">
           <button class="edit-save-btn" onclick="saveEdit('${q.id}')">Save Changes</button>
@@ -1028,16 +1030,41 @@ function toggleEdit(id) {
   ed.classList.toggle('open');
 }
 
-function onEditDatesChange(id) {
-  const ci = document.getElementById('ef-checkin-'  + id)?.value;
-  const co = document.getElementById('ef-checkout-' + id)?.value;
-  if (ci && co) {
-    const n = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
-    if (n > 0) {
-      const q = allQuotes.find(x => x.id === id);
-      // Store new nights on the quote object so saveEdit can use it
-      if (q) q._editNights = n;
+async function onEditDatesChange(id) {
+  const ci     = document.getElementById('ef-checkin-'   + id)?.value;
+  const co     = document.getElementById('ef-checkout-'  + id)?.value;
+  const warnEl = document.getElementById('ef-date-warn-' + id);
+  if (!ci || !co) { if (warnEl) warnEl.style.display = 'none'; return; }
+  const n = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
+  if (n <= 0) { if (warnEl) warnEl.style.display = 'none'; return; }
+  const q = allQuotes.find(x => x.id === id);
+  if (q) q._editNights = n;
+  if (!warnEl || !q?.listing_id) return;
+  warnEl.textContent = 'Checking availability…';
+  warnEl.style.cssText = 'display:block;padding:8px 12px;border-radius:4px;font-size:12px;margin:4px 0 8px;line-height:1.5;background:#f5f5f5;color:#888';
+  try {
+    const r = await fetch(`${API}/api/website/availability/${q.listing_id}?checkIn=${encodeURIComponent(ci)}&checkOut=${encodeURIComponent(co)}&guests=${q.guests||1}`);
+    const d = await r.json();
+    if (d.available) {
+      warnEl.textContent = `✓ ${n} night${n>1?'s':''} — Available in Guesty`;
+      warnEl.style.cssText = 'display:block;padding:8px 12px;border-radius:4px;font-size:12px;margin:4px 0 8px;line-height:1.5;background:#e8f5e9;color:#2e7d32';
+    } else {
+      const reason = d.error || d.message || '';
+      const minMatch = reason.match(/min.*?(\d+)/i) || reason.match(/(\d+).*night/i);
+      let msg;
+      if (minMatch) {
+        msg = `⚠ Admin override: property requires min ${minMatch[1]} nights — you selected ${n}. Quote will still be sent.`;
+      } else if (reason) {
+        msg = `⚠ Admin override: Guesty unavailable — "${reason.slice(0,100)}". Quote will still be sent.`;
+      } else {
+        msg = `⚠ Admin override: Guesty shows dates as unavailable (booked or below min stay). Quote will still be sent.`;
+      }
+      warnEl.textContent = msg;
+      warnEl.style.cssText = 'display:block;padding:8px 12px;border-radius:4px;font-size:12px;margin:4px 0 8px;line-height:1.5;background:#fff3cd;color:#856404';
     }
+  } catch(e) {
+    warnEl.textContent = '⚠ Could not check Guesty availability.';
+    warnEl.style.cssText = 'display:block;padding:8px 12px;border-radius:4px;font-size:12px;margin:4px 0 8px;line-height:1.5;background:#fff3cd;color:#856404';
   }
 }
 

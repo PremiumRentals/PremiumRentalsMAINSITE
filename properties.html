@@ -34,8 +34,8 @@
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:72px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:22px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
-.nav-logo span{color:var(--gold)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:28px;width:auto;display:block}
 .nav-links{display:flex;gap:32px;list-style:none;align-items:center}
 .nav-links a{text-decoration:none;font-size:13px;font-weight:500;letter-spacing:.5px;color:var(--mid);transition:color .3s}
 .nav-links a:hover{color:var(--gold)}
@@ -135,7 +135,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
 <body class="has-mobile-bar">
 
 <nav>
-  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
   <ul class="nav-links">
     <li><a href="properties.html" style="color:var(--gold)">Properties</a></li>
     <li><a href="/#about">About</a></li>

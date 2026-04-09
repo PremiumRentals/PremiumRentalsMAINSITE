@@ -33,8 +33,8 @@
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);min-height:100vh}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:center;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
-.nav-logo span{color:var(--gold)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:26px;width:auto;display:block}
 .wrap{max-width:680px;margin:0 auto;padding:100px 5% 80px;text-align:center}
 .checkmark{width:72px;height:72px;background:var(--accent);border-radius:50%;display:flex;align-items:center;justify-content:center;margin:0 auto 28px;font-size:32px}
 .conf-title{font-family:'Playfair Display',serif;font-size:clamp(28px,5vw,44px);font-weight:500;color:var(--dark);margin-bottom:12px}
@@ -70,7 +70,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 </head>
 <body>
 <nav>
-  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
 </nav>
 <div class="wrap">
   <div class="checkmark">✓</div>

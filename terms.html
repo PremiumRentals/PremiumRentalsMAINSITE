@@ -34,8 +34,8 @@
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white)}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
-.nav-logo span{color:var(--gold)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:26px;width:auto;display:block}
 .nav-back{font-size:13px;color:var(--mid);text-decoration:none;transition:color .2s}
 .nav-back:hover{color:var(--gold)}
 .hero{background:var(--accent);padding:120px 5% 60px;margin-top:64px}
@@ -65,7 +65,7 @@ footer a:hover{color:var(--gold)}
 <body>
 <nav>
   <a href="/" class="nav-back">← Back to Home</a>
-  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
   <div style="width:100px"></div>
 </nav>
 <div class="hero">

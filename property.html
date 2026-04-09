@@ -34,8 +34,8 @@
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--white);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
-.nav-logo span{color:var(--gold)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:26px;width:auto;display:block}
 .nav-back{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--mid);text-decoration:none;transition:color .2s}
 .nav-back:hover{color:var(--gold)}
 .nav-right{display:flex;gap:12px;align-items:center}
@@ -289,7 +289,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 
 <nav>
   <a href="properties.html" class="nav-back">← All Properties</a>
-  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
   <div class="nav-right">
     <button class="nav-action" onclick="shareProperty()" title="Share this property">
       <svg viewBox="0 0 24 24"><circle cx="18" cy="5" r="3"/><circle cx="6" cy="12" r="3"/><circle cx="18" cy="19" r="3"/><line x1="8.59" y1="13.51" x2="15.42" y2="17.49"/><line x1="15.41" y1="6.51" x2="8.59" y2="10.49"/></svg>

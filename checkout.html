@@ -34,8 +34,8 @@
 body{font-family:'Inter',sans-serif;color:var(--dark);background:var(--light);overflow-x:hidden}
 .serif{font-family:'Playfair Display',serif}
 nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;align-items:center;justify-content:space-between;height:64px;background:rgba(255,255,255,.96);backdrop-filter:blur(12px);box-shadow:0 1px 20px rgba(0,0,0,.08)}
-.nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:var(--dark);font-weight:600;letter-spacing:1px;text-decoration:none}
-.nav-logo span{color:var(--gold)}
+.nav-logo{text-decoration:none;display:flex;align-items:center}
+.nav-logo img{height:26px;width:auto;display:block}
 .nav-back{font-size:13px;color:var(--mid);cursor:pointer;background:none;border:none;font-family:'Inter',sans-serif;transition:color .2s}
 .nav-back:hover{color:var(--gold)}
 .progress-bar{margin-top:64px;background:var(--white);border-bottom:1px solid #eeede9;padding:16px 5%}
@@ -165,7 +165,7 @@ nav{position:fixed;top:0;left:0;right:0;z-index:200;padding:0 5%;display:flex;al
 
 <nav>
   <button class="nav-back" onclick="history.back()">← Back to Property</button>
-  <a href="/" class="nav-logo serif">Premium<span>Rentals</span></a>
+  <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
   <div style="width:120px"></div>
 </nav>
 

@@ -1,4 +1,9 @@
-<svg width="32" height="32" viewBox="0 0 32 32" xmlns="http://www.w3.org/2000/svg">
-  <rect width="32" height="32" fill="#1a1a1a" rx="4"/>
-  <text x="16" y="23" font-family="Georgia, 'Times New Roman', serif" font-size="18" font-weight="400" fill="#C9A96E" text-anchor="middle" letter-spacing="1">PR</text>
+<svg width="512" height="512" viewBox="0 0 512 512" xmlns="http://www.w3.org/2000/svg">
+  <circle cx="256" cy="256" r="256" fill="#f7f5f2"/>
+  <circle cx="256" cy="256" r="240" fill="none" stroke="#C9A96E" stroke-width="8" opacity="0.6"/>
+  
+<circle cx="155.2" cy="256" r="67.2" fill="none" stroke="#C9A96E" stroke-width="19.6" stroke-linecap="round"/>
+<line x1="222.39999999999998" y1="256" x2="435.20000000000005" y2="256" stroke="#C9A96E" stroke-width="19.6" stroke-linecap="round"/>
+<line x1="401.6" y1="256" x2="401.6" y2="306.4" stroke="#C9A96E" stroke-width="19.6" stroke-linecap="round"/>
+<line x1="356.80000000000007" y1="256" x2="356.80000000000007" y2="289.6" stroke="#C9A96E" stroke-width="19.6" stroke-linecap="round"/>
 </svg>

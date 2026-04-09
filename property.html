@@ -212,7 +212,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 .review-text.expanded{-webkit-line-clamp:unset;overflow:visible}
 .review-author{font-size:12px;font-weight:600;color:var(--dark)}
 .review-date{font-size:11px;color:var(--mid);margin-top:2px}
-@media(max-width:640px){#reviews-grid{grid-template-columns:1fr}.nav-logo{display:none}.nav-action-label{display:none}}
+@media(max-width:640px){#reviews-grid{grid-template-columns:1fr}.nav-back-label{display:none}.nav-logo img{max-width:130px;height:auto}.nav-action-label{display:none}}
 @media(max-width:900px){#podium-website-widget{display:none!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
 @media(max-width:1024px){.content-wrap{grid-template-columns:1fr 340px;gap:40px}}
@@ -288,7 +288,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:48px 5% 24px}
 <body class="has-mobile-bar">
 
 <nav>
-  <a href="properties.html" class="nav-back">← All Properties</a>
+  <a href="properties.html" class="nav-back"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="flex-shrink:0"><polyline points="15 18 9 12 15 6"/></svg><span class="nav-back-label">All Properties</span></a>
   <a href="/" class="nav-logo"><img src="/logo.svg" alt="Premium Rentals"></a>
   <div class="nav-right">
     <button class="nav-action" onclick="shareProperty()" title="Share this property">

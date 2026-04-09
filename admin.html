@@ -1055,18 +1055,26 @@ function calcEditTotal(id) {
 
 async function saveEdit(id) {
   const msgEl   = document.getElementById('ef-msg-' + id);
-  const accom   = parseFloat(document.getElementById('ef-accom-'   + id)?.value) || 0;
-  const clean   = parseFloat(document.getElementById('ef-clean-'   + id)?.value) || 0;
-  const svc     = parseFloat(document.getElementById('ef-svc-'     + id)?.value) || 0;
-  const tax     = parseFloat(document.getElementById('ef-tax-'     + id)?.value) || 0;
-  const notes   = document.getElementById('ef-notes-'   + id)?.value || '';
+  const q       = allQuotes.find(x => x.id === id);
+
+  // Read form values; if a field is left empty fall back to the existing DB
+  // value so we never accidentally null-out a fee just because the field
+  // wasn't touched during this edit.
+  const fv = (elId, fallback) => {
+    const v = document.getElementById(elId)?.value;
+    return (v !== '' && v != null) ? parseFloat(v) || 0 : (parseFloat(fallback) || 0);
+  };
+  const accom = fv('ef-accom-' + id, q?.accommodation_total);
+  const clean = fv('ef-clean-' + id, q?.cleaning_fee);
+  const svc   = fv('ef-svc-'   + id, q?.service_fee);
+  const tax   = fv('ef-tax-'   + id, q?.taxes);
+  const notes   = document.getElementById('ef-notes-'   + id)?.value ?? (q?.notes || '');
   const checkIn = document.getElementById('ef-checkin-' + id)?.value || null;
   const checkOut= document.getElementById('ef-checkout-'+ id)?.value || null;
-  const fName   = document.getElementById('ef-fname-'   + id)?.value?.trim() || null;
-  const lName   = document.getElementById('ef-lname-'   + id)?.value?.trim() || null;
-  const email   = document.getElementById('ef-email-'   + id)?.value?.trim() || null;
+  const fName   = document.getElementById('ef-fname-'   + id)?.value?.trim() ?? null;
+  const lName   = document.getElementById('ef-lname-'   + id)?.value?.trim() ?? null;
+  const email   = document.getElementById('ef-email-'   + id)?.value?.trim() ?? null;
   const total   = accom + clean + svc + tax;
-  const q       = allQuotes.find(x => x.id === id);
   const nights  = (checkIn && checkOut)
     ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000)
     : (q?.nights || 1);
@@ -1075,18 +1083,18 @@ async function saveEdit(id) {
     const r = await fetch(`${API}/api/admin/quotes/${id}`, {
       method: 'PUT', headers: { ...authHeaders(), 'Content-Type': 'application/json' },
       body: JSON.stringify({
-        accommodation_total: accom || null,
-        custom_nightly_rate: accom ? Math.round((accom / nights) * 100) / 100 : null,
-        cleaning_fee:   clean  || null,
-        service_fee:    svc    || null,
-        taxes:          tax    || null,
-        total:          total  || null,
-        notes:          notes  || null,
+        accommodation_total: accom,
+        custom_nightly_rate: accom > 0 ? Math.round((accom / nights) * 100) / 100 : null,
+        cleaning_fee:   clean,
+        service_fee:    svc,
+        taxes:          tax,
+        total:          total,
+        notes:          notes || null,
         ...(checkIn  ? { check_in:  checkIn  } : {}),
         ...(checkOut ? { check_out: checkOut, nights } : {}),
-        ...(fName  !== null ? { guest_first_name: fName }  : {}),
-        ...(lName  !== null ? { guest_last_name:  lName }  : {}),
-        ...(email  !== null ? { guest_email:      email }  : {})
+        ...(fName  != null ? { guest_first_name: fName }  : {}),
+        ...(lName  != null ? { guest_last_name:  lName }  : {}),
+        ...(email  != null ? { guest_email:      email }  : {})
       })
     });
     const d = await r.json();

@@ -382,13 +382,13 @@ function render(q) {
     checkOut:   q.check_out,
     guests:     q.guests || 1,
   });
-  if (q.custom_nightly_rate) params.set('nightlyAvg',   q.custom_nightly_rate);
-  if (q.accommodation_total) params.set('accommodation', q.accommodation_total);
-  if (q.cleaning_fee)        params.set('cleaningFee',   q.cleaning_fee);
-  if (q.service_fee)         params.set('serviceFee',    q.service_fee);
-  if (q.taxes)               params.set('taxes',         q.taxes);
-  if (q.total)               params.set('total',         q.total);
-  if (q.nights)              params.set('nights',        q.nights);
+  if (q.custom_nightly_rate != null) params.set('nightlyAvg',   q.custom_nightly_rate);
+  if (q.accommodation_total != null) params.set('accommodation', q.accommodation_total);
+  if (q.cleaning_fee        != null) params.set('cleaningFee',   q.cleaning_fee);
+  if (q.service_fee         != null) params.set('serviceFee',    q.service_fee);
+  if (q.taxes               != null) params.set('taxes',         q.taxes);
+  if (q.total               != null) params.set('total',         q.total);
+  if (q.nights              != null) params.set('nights',        q.nights);
   params.set('acceptCards', q.accept_cards !== false ? '1' : '0');
   params.set('acceptAch',   q.accept_ach   === true  ? '1' : '0');
   document.getElementById('reserve-btn').href = `${SITE}/checkout.html?${params.toString()}`;

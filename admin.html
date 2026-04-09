@@ -1027,7 +1027,9 @@ function toggleEdit(id) {
     const btn = document.getElementById('exp-' + id);
     if (btn) btn.style.transform = '';
   }
+  const isOpening = !ed.classList.contains('open');
   ed.classList.toggle('open');
+  if (isOpening) onEditDatesChange(id); // Show availability status for existing dates immediately
 }
 
 async function onEditDatesChange(id) {

@@ -125,6 +125,8 @@ body{font-family:'Inter',sans-serif;background:var(--dark);color:#fff;min-height
 .edit-save-btn:hover{opacity:.85}
 .edit-cancel-btn{padding:8px 14px;background:transparent;color:var(--mid);border:1px solid var(--border);border-radius:5px;font-size:12px;cursor:pointer;font-family:'Inter',sans-serif}
 .edit-msg{font-size:12px;color:var(--mid);margin-left:6px}
+.edit-section{font-size:10px;font-weight:700;letter-spacing:1px;text-transform:uppercase;color:var(--mid);padding:10px 0 6px;border-top:1px solid var(--border);margin-top:6px;grid-column:1/-1}
+.edit-section:first-child{border-top:none;padding-top:0;margin-top:0}
 .empty-state{text-align:center;padding:60px 20px;color:var(--mid)}
 .empty-icon{font-size:40px;margin-bottom:12px}
 .empty-text{font-size:14px}
@@ -917,6 +919,28 @@ function renderQuotes() {
     const editForm = q.status === 'pending' ? `
       <div class="quote-edit" id="ed-${q.id}">
         <div class="edit-grid">
+          <div class="edit-section">Dates &amp; Guest</div>
+          <div class="edit-field">
+            <label>Check-In</label>
+            <input type="date" id="ef-checkin-${q.id}" value="${q.check_in||''}" oninput="onEditDatesChange('${q.id}')">
+          </div>
+          <div class="edit-field">
+            <label>Check-Out</label>
+            <input type="date" id="ef-checkout-${q.id}" value="${q.check_out||''}" oninput="onEditDatesChange('${q.id}')">
+          </div>
+          <div class="edit-field">
+            <label>First Name</label>
+            <input type="text" id="ef-fname-${q.id}" value="${(q.guest_first_name||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-field">
+            <label>Last Name</label>
+            <input type="text" id="ef-lname-${q.id}" value="${(q.guest_last_name||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-field full">
+            <label>Email</label>
+            <input type="email" id="ef-email-${q.id}" value="${(q.guest_email||'').replace(/"/g,'&quot;')}">
+          </div>
+          <div class="edit-section">Pricing</div>
           <div class="edit-field">
             <label>Total Accommodation</label>
             <input type="number" id="ef-accom-${q.id}" value="${accom||''}" min="0" oninput="calcEditTotal('${q.id}')">
@@ -1004,6 +1028,19 @@ function toggleEdit(id) {
   ed.classList.toggle('open');
 }
 
+function onEditDatesChange(id) {
+  const ci = document.getElementById('ef-checkin-'  + id)?.value;
+  const co = document.getElementById('ef-checkout-' + id)?.value;
+  if (ci && co) {
+    const n = Math.ceil((new Date(co) - new Date(ci)) / 86400000);
+    if (n > 0) {
+      const q = allQuotes.find(x => x.id === id);
+      // Store new nights on the quote object so saveEdit can use it
+      if (q) q._editNights = n;
+    }
+  }
+}
+
 function calcEditTotal(id) {
   const accom  = parseFloat(document.getElementById('ef-accom-' + id)?.value) || 0;
   const clean  = parseFloat(document.getElementById('ef-clean-' + id)?.value) || 0;
@@ -1017,15 +1054,22 @@ function calcEditTotal(id) {
 }
 
 async function saveEdit(id) {
-  const msgEl = document.getElementById('ef-msg-' + id);
-  const accom = parseFloat(document.getElementById('ef-accom-' + id)?.value) || 0;
-  const clean = parseFloat(document.getElementById('ef-clean-' + id)?.value) || 0;
-  const svc   = parseFloat(document.getElementById('ef-svc-'   + id)?.value) || 0;
-  const tax   = parseFloat(document.getElementById('ef-tax-'   + id)?.value) || 0;
-  const notes = document.getElementById('ef-notes-' + id)?.value || '';
-  const total = accom + clean + svc + tax;
-  const q     = allQuotes.find(x => x.id === id);
-  const nights = q?.nights || 1;
+  const msgEl   = document.getElementById('ef-msg-' + id);
+  const accom   = parseFloat(document.getElementById('ef-accom-'   + id)?.value) || 0;
+  const clean   = parseFloat(document.getElementById('ef-clean-'   + id)?.value) || 0;
+  const svc     = parseFloat(document.getElementById('ef-svc-'     + id)?.value) || 0;
+  const tax     = parseFloat(document.getElementById('ef-tax-'     + id)?.value) || 0;
+  const notes   = document.getElementById('ef-notes-'   + id)?.value || '';
+  const checkIn = document.getElementById('ef-checkin-' + id)?.value || null;
+  const checkOut= document.getElementById('ef-checkout-'+ id)?.value || null;
+  const fName   = document.getElementById('ef-fname-'   + id)?.value?.trim() || null;
+  const lName   = document.getElementById('ef-lname-'   + id)?.value?.trim() || null;
+  const email   = document.getElementById('ef-email-'   + id)?.value?.trim() || null;
+  const total   = accom + clean + svc + tax;
+  const q       = allQuotes.find(x => x.id === id);
+  const nights  = (checkIn && checkOut)
+    ? Math.ceil((new Date(checkOut) - new Date(checkIn)) / 86400000)
+    : (q?.nights || 1);
   msgEl.textContent = 'Saving…'; msgEl.style.color = 'var(--mid)';
   try {
     const r = await fetch(`${API}/api/admin/quotes/${id}`, {
@@ -1033,11 +1077,16 @@ async function saveEdit(id) {
       body: JSON.stringify({
         accommodation_total: accom || null,
         custom_nightly_rate: accom ? Math.round((accom / nights) * 100) / 100 : null,
-        cleaning_fee: clean || null,
-        service_fee:  svc  || null,
-        taxes:        tax  || null,
-        total:        total || null,
-        notes:        notes || null
+        cleaning_fee:   clean  || null,
+        service_fee:    svc    || null,
+        taxes:          tax    || null,
+        total:          total  || null,
+        notes:          notes  || null,
+        ...(checkIn  ? { check_in:  checkIn  } : {}),
+        ...(checkOut ? { check_out: checkOut, nights } : {}),
+        ...(fName  !== null ? { guest_first_name: fName }  : {}),
+        ...(lName  !== null ? { guest_last_name:  lName }  : {}),
+        ...(email  !== null ? { guest_email:      email }  : {})
       })
     });
     const d = await r.json();

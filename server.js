@@ -1341,9 +1341,13 @@ app.post('/api/admin/quotes', requireAdmin, async (req, res) => {
 app.put('/api/admin/quotes/:id', requireAdmin, async (req, res) => {
   try {
     const { id } = req.params;
-    const allowed = ['status', 'notes', 'custom_nightly_rate', 'accommodation_total', 'cleaning_fee', 'service_fee', 'taxes', 'total', 'accept_cards', 'accept_ach'];
+    const allowed = ['status', 'notes', 'custom_nightly_rate', 'accommodation_total', 'cleaning_fee', 'service_fee', 'taxes', 'total', 'accept_cards', 'accept_ach', 'check_in', 'check_out', 'nights', 'guest_first_name', 'guest_last_name', 'guest_email', 'guest_phone'];
     const updates = {};
     allowed.forEach(k => { if (req.body[k] !== undefined) updates[k] = req.body[k]; });
+    // Recalculate nights if dates changed
+    if (updates.check_in && updates.check_out) {
+      updates.nights = Math.ceil((new Date(updates.check_out) - new Date(updates.check_in)) / 86400000);
+    }
     const { data, error } = await supabase.from('admin_quotes').update(updates).eq('id', id).select().single();
     if (error) throw error;
 

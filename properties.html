@@ -610,10 +610,10 @@ function initFavButtons(){
         const y = window.scrollY;
         if (y > lastY && y > 80) {
           bar.classList.add('filter-collapsed');      // scrolling down → hide
-        } else if (y < 120) {
-          bar.classList.remove('filter-collapsed');   // near top → always show
+        } else if (y === 0) {
+          bar.classList.remove('filter-collapsed');   // back at very top → show
         }
-        // mid-page upward scroll: do nothing (bar stays hidden until near top)
+        // any other scroll: bar stays as-is
         lastY = y;
         ticking = false;
       });

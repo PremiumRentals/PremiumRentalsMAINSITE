@@ -1501,6 +1501,32 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       stripePaymentIntentId = paymentIntent.id;
     }
 
+    // Step 4b: Card — charge via Stripe PaymentIntent BEFORE touching Guesty.
+    // The SetupIntent used at checkout saved the card but did NOT charge it.
+    // We must create a PaymentIntent here to actually collect payment.
+    let stripeCardPaymentIntentId = null;
+    if (!isAch) {
+      const totalCents = Math.round(parseFloat(quote.total || 0) * 100);
+      if (!totalCents) return res.status(400).json({ error: 'Quote must have a total set before payment can be processed.' });
+      const cardIntent = await stripe.paymentIntents.create({
+        amount:               totalCents,
+        currency:             'usd',
+        customer:             customerId,
+        payment_method:       stripePaymentMethodId,
+        payment_method_types: ['card'],
+        confirm:              true,
+        off_session:          false,
+        description:          `Quote ${id} — ${quote.listing_name || 'Property'} ${checkIn}→${checkOut}`,
+        metadata:             { quoteId: id, listingId }
+      });
+      console.log('Card PaymentIntent', cardIntent.id, cardIntent.status);
+      if (cardIntent.status !== 'succeeded') {
+        const why = cardIntent.last_payment_error?.message || `status: ${cardIntent.status}`;
+        return res.status(400).json({ error: `Card payment failed (${why}). Please try again or contact us.` });
+      }
+      stripeCardPaymentIntentId = cardIntent.id;
+    }
+
     // Step 5: Get Guesty payment provider (for card path)
     let paymentProviderId = null;
     try {
@@ -1653,6 +1679,25 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
         const payText = await payRes.text();
         console.log('Payment record response:', payRes.status, payText.slice(0, 300));
       } catch(e) { console.warn('Payment record warning:', e.message); }
+    }
+
+    // Step 7e: Card — record the credit card payment in Guesty for the exact quoted total.
+    if (!isAch && reservationId && stripeCardPaymentIntentId) {
+      try {
+        const paymentAmount = parseFloat(quote.total || 0);
+        const cardPayRes  = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}/payments`, {
+          method:  'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body:    JSON.stringify({
+            paymentMethod: { method: 'CREDIT_CARD' },
+            amount:        paymentAmount,
+            paidAt:        new Date().toISOString(),
+            note:          `Card charged via Stripe — ${stripeCardPaymentIntentId}`
+          })
+        });
+        const cardPayText = await cardPayRes.text();
+        console.log('Card payment record response:', cardPayRes.status, cardPayText.slice(0, 300));
+      } catch(e) { console.warn('Card payment record warning:', e.message); }
     }
 
     // Step 8: Mark admin quote as accepted

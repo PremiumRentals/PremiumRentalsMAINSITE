@@ -239,6 +239,29 @@ const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
 let allListings = [], filteredListings = [], map = null, markers = [], infoWindow = null;
 let geocoder = null;
 
+// Geographic region groupings — city name (case-insensitive) → display region
+const REGION_GROUPS = [
+  { label: 'St. George',             cities: ['hurricane', 'st. george', 'st george'],             states: ['ut'] },
+  { label: 'McCall & Cascade',       cities: ['mccall', 'cascade', 'garden valley'],               states: ['id'] },
+  { label: 'Treasure Valley, Idaho', cities: ['boise', 'eagle', 'nampa', 'caldwell', 'meridian'], states: ['id'] },
+  { label: 'Alabama',                cities: null,                                                 states: ['al'] },
+  { label: 'Hawaii',                 cities: null,                                                 states: ['hi'] },
+  { label: 'Utah',                   cities: null,                                                 states: ['ut'] },
+];
+
+function getRegion(city, state) {
+  if (!city) return null;
+  const c = city.toLowerCase().trim();
+  const s = (state||'').toLowerCase().trim();
+  for (const grp of REGION_GROUPS) {
+    const stateMatch = grp.states ? grp.states.includes(s) : true;
+    if (!stateMatch) continue;
+    if (grp.cities === null) return grp.label;
+    if (grp.cities.includes(c)) return grp.label;
+  }
+  return `${city}${state ? ', ' + state : ''}`;
+}
+
 // Hardcoded coords for known cities — instant, no API calls needed
 const CITY_COORDS = {
   'Meridian,ID':         { lat: 43.6121, lng: -116.3915 },
@@ -367,19 +390,21 @@ async function loadListings() {
 }
 
 function buildLocationDropdown() {
-  const cities = {};
+  const regions = {};
   allListings.forEach(l => {
     const city = l.address?.city, state = l.address?.state;
-    if (city) {
-      const key = `${city}, ${state||''}`.trim().replace(/,$/, '');
-      cities[key] = (cities[key]||0) + 1;
-    }
+    const region = getRegion(city, state);
+    if (region) regions[region] = (regions[region]||0) + 1;
   });
   const select = document.getElementById('f-location');
   while (select.options.length > 1) select.remove(1);
-  Object.keys(cities).sort().forEach(city => {
+  // Defined groups first (in order), then ungrouped locations alphabetically
+  const defined = REGION_GROUPS.map(g => g.label).filter(lbl => regions[lbl]);
+  const others  = Object.keys(regions).filter(r => !defined.includes(r)).sort();
+  [...defined, ...others].forEach(region => {
     const opt = document.createElement('option');
-    opt.value = city; opt.textContent = `${city} (${cities[city]})`;
+    opt.value = region;
+    opt.textContent = `${region} (${regions[region]})`;
     select.appendChild(opt);
   });
 }
@@ -393,9 +418,10 @@ async function applyFilters() {
 
   // Always apply non-date filters first
   let candidates = allListings.filter(l => {
-    const city  = (l.address?.city||'').toLowerCase();
-    const state = (l.address?.state||'').toLowerCase();
-    return (!loc || `${city}, ${state}`.includes(loc) || city.includes(loc)) &&
+    const city   = l.address?.city  || '';
+    const state  = l.address?.state || '';
+    const region = (getRegion(city, state)||'').toLowerCase();
+    return (!loc || region === loc) &&
            (!beds   || (l.bedrooms    ||0) >= beds) &&
            (!guests || (l.accommodates||0) >= guests);
   });

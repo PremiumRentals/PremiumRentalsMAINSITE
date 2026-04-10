@@ -471,6 +471,29 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 const API_BASE = 'https://premiumrentalsmainsite-production.up.railway.app';
 let allListings = [];
 
+// Geographic region groupings — city name (case-insensitive) → display region
+const REGION_GROUPS = [
+  { label: 'St. George',             cities: ['hurricane', 'st. george', 'st george'],             states: ['ut'] },
+  { label: 'McCall & Cascade',       cities: ['mccall', 'cascade', 'garden valley'],               states: ['id'] },
+  { label: 'Treasure Valley, Idaho', cities: ['boise', 'eagle', 'nampa', 'caldwell', 'meridian'], states: ['id'] },
+  { label: 'Alabama',                cities: null,                                                 states: ['al'] },
+  { label: 'Hawaii',                 cities: null,                                                 states: ['hi'] },
+  { label: 'Utah',                   cities: null,                                                 states: ['ut'] },
+];
+
+function getRegion(city, state) {
+  if (!city) return null;
+  const c = city.toLowerCase().trim();
+  const s = (state||'').toLowerCase().trim();
+  for (const grp of REGION_GROUPS) {
+    const stateMatch = grp.states ? grp.states.includes(s) : true;
+    if (!stateMatch) continue;
+    if (grp.cities === null) return grp.label;
+    if (grp.cities.includes(c)) return grp.label;
+  }
+  return `${city}${state ? ', ' + state : ''}`;
+}
+
 async function loadListings() {
   try {
     const res = await fetch(`${API_BASE}/api/website/listings`);
@@ -493,19 +516,21 @@ async function loadListings() {
 }
 
 function buildLocationDropdown() {
-  const cities = {};
+  const regions = {};
   allListings.forEach(l => {
     const city = l.address?.city, state = l.address?.state;
-    if (city) {
-      const key = `${city}, ${state||''}`.trim().replace(/,$/, '');
-      cities[key] = (cities[key]||0) + 1;
-    }
+    const region = getRegion(city, state);
+    if (region) regions[region] = (regions[region]||0) + 1;
   });
   const select = document.getElementById('search-location');
   while (select.options.length > 1) select.remove(1);
-  Object.keys(cities).sort().forEach(city => {
+  // Defined groups first (in order), then ungrouped locations alphabetically
+  const defined = REGION_GROUPS.map(g => g.label).filter(lbl => regions[lbl]);
+  const others  = Object.keys(regions).filter(r => !defined.includes(r)).sort();
+  [...defined, ...others].forEach(region => {
     const opt = document.createElement('option');
-    opt.value = city; opt.textContent = city;
+    opt.value = region;
+    opt.textContent = region;
     select.appendChild(opt);
   });
 }

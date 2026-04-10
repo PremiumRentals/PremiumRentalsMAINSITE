@@ -119,7 +119,27 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
 #podium-website-widget{z-index:149!important}
 @media(max-width:900px){#podium-website-widget{bottom:80px!important}}
 @media(min-width:901px){#podium-website-widget{bottom:20px!important}}
+/* ── HAMBURGER & MOBILE NAV ── */
+.nav-hamburger{display:none;background:none;border:none;cursor:pointer;padding:6px 2px;flex-direction:column;gap:5px;z-index:201}
+.nav-hamburger span{display:block;width:22px;height:2px;background:var(--mid);border-radius:1px;transition:all .3s}
+.nav-hamburger.open span:nth-child(1){transform:translateY(7px) rotate(45deg)}
+.nav-hamburger.open span:nth-child(2){opacity:0;transform:scaleX(0)}
+.nav-hamburger.open span:nth-child(3){transform:translateY(-7px) rotate(-45deg)}
+.mobile-nav{position:fixed;inset:0;background:#1a1a1a;z-index:500;display:flex;flex-direction:column;padding:0 8%;transform:translateX(100%);transition:transform .32s cubic-bezier(.4,0,.2,1);overflow-y:auto}
+.mobile-nav.open{transform:none}
+.mobile-nav-head{display:flex;align-items:center;justify-content:space-between;height:72px;border-bottom:1px solid rgba(255,255,255,.08);margin-bottom:40px;flex-shrink:0}
+.mobile-nav-logo{font-family:'Playfair Display',serif;font-size:20px;color:#fff;text-decoration:none}
+.mobile-nav-logo span{color:var(--gold)}
+.mobile-nav-close{background:none;border:none;color:rgba(255,255,255,.5);font-size:24px;cursor:pointer;padding:4px;line-height:1;transition:color .2s}
+.mobile-nav-close:hover{color:#fff}
+.mobile-nav-links{list-style:none;margin-bottom:24px}
+.mobile-nav-links li{border-bottom:1px solid rgba(255,255,255,.07)}
+.mobile-nav-links a{display:block;font-family:'Playfair Display',serif;font-size:26px;font-weight:400;color:rgba(255,255,255,.8);text-decoration:none;padding:16px 0;transition:color .2s;line-height:1.2}
+.mobile-nav-links a:hover,.mobile-nav-links a.mobile-active{color:var(--gold)}
+.mobile-nav-cta{display:block;background:var(--gold);color:#fff!important;padding:16px;border-radius:2px;font-family:'Inter',sans-serif;font-size:14px;font-weight:600;text-align:center;text-decoration:none;letter-spacing:.5px;transition:background .25s}
+.mobile-nav-cta:hover{background:#b8914e!important}
 @media(max-width:900px){
+  .nav-hamburger{display:flex}
   .nav-links{display:none}
   .tech-grid{grid-template-columns:1fr}
   .tech-content{padding:40px 0}
@@ -148,7 +168,26 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     <li><a href="/#contact">Contact</a></li>
     <li><a href="properties.html" class="nav-cta">Book Now</a></li>
   </ul>
+  <button class="nav-hamburger" id="nav-hamburger" onclick="toggleMobileNav()" aria-label="Open menu">
+    <span></span><span></span><span></span>
+  </button>
 </nav>
+
+<div class="mobile-nav" id="mobile-nav">
+  <div class="mobile-nav-head">
+    <a href="/" class="mobile-nav-logo">Premium<span>Rentals</span></a>
+    <button class="mobile-nav-close" onclick="toggleMobileNav()" aria-label="Close menu">&#10005;</button>
+  </div>
+  <ul class="mobile-nav-links">
+    <li><a href="properties.html">Properties</a></li>
+    <li><a href="/#about">About</a></li>
+    <li><a href="/#amenities">Amenities</a></li>
+    <li><a href="owners.html" class="mobile-active">Owner Services</a></li>
+    <li><a href="story.html">Our Story</a></li>
+    <li><a href="/#contact">Contact</a></li>
+  </ul>
+  <a href="properties.html" class="mobile-nav-cta">Book Now</a>
+</div>
 
 <div class="hero">
   <div class="hero-inner">
@@ -325,6 +364,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px}
     }
   } catch(e) { /* keep fallback text */ }
 })();
+function toggleMobileNav(){const mn=document.getElementById('mobile-nav'),hb=document.getElementById('nav-hamburger');mn.classList.toggle('open');hb.classList.toggle('open');document.body.style.overflow=mn.classList.contains('open')?'hidden':'';}
 </script>
 <script defer src="https://connect.podium.com/widget.js#ORG_TOKEN=4af99bcf-5ac7-4155-b64a-d68cce4e44d2" id="podium-widget" data-organization-api-token="4af99bcf-5ac7-4155-b64a-d68cce4e44d2"></script>
 </body>

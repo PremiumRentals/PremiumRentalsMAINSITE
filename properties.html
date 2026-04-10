@@ -248,6 +248,7 @@ const REGION_GROUPS = [
   { label: 'Alabama',                cities: null,                                                 states: ['al', 'alabama'] },
   { label: 'Hawaii',                 cities: null,                                                 states: ['hi', 'hawaii'] },
   { label: 'Utah',                   cities: null,                                                 states: ['ut', 'utah'] },
+  { label: 'Idaho',                  cities: null,                                                 states: ['id', 'idaho'] },
 ];
 
 function getRegion(city, state) {
@@ -346,8 +347,6 @@ async function loadListings() {
     if (!data.success) throw new Error(data.error);
     allListings = data.listings;
     filteredListings = [...allListings];
-    // Debug: log raw city/state from first few listings to help verify format
-    console.log('[regions] sample addresses:', allListings.slice(0,5).map(l=>({city:l.address?.city, state:l.address?.state, region:getRegion(l.address?.city, l.address?.state)})));
     buildLocationDropdown();
 
     // Auto-apply URL params from homepage search

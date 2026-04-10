@@ -473,12 +473,12 @@ let allListings = [];
 
 // Geographic region groupings — city name (case-insensitive) → display region
 const REGION_GROUPS = [
-  { label: 'St. George',             cities: ['hurricane', 'st. george', 'st george'],             states: ['ut'] },
-  { label: 'McCall & Cascade',       cities: ['mccall', 'cascade', 'garden valley'],               states: ['id'] },
-  { label: 'Treasure Valley, Idaho', cities: ['boise', 'eagle', 'nampa', 'caldwell', 'meridian'], states: ['id'] },
-  { label: 'Alabama',                cities: null,                                                 states: ['al'] },
-  { label: 'Hawaii',                 cities: null,                                                 states: ['hi'] },
-  { label: 'Utah',                   cities: null,                                                 states: ['ut'] },
+  { label: 'St. George',             cities: ['hurricane', 'st. george', 'st george'],             states: ['ut', 'utah'] },
+  { label: 'McCall & Cascade',       cities: ['mccall', 'cascade', 'garden valley'],               states: ['id', 'idaho'] },
+  { label: 'Treasure Valley, Idaho', cities: ['boise', 'eagle', 'nampa', 'caldwell', 'meridian'], states: ['id', 'idaho'] },
+  { label: 'Alabama',                cities: null,                                                 states: ['al', 'alabama'] },
+  { label: 'Hawaii',                 cities: null,                                                 states: ['hi', 'hawaii'] },
+  { label: 'Utah',                   cities: null,                                                 states: ['ut', 'utah'] },
 ];
 
 function getRegion(city, state) {

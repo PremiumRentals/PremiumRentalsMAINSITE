@@ -141,6 +141,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
     <li><a href="/#about">About</a></li>
     <li><a href="/#amenities">Amenities</a></li>
     <li><a href="owners.html">Owner Services</a></li>
+    <li><a href="story.html">Our Story</a></li>
     <li><a href="/#contact">Contact</a></li>
     <li><a href="properties.html" class="nav-cta">Book Now</a></li>
   </ul>
@@ -224,7 +225,7 @@ footer{background:#0a0a0a;color:rgba(255,255,255,.45);padding:60px 5% 28px;margi
       <div class="footer-socials"><a href="#" class="soc">f</a><a href="#" class="soc">in</a><a href="#" class="soc">ig</a><a href="#" class="soc">yt</a></div>
     </div>
     <div class="fc"><h5>Properties</h5><a href="properties.html">All Listings</a><a href="properties.html">Browse by Location</a><a href="properties.html">Browse by Size</a><a href="properties.html">Pet Friendly</a></div>
-    <div class="fc"><h5>Company</h5><a href="/#about">About Us</a><a href="/#about">How It Works</a><a href="owners.html">Owner Services</a><a href="/#contact">Contact</a></div>
+    <div class="fc"><h5>Company</h5><a href="/#about">About Us</a><a href="story.html">Our Story</a><a href="owners.html">Owner Services</a><a href="/#contact">Contact</a></div>
     <div class="fc"><h5>Legal</h5><a href="terms.html">Terms & Conditions</a><a href="cancellation.html">Cancellation Policy</a><a href="privacy.html">Privacy Policy</a><a href="https://login.premiumrentals.com">Owner Login</a></div>
   </div>
   <div class="footer-bot">
@@ -247,6 +248,7 @@ const REGION_GROUPS = [
   { label: 'Alabama',                cities: null,                                                 states: ['al', 'alabama'] },
   { label: 'Hawaii',                 cities: null,                                                 states: ['hi', 'hawaii'] },
   { label: 'Utah',                   cities: null,                                                 states: ['ut', 'utah'] },
+  { label: 'Idaho',                  cities: null,                                                 states: ['id', 'idaho'] },
 ];
 
 function getRegion(city, state) {
@@ -345,8 +347,6 @@ async function loadListings() {
     if (!data.success) throw new Error(data.error);
     allListings = data.listings;
     filteredListings = [...allListings];
-    // Debug: log raw city/state from first few listings to help verify format
-    console.log('[regions] sample addresses:', allListings.slice(0,5).map(l=>({city:l.address?.city, state:l.address?.state, region:getRegion(l.address?.city, l.address?.state)})));
     buildLocationDropdown();
 
     // Auto-apply URL params from homepage search

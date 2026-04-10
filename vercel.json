@@ -27,6 +27,7 @@
     { "source": "/properties.html",   "destination": "/properties",  "permanent": true },
     { "source": "/property.html",     "destination": "/property",    "permanent": true },
     { "source": "/owners.html",       "destination": "/owners",      "permanent": true },
+    { "source": "/story.html",        "destination": "/story",       "permanent": true },
     { "source": "/privacy.html",      "destination": "/privacy",     "permanent": true },
     { "source": "/terms.html",        "destination": "/terms",       "permanent": true },
     { "source": "/cancellation.html", "destination": "/cancellation","permanent": true },

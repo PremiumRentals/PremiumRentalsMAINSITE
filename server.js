@@ -739,6 +739,46 @@ app.post('/api/website/reserve', async (req, res) => {
       console.log('Payment provider:', paymentProviderId);
     } catch(e) { console.warn('Could not get payment provider:', e.message); }
 
+    // ── Step 2b: Find or create Guesty guest, then attach the card BEFORE reservation ──
+    // Guesty only sets up auto-charge for payment methods present at reservation-creation
+    // time. Attaching after the fact leaves the schedule without a card to run against.
+    let guestyGuestId = null;
+    if (paymentProviderId) {
+      try {
+        // Search for existing guest by email
+        const glRes   = await fetch(`https://open-api.guesty.com/v1/guests?q=${encodeURIComponent(email)}&limit=5`, { headers: { Authorization: `Bearer ${openToken}` } });
+        const glData  = await glRes.json().catch(() => ({}));
+        const glList  = glData.results || glData.data || [];
+        const existing = glList.find(g => g.email?.toLowerCase() === email.toLowerCase());
+
+        if (existing) {
+          guestyGuestId = existing._id;
+          console.log('Found existing Guesty guest:', guestyGuestId);
+        } else {
+          // Create guest if not found
+          const cgRes  = await fetch('https://open-api.guesty.com/v1/guests', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ firstName, lastName, email, ...(formattedPhone ? { phone: formattedPhone } : {}) })
+          });
+          const cgData = await cgRes.json().catch(() => ({}));
+          guestyGuestId = cgData._id;
+          console.log('Created Guesty guest:', guestyGuestId, '| status:', cgRes.status);
+        }
+
+        // Attach Stripe PM to the guest NOW — before the reservation exists
+        if (guestyGuestId) {
+          const preRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestyGuestId}/payment-methods`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, skipSetupIntent: true, reuse: true })
+          });
+          const preText = await preRes.text();
+          console.log('Pre-reservation card attach:', preRes.status, preText.slice(0, 300));
+        }
+      } catch(e) { console.warn('Pre-reservation guest/card setup:', e.message); }
+    }
+
     // ── Step 3: Create Open API V3 quote (strict — enforce all calendar/term rules) ──
     console.log('Creating V3 quote...');
     const { data: quoteData, status: qStatus } = await createV3Quote(openToken, { listingId, checkIn, checkOut, guests }, { strict: true });
@@ -770,34 +810,37 @@ app.post('/api/website/reserve', async (req, res) => {
     }
 
     // ── Step 5: Create V3 reservation from quote ──
+    // Pass guestId if we already have one (card pre-attached) so Guesty links the
+    // existing guest record. Fall back to guest object if lookup/create failed.
     console.log('Creating V3 reservation...');
     await new Promise(r => setTimeout(r, 1500));
+
+    const reserveBody = {
+      status:         'confirmed',
+      reservedUntil:  -1,
+      quoteId,
+      ratePlanId,
+      ignoreCalendar: false,
+      ignoreTerms:    false,
+      ignoreBlocks:   false
+    };
+    if (guestyGuestId) {
+      reserveBody.guestId = guestyGuestId;
+    } else {
+      reserveBody.guest = { firstName, lastName, email, phones: formattedPhone ? [formattedPhone] : undefined };
+    }
 
     const reserveRes  = await fetch('https://open-api.guesty.com/v1/reservations-v3/quote', {
       method: 'POST',
       headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        status:         'confirmed',
-        reservedUntil:  -1,
-        guest: {
-          firstName,
-          lastName,
-          email,
-          phones: formattedPhone ? [formattedPhone] : undefined
-        },
-        quoteId,
-        ratePlanId,
-        ignoreCalendar: false,
-        ignoreTerms:    false,
-        ignoreBlocks:   false
-      })
+      body: JSON.stringify(reserveBody)
     });
     const reserveText = await reserveRes.text();
     let reserveData;
     try { reserveData = JSON.parse(reserveText); } catch(e) { throw new Error('Reservation parse error: ' + reserveText.slice(0, 200)); }
 
     const reservationId    = reserveData.reservationId;
-    let   guestId          = reserveData.guestId || reserveData.guest?._id;
+    const guestId          = reserveData.guestId || reserveData.guest?._id || guestyGuestId;
     const confirmationCode = reserveData.confirmationCode || reservationId;
 
     if (!reservationId) {
@@ -807,43 +850,21 @@ app.post('/api/website/reserve', async (req, res) => {
     }
     console.log('V3 Reservation created:', reservationId, 'Code:', confirmationCode, 'Guest:', guestId);
 
-    // ── Step 6: Attach Stripe payment method to Guesty guest ──
-    // If V3 reservation didn't return guestId, fall back to searching Guesty by email
-    if (!guestId) {
+    // ── Step 6: Post-reservation card attachment (backup) ──
+    // If Guesty assigned a different guestId than the one we pre-attached to, attach
+    // the card to that guest as well so it shows on the reservation.
+    if (guestId && guestId !== guestyGuestId && paymentProviderId) {
       try {
-        console.warn('guestId missing from V3 reservation — looking up guest by email:', email);
-        const glRes  = await fetch(`https://open-api.guesty.com/v1/guests?q=${encodeURIComponent(email)}&limit=5`, {
-          headers: { Authorization: `Bearer ${openToken}` }
+        const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true })
         });
-        const glData = await glRes.json().catch(() => ({}));
-        const guestList = glData.results || glData.data || [];
-        const matched   = guestList.find(g => g.email?.toLowerCase() === email.toLowerCase());
-        guestId = matched?._id || guestList[0]?._id;
-        console.log('Guest lookup:', glRes.status, '— found:', guestList.length, '— using:', guestId);
-      } catch(e) { console.warn('Guest lookup error:', e.message); }
-    }
-
-    if (!guestId || !paymentProviderId) {
-      console.warn('Skipping card attachment — guestId:', guestId, '| paymentProviderId:', paymentProviderId, '| pmId:', stripePaymentMethodId);
+        const pmText = await pmRes.text();
+        console.log('Backup card attach (different guestId):', pmRes.status, pmText.slice(0, 300));
+      } catch(e) { console.warn('Backup card attach error:', e.message); }
     } else {
-      // Guesty V3 creates reservations asynchronously — the record may not be
-      // queryable immediately. Retry up to 4 times with growing delays (2s/4s/6s/8s).
-      const attachBody = JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true });
-      let attached = false;
-      for (let attempt = 1; attempt <= 4 && !attached; attempt++) {
-        await new Promise(r => setTimeout(r, attempt * 2000)); // 2s, 4s, 6s, 8s
-        try {
-          const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
-            method: 'POST',
-            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-            body: attachBody
-          });
-          const pmText = await pmRes.text();
-          console.log(`Card attach attempt ${attempt} — status:`, pmRes.status, '| body:', pmText.slice(0, 400));
-          if (pmRes.status >= 200 && pmRes.status < 300) { attached = true; }
-        } catch(e) { console.warn(`Card attach attempt ${attempt} error:`, e.message); }
-      }
-      if (!attached) console.warn('Card attachment failed after 4 attempts — guestId:', guestId, '| reservationId:', reservationId);
+      console.log('Card already pre-attached to guest:', guestyGuestId, '— no post-reservation attach needed');
     }
 
     // ── Step 7: Save to Supabase ──

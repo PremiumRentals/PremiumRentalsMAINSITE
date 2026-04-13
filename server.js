@@ -826,15 +826,24 @@ app.post('/api/website/reserve', async (req, res) => {
     if (!guestId || !paymentProviderId) {
       console.warn('Skipping card attachment — guestId:', guestId, '| paymentProviderId:', paymentProviderId, '| pmId:', stripePaymentMethodId);
     } else {
-      try {
-        const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
-          method: 'POST',
-          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true })
-        });
-        const pmText = await pmRes.text();
-        console.log('Card attach status:', pmRes.status, '| guestId:', guestId, '| body:', pmText.slice(0, 400));
-      } catch(e) { console.warn('Could not attach payment to guest:', e.message); }
+      // Guesty V3 creates reservations asynchronously — the record may not be
+      // queryable immediately. Retry up to 4 times with growing delays (2s/4s/6s/8s).
+      const attachBody = JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true });
+      let attached = false;
+      for (let attempt = 1; attempt <= 4 && !attached; attempt++) {
+        await new Promise(r => setTimeout(r, attempt * 2000)); // 2s, 4s, 6s, 8s
+        try {
+          const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body: attachBody
+          });
+          const pmText = await pmRes.text();
+          console.log(`Card attach attempt ${attempt} — status:`, pmRes.status, '| body:', pmText.slice(0, 400));
+          if (pmRes.status >= 200 && pmRes.status < 300) { attached = true; }
+        } catch(e) { console.warn(`Card attach attempt ${attempt} error:`, e.message); }
+      }
+      if (!attached) console.warn('Card attachment failed after 4 attempts — guestId:', guestId, '| reservationId:', reservationId);
     }
 
     // ── Step 7: Save to Supabase ──

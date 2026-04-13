@@ -797,7 +797,7 @@ app.post('/api/website/reserve', async (req, res) => {
     try { reserveData = JSON.parse(reserveText); } catch(e) { throw new Error('Reservation parse error: ' + reserveText.slice(0, 200)); }
 
     const reservationId    = reserveData.reservationId;
-    const guestId          = reserveData.guestId;
+    let   guestId          = reserveData.guestId || reserveData.guest?._id;
     const confirmationCode = reserveData.confirmationCode || reservationId;
 
     if (!reservationId) {
@@ -808,15 +808,34 @@ app.post('/api/website/reserve', async (req, res) => {
     console.log('V3 Reservation created:', reservationId, 'Code:', confirmationCode, 'Guest:', guestId);
 
     // ── Step 6: Attach Stripe payment method to Guesty guest ──
-    try {
-      const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
-        method: 'POST',
-        headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-        body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true })
-      });
-      const pmData = await pmRes.json().catch(() => ({}));
-      console.log('Payment attached to guest:', JSON.stringify(pmData).slice(0, 200));
-    } catch(e) { console.warn('Could not attach payment to guest:', e.message); }
+    // If V3 reservation didn't return guestId, fall back to searching Guesty by email
+    if (!guestId) {
+      try {
+        console.warn('guestId missing from V3 reservation — looking up guest by email:', email);
+        const glRes  = await fetch(`https://open-api.guesty.com/v1/guests?q=${encodeURIComponent(email)}&limit=5`, {
+          headers: { Authorization: `Bearer ${openToken}` }
+        });
+        const glData = await glRes.json().catch(() => ({}));
+        const guestList = glData.results || glData.data || [];
+        const matched   = guestList.find(g => g.email?.toLowerCase() === email.toLowerCase());
+        guestId = matched?._id || guestList[0]?._id;
+        console.log('Guest lookup:', glRes.status, '— found:', guestList.length, '— using:', guestId);
+      } catch(e) { console.warn('Guest lookup error:', e.message); }
+    }
+
+    if (!guestId || !paymentProviderId) {
+      console.warn('Skipping card attachment — guestId:', guestId, '| paymentProviderId:', paymentProviderId, '| pmId:', stripePaymentMethodId);
+    } else {
+      try {
+        const pmRes  = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}/payment-methods`, {
+          method: 'POST',
+          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+          body: JSON.stringify({ stripeCardToken: stripePaymentMethodId, paymentProviderId, reservationId, skipSetupIntent: true, reuse: true })
+        });
+        const pmText = await pmRes.text();
+        console.log('Card attach status:', pmRes.status, '| guestId:', guestId, '| body:', pmText.slice(0, 400));
+      } catch(e) { console.warn('Could not attach payment to guest:', e.message); }
+    }
 
     // ── Step 7: Save to Supabase ──
     const couponNote = couponCodeClean ? ` | Coupon: ${couponCodeClean}` : '';

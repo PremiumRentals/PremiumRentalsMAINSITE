@@ -365,6 +365,9 @@ const maxGuests = parseInt(params.get('maxGuests') || '99');
 
 if (!listingId || !checkIn || !checkOut) window.location.href = 'properties.html';
 
+// Admin quotes have Supabase UUID format (with dashes); Guesty quote IDs are 24-char hex ObjectIDs (no dashes)
+function isAdminQuote() { return pricing.quoteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pricing.quoteId); }
+
 let pricing = {
   nightlyAvg:    parseFloat(params.get('nightlyAvg')    || '0'),
   nights:        parseInt(params.get('nights')          || '0'),
@@ -403,7 +406,7 @@ let achClientSecret  = null;
 let achPaymentMethId = null;
 
 function initPaymentTabs() {
-  if (!pricing.quoteId) return;
+  if (!isAdminQuote()) return;
   const showCards = params.get('acceptCards') !== '0';
   const showAch   = params.get('acceptAch')   === '1';
 
@@ -603,13 +606,13 @@ function updateGuestButtons() {
 // ── Live repricing (disabled for admin quote mode) ──
 let repriceTimer = null;
 function triggerReprice() {
-  if (pricing.quoteId) return; // admin quote — price is locked
+  if (isAdminQuote()) return; // admin quote — price is locked
   clearTimeout(repriceTimer);
   document.getElementById('reprice-note').textContent = 'Updating price…';
   repriceTimer = setTimeout(reprice, 700);
 }
 async function reprice() {
-  if (pricing.quoteId) return;
+  if (isAdminQuote()) return;
   try {
     const res  = await fetch(`${API_BASE}/api/website/availability/${listingId}?checkIn=${checkIn}&checkOut=${checkOut}&guests=${coGuests}`);
     const data = await res.json();
@@ -759,8 +762,8 @@ async function submitBooking() {
     // Step 2: Create reservation
     setStep(2,'active');
     let res, data;
-    if (pricing.quoteId && pricing.quoteId.length > 20) {
-      // Admin quote flow — use dedicated endpoint
+    if (pricing.quoteId && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(pricing.quoteId)) {
+      // Admin quote flow (Supabase UUID) — use dedicated endpoint
       res  = await fetch(`${API_BASE}/api/quote/${pricing.quoteId}/reserve`,{
         method:'POST',headers:{'Content-Type':'application/json'},
         body:JSON.stringify({

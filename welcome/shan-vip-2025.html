@@ -50,8 +50,15 @@
     position: absolute;
     inset: 0;
     background:
-      radial-gradient(ellipse 70% 60% at 50% 10%, rgba(201,168,76,0.18) 0%, transparent 70%),
-      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(201,168,76,0.08) 0%, transparent 60%);
+      radial-gradient(ellipse 80% 60% at 50% 0%, rgba(201,168,76,0.12) 0%, transparent 65%),
+      radial-gradient(ellipse 50% 50% at 15% 85%, rgba(201,168,76,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse 40% 40% at 85% 70%, rgba(232,201,122,0.06) 0%, transparent 55%);
+    animation: heroAurora 18s ease-in-out infinite;
+  }
+
+  @keyframes heroAurora {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.7; }
   }
 
   .hero::after {
@@ -61,6 +68,90 @@
     height: 120px;
     background: linear-gradient(to bottom, transparent, var(--warm));
     z-index: 2;
+  }
+
+  /* ── Animated orbs ── */
+  .hero-orb {
+    position: absolute;
+    border-radius: 50%;
+    pointer-events: none;
+    z-index: 0;
+  }
+
+  .orb-1 {
+    width: 600px; height: 600px;
+    background: radial-gradient(circle, rgba(201,168,76,0.18) 0%, transparent 65%);
+    top: -220px; left: -180px;
+    filter: blur(40px);
+    animation: orbDrift1 14s ease-in-out infinite;
+  }
+
+  .orb-2 {
+    width: 400px; height: 400px;
+    background: radial-gradient(circle, rgba(201,168,76,0.14) 0%, transparent 65%);
+    bottom: 60px; right: -140px;
+    filter: blur(50px);
+    animation: orbDrift2 18s ease-in-out infinite;
+  }
+
+  .orb-3 {
+    width: 280px; height: 280px;
+    background: radial-gradient(circle, rgba(232,201,122,0.2) 0%, transparent 65%);
+    top: 40%; left: 52%;
+    filter: blur(35px);
+    animation: orbDrift3 11s ease-in-out infinite;
+  }
+
+  @keyframes orbDrift1 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    35% { transform: translate(70px, 50px) scale(1.07); }
+    65% { transform: translate(30px, 90px) scale(0.94); }
+  }
+
+  @keyframes orbDrift2 {
+    0%, 100% { transform: translate(0, 0) scale(1); }
+    40% { transform: translate(-60px, -40px) scale(1.1); }
+    70% { transform: translate(-90px, 25px) scale(0.93); }
+  }
+
+  @keyframes orbDrift3 {
+    0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 0.5; }
+    50% { transform: translate(-50%, -50%) scale(1.4); opacity: 0.9; }
+  }
+
+  /* ── Sparkles ── */
+  .spark {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    color: var(--gold);
+    font-size: var(--sz, 13px);
+    opacity: 0;
+    animation: sparkle var(--dur, 4s) ease-in-out var(--del, 0s) infinite;
+  }
+
+  @keyframes sparkle {
+    0%, 100% { opacity: 0; transform: scale(0) rotate(0deg); }
+    20%       { opacity: 0; }
+    50%       { opacity: 0.75; transform: scale(1) rotate(180deg); }
+    80%       { opacity: 0; }
+  }
+
+  .spark-dot {
+    position: absolute;
+    pointer-events: none;
+    z-index: 1;
+    width: var(--sz, 3px);
+    height: var(--sz, 3px);
+    background: var(--gold-light);
+    border-radius: 50%;
+    opacity: 0;
+    animation: dotPulse var(--dur, 3s) ease-in-out var(--del, 0s) infinite;
+  }
+
+  @keyframes dotPulse {
+    0%, 100% { opacity: 0; transform: scale(0); }
+    50%       { opacity: 0.9; transform: scale(1); }
   }
 
   .badge {
@@ -533,6 +624,25 @@
 
 <!-- ═══════════════════════════ HERO ═══════════════════════════ -->
 <section class="hero">
+
+  <!-- Animated orbs -->
+  <div class="hero-orb orb-1"></div>
+  <div class="hero-orb orb-2"></div>
+  <div class="hero-orb orb-3"></div>
+
+  <!-- Sparkle field -->
+  <span class="spark"  style="top:12%;left:9%;  --sz:16px;--dur:5s; --del:0s"></span>
+  <span class="spark"  style="top:22%;right:11%;--sz:11px;--dur:6s; --del:1.4s">✦</span>
+  <span class="spark"  style="top:58%;left:7%;  --sz:9px; --dur:4.5s;--del:0.7s">✦</span>
+  <span class="spark"  style="top:68%;right:14%;--sz:13px;--dur:5.5s;--del:2.1s">✦</span>
+  <span class="spark"  style="top:38%;left:22%; --sz:7px; --dur:4s; --del:1.9s">✦</span>
+  <span class="spark"  style="top:80%;left:28%; --sz:10px;--dur:6.5s;--del:0.3s">✦</span>
+  <span class="spark"  style="top:30%;right:28%;--sz:8px; --dur:3.8s;--del:3s">✦</span>
+  <span class="spark-dot" style="top:18%;left:38%;--sz:4px;--dur:3s; --del:1s"></span>
+  <span class="spark-dot" style="top:72%;left:55%;--sz:3px;--dur:4s; --del:0.5s"></span>
+  <span class="spark-dot" style="top:45%;right:20%;--sz:5px;--dur:2.8s;--del:2.2s"></span>
+  <span class="spark-dot" style="top:85%;right:35%;--sz:3px;--dur:3.5s;--del:1.7s"></span>
+
   <div class="badge">✦ Exclusive Invitation for Shan's Shine Clients</div>
   <h1 class="hero-title">Something <em>exciting</em><br>is happening.</h1>
   <p class="hero-sub">A personal message from Shan — and a very special opportunity.</p>

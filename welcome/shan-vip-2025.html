@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>A Special Message from Shan — Premium Rentals</title>
+<!-- Hidden from search engines -->
+<meta name="robots" content="noindex, nofollow, noarchive, nositelinkssearchbox">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,400;0,700;1,400&family=DM+Sans:wght@300;400;500&display=swap" rel="stylesheet">
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --gold: #C9A84C;
+    --gold-light: #E8C97A;
+    --deep: #0D1117;
+    --charcoal: #1A2030;
+    --warm: #F9F4EE;
+    --warm-dark: #EDE5D8;
+    --text: #2C2C2C;
+    --muted: #6B6560;
+  }
+
+  html { scroll-behavior: smooth; }
+
+  body {
+    font-family: 'DM Sans', sans-serif;
+    background: var(--warm);
+    color: var(--text);
+    overflow-x: hidden;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    min-height: 100vh;
+    background: var(--deep);
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    padding: 60px 24px;
+    overflow: hidden;
+  }
+
+  .hero::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background:
+      radial-gradient(ellipse 70% 60% at 50% 10%, rgba(201,168,76,0.18) 0%, transparent 70%),
+      radial-gradient(ellipse 40% 40% at 80% 80%, rgba(201,168,76,0.08) 0%, transparent 60%);
+  }
+
+  .hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 120px;
+    background: linear-gradient(to bottom, transparent, var(--warm));
+    z-index: 2;
+  }
+
+  .badge {
+    display: inline-block;
+    border: 1px solid rgba(201,168,76,0.5);
+    color: var(--gold);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 8px 20px;
+    border-radius: 40px;
+    margin-bottom: 36px;
+    opacity: 0;
+    animation: fadeUp 0.8s ease 0.2s forwards;
+    position: relative; z-index: 1;
+  }
+
+  .hero-title {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2.8rem, 7vw, 5.5rem);
+    color: #fff;
+    line-height: 1.1;
+    margin-bottom: 12px;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.4s forwards;
+    position: relative; z-index: 1;
+  }
+
+  .hero-title em {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .hero-sub {
+    font-size: clamp(1rem, 2vw, 1.2rem);
+    color: rgba(255,255,255,0.55);
+    font-weight: 300;
+    margin-bottom: 50px;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.6s forwards;
+    position: relative; z-index: 1;
+  }
+
+  .hero-logos {
+    display: flex;
+    align-items: center;
+    gap: 20px;
+    opacity: 0;
+    animation: fadeUp 0.9s ease 0.8s forwards;
+    position: relative; z-index: 1;
+  }
+
+  .logo-pill {
+    background: rgba(255,255,255,0.06);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 50px;
+    padding: 10px 22px;
+    font-size: 13px;
+    font-weight: 500;
+    color: rgba(255,255,255,0.8);
+    letter-spacing: 0.05em;
+  }
+
+  .logo-plus {
+    color: var(--gold);
+    font-size: 20px;
+    font-weight: 300;
+  }
+
+  /* ── LETTER SECTION ── */
+  .letter-section {
+    max-width: 760px;
+    margin: 0 auto;
+    padding: 80px 24px 60px;
+  }
+
+  .section-label {
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: var(--gold);
+    margin-bottom: 20px;
+  }
+
+  .letter-card {
+    background: #fff;
+    border-radius: 20px;
+    padding: 52px 56px;
+    box-shadow: 0 4px 40px rgba(0,0,0,0.07);
+    border: 1px solid rgba(0,0,0,0.05);
+    position: relative;
+    overflow: hidden;
+  }
+
+  .letter-card::before {
+    content: '"';
+    font-family: 'Playfair Display', serif;
+    font-size: 200px;
+    color: rgba(201,168,76,0.08);
+    position: absolute;
+    top: -20px;
+    left: 20px;
+    line-height: 1;
+    pointer-events: none;
+  }
+
+  .letter-greeting {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.4rem;
+    margin-bottom: 24px;
+    color: var(--text);
+  }
+
+  .letter-body p {
+    font-size: 1.05rem;
+    line-height: 1.85;
+    color: #3A3A3A;
+    margin-bottom: 20px;
+    font-weight: 300;
+  }
+
+  .letter-body p strong {
+    font-weight: 500;
+    color: var(--text);
+  }
+
+  .letter-body p.highlight {
+    background: linear-gradient(135deg, #FFF8EC, #FFF3DC);
+    border-left: 3px solid var(--gold);
+    padding: 16px 20px;
+    border-radius: 0 10px 10px 0;
+    font-weight: 400;
+    color: #3A2E00;
+    margin: 28px 0;
+  }
+
+  .letter-signature {
+    margin-top: 36px;
+    padding-top: 28px;
+    border-top: 1px solid var(--warm-dark);
+  }
+
+  .letter-signature .sig-line {
+    font-family: 'Playfair Display', serif;
+    font-style: italic;
+    font-size: 1.5rem;
+    color: var(--text);
+  }
+
+  .letter-signature .sig-title {
+    font-size: 0.85rem;
+    color: var(--muted);
+    margin-top: 4px;
+    font-weight: 400;
+  }
+
+  /* ── OFFER STRIP ── */
+  .offer-section {
+    background: var(--deep);
+    padding: 80px 24px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .offer-section::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(ellipse 60% 80% at 50% 50%, rgba(201,168,76,0.1) 0%, transparent 70%);
+  }
+
+  .offer-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 5vw, 3.5rem);
+    color: #fff;
+    margin-bottom: 16px;
+    position: relative;
+  }
+
+  .offer-section h2 em { color: var(--gold); font-style: italic; }
+
+  .offer-section .sub {
+    color: rgba(255,255,255,0.5);
+    font-size: 1rem;
+    font-weight: 300;
+    margin-bottom: 56px;
+    position: relative;
+  }
+
+  .perks-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 20px;
+    max-width: 900px;
+    margin: 0 auto 60px;
+    position: relative;
+  }
+
+  .perk {
+    background: rgba(255,255,255,0.04);
+    border: 1px solid rgba(201,168,76,0.2);
+    border-radius: 16px;
+    padding: 32px 24px;
+    text-align: left;
+  }
+
+  .perk-icon {
+    font-size: 28px;
+    margin-bottom: 16px;
+  }
+
+  .perk h3 {
+    font-size: 1rem;
+    font-weight: 500;
+    color: #fff;
+    margin-bottom: 8px;
+  }
+
+  .perk p {
+    font-size: 0.88rem;
+    color: rgba(255,255,255,0.45);
+    line-height: 1.6;
+    font-weight: 300;
+  }
+
+  /* ── VIP TIER CALLOUT ── */
+  .vip-callout {
+    display: inline-flex;
+    flex-direction: column;
+    align-items: center;
+    background: linear-gradient(135deg, rgba(201,168,76,0.15), rgba(201,168,76,0.05));
+    border: 1px solid var(--gold);
+    border-radius: 20px;
+    padding: 36px 48px;
+    position: relative;
+    max-width: 560px;
+    margin: 0 auto;
+  }
+
+  .vip-tag {
+    position: absolute;
+    top: -14px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: var(--gold);
+    color: var(--deep);
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    padding: 5px 16px;
+    border-radius: 30px;
+    white-space: nowrap;
+  }
+
+  .vip-callout h3 {
+    font-family: 'Playfair Display', serif;
+    font-size: 1.6rem;
+    color: #fff;
+    margin-bottom: 10px;
+    text-align: center;
+  }
+
+  .vip-callout p {
+    color: rgba(255,255,255,0.55);
+    font-size: 0.92rem;
+    text-align: center;
+    font-weight: 300;
+    line-height: 1.7;
+  }
+
+  /* ── NO-RISK ROW ── */
+  .no-risk {
+    background: var(--warm-dark);
+    padding: 60px 24px;
+    text-align: center;
+  }
+
+  .no-risk h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(1.8rem, 4vw, 2.8rem);
+    margin-bottom: 12px;
+  }
+
+  .no-risk p {
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 300;
+    max-width: 520px;
+    margin: 0 auto 40px;
+    line-height: 1.7;
+  }
+
+  .trust-row {
+    display: flex;
+    justify-content: center;
+    flex-wrap: wrap;
+    gap: 12px;
+    max-width: 680px;
+    margin: 0 auto;
+  }
+
+  .trust-chip {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    background: #fff;
+    border: 1px solid rgba(0,0,0,0.08);
+    border-radius: 40px;
+    padding: 10px 20px;
+    font-size: 0.88rem;
+    font-weight: 400;
+    color: var(--text);
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+
+  .trust-chip .dot {
+    width: 8px; height: 8px;
+    background: var(--gold);
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+
+  /* ── CTA ── */
+  .cta-section {
+    padding: 80px 24px 100px;
+    text-align: center;
+    max-width: 600px;
+    margin: 0 auto;
+  }
+
+  .cta-section h2 {
+    font-family: 'Playfair Display', serif;
+    font-size: clamp(2rem, 4.5vw, 3rem);
+    margin-bottom: 16px;
+    line-height: 1.2;
+  }
+
+  .cta-section h2 em {
+    color: var(--gold);
+    font-style: italic;
+  }
+
+  .cta-section p {
+    color: var(--muted);
+    font-size: 1rem;
+    font-weight: 300;
+    margin-bottom: 40px;
+    line-height: 1.7;
+  }
+
+  .cta-buttons {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+  }
+
+  .btn-primary {
+    display: inline-block;
+    background: var(--deep);
+    color: #fff;
+    font-size: 1rem;
+    font-weight: 500;
+    padding: 18px 44px;
+    border-radius: 50px;
+    text-decoration: none;
+    transition: all 0.25s ease;
+    letter-spacing: 0.02em;
+    border: 2px solid var(--deep);
+  }
+
+  .btn-primary:hover {
+    background: var(--gold);
+    border-color: var(--gold);
+    color: var(--deep);
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(201,168,76,0.3);
+  }
+
+  .btn-secondary {
+    display: inline-block;
+    background: transparent;
+    color: var(--text);
+    font-size: 0.92rem;
+    font-weight: 400;
+    padding: 14px 32px;
+    border-radius: 50px;
+    text-decoration: none;
+    border: 1.5px solid rgba(0,0,0,0.15);
+    transition: all 0.2s ease;
+    letter-spacing: 0.02em;
+  }
+
+  .btn-secondary:hover {
+    border-color: var(--deep);
+    background: rgba(0,0,0,0.03);
+  }
+
+  /* ── FOOTER ── */
+  footer {
+    background: var(--deep);
+    padding: 40px 24px;
+    text-align: center;
+  }
+
+  footer p {
+    color: rgba(255,255,255,0.3);
+    font-size: 0.82rem;
+    font-weight: 300;
+    line-height: 1.8;
+  }
+
+  footer a {
+    color: var(--gold);
+    text-decoration: none;
+  }
+
+  footer .footer-name {
+    font-family: 'Playfair Display', serif;
+    color: rgba(255,255,255,0.7);
+    font-size: 1.1rem;
+    margin-bottom: 8px;
+  }
+
+  /* ── ANIMATIONS ── */
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(24px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .reveal {
+    opacity: 0;
+    transform: translateY(20px);
+    transition: opacity 0.7s ease, transform 0.7s ease;
+  }
+
+  .reveal.visible {
+    opacity: 1;
+    transform: none;
+  }
+
+  /* ── RESPONSIVE ── */
+  @media (max-width: 600px) {
+    .letter-card { padding: 36px 28px; }
+    .letter-body p { font-size: 0.98rem; }
+    .trust-row { gap: 8px; }
+    .vip-callout { padding: 32px 24px; }
+    .offer-section, .no-risk, .cta-section { padding: 60px 20px; }
+    .letter-section { padding: 60px 20px 40px; }
+    .perks-grid { gap: 14px; }
+    .perk { padding: 24px 20px; }
+    .cta-buttons { width: 100%; }
+    .btn-primary, .btn-secondary { width: 100%; text-align: center; padding-left: 20px; padding-right: 20px; }
+  }
+
+  @media (max-width: 400px) {
+    .hero-logos { flex-wrap: wrap; justify-content: center; gap: 10px; }
+    .letter-card { padding: 28px 20px; }
+    .letter-card::before { font-size: 130px; }
+    .vip-callout { padding: 28px 16px; }
+    .vip-callout h3 { font-size: 1.3rem; }
+  }
+</style>
+</head>
+<body>
+
+<!-- ═══════════════════════════ HERO ═══════════════════════════ -->
+<section class="hero">
+  <div class="badge">✦ Exclusive Invitation for Shan's Shine Clients</div>
+  <h1 class="hero-title">Something <em>exciting</em><br>is happening.</h1>
+  <p class="hero-sub">A personal message from Shan — and a very special opportunity.</p>
+  <div class="hero-logos">
+    <div class="logo-pill">Shan's Shine</div>
+    <div class="logo-plus">+</div>
+    <div class="logo-pill">Premium Rentals</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ LETTER ═══════════════════════════ -->
+<section class="letter-section">
+  <div class="section-label reveal">A note from Shan</div>
+  <div class="letter-card reveal">
+    <p class="letter-greeting">Dear Valued Client,</p>
+    <div class="letter-body">
+      <p>I want to reach out personally to share something that has me genuinely <strong>thrilled</strong> for what's ahead — and even more excited to bring <em>you</em> along with me.</p>
+
+      <p>As you may know, I've built Shan's Shine on one thing above all else: the deep care and trust I have for you and your property. That hasn't changed — and it never will.</p>
+
+      <p class="highlight">✨ I am stepping into an exciting new chapter, joining forces with <strong>Premium Rentals</strong> — the Valley's most powerful full-service property management company. And I want you to be the first to know — and the first to benefit.</p>
+
+      <p>Through this new role, I'll continue caring for your home with the same hands-on dedication you've always known from me. The difference? Now I'm backed by a team with the marketing reach, booking power, and operational expertise to take your property to a whole new level.</p>
+
+      <p>I've worked alongside <strong>Kacey Jensen</strong>, CEO of Premium Rentals, for over 10 years. He is someone I trust completely — and together, we're building something truly special for property owners like you.</p>
+
+      <p>This isn't a sales pitch. It's an invitation — from me, personally — to continue this journey together. I would love nothing more than to keep taking care of your home, now with a whole team behind us.</p>
+    </div>
+    <div class="letter-signature">
+      <div class="sig-line">— Shan Garcia</div>
+      <div class="sig-title">Shan's Shine · Now with Premium Rentals</div>
+    </div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ OFFER ═══════════════════════════ -->
+<section class="offer-section">
+  <h2 class="reveal">What this means<br>for <em>you</em></h2>
+  <p class="sub reveal">Everything you loved — amplified.</p>
+
+  <div class="perks-grid">
+    <div class="perk reveal">
+      <div class="perk-icon">🏡</div>
+      <h3>Shan's Touch, Always</h3>
+      <p>The same detail-oriented, personal care for your property that you've come to rely on. That never changes.</p>
+    </div>
+    <div class="perk reveal">
+      <div class="perk-icon">📈</div>
+      <h3>More Bookings, More Revenue</h3>
+      <p>Premium Rentals lists your property across every major platform with professional photography and pricing strategy.</p>
+    </div>
+    <div class="perk reveal">
+      <div class="perk-icon">🎯</div>
+      <h3>Marketing Power</h3>
+      <p>The Valley's most active property marketing engine, now working for your property every single day.</p>
+    </div>
+    <div class="perk reveal">
+      <div class="perk-icon">🤝</div>
+      <h3>Full-Service Management</h3>
+      <p>Guest communications, maintenance coordination, reporting — handled. You relax, we handle everything.</p>
+    </div>
+    <div class="perk reveal">
+      <div class="perk-icon">⭐</div>
+      <h3>Shan's Shine VIP Rate</h3>
+      <p>As a legacy client of Shan's, you receive exclusive preferred pricing available to no one else.</p>
+    </div>
+    <div class="perk reveal">
+      <div class="perk-icon">🔓</div>
+      <h3>No Contracts</h3>
+      <p>Try it. Love it. Stay. No long-term commitment required — we earn your trust every single month.</p>
+    </div>
+  </div>
+
+  <div class="vip-callout reveal">
+    <div class="vip-tag">✦ Shan's Shine Exclusive</div>
+    <h3>VIP Preferred Pricing</h3>
+    <p>Because you already trusted Shan with your home, you qualify for a special rate tier that isn't available to the general public. This offer is exclusively for Shan's Shine clients — and it won't last forever.</p>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ NO RISK ═══════════════════════════ -->
+<section class="no-risk">
+  <h2 class="reveal">You have nothing to lose.</h2>
+  <p class="reveal">No contracts. No commitments. No risk. Just an opportunity to make more from your property while keeping the care you already love.</p>
+  <div class="trust-row">
+    <div class="trust-chip reveal"><span class="dot"></span> No long-term contracts</div>
+    <div class="trust-chip reveal"><span class="dot"></span> Shan stays involved</div>
+    <div class="trust-chip reveal"><span class="dot"></span> VIP pricing locked in</div>
+    <div class="trust-chip reveal"><span class="dot"></span> More revenue potential</div>
+    <div class="trust-chip reveal"><span class="dot"></span> Full-service management</div>
+    <div class="trust-chip reveal"><span class="dot"></span> Trusted for 10+ years</div>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ CTA ═══════════════════════════ -->
+<section class="cta-section">
+  <h2 class="reveal">Ready to keep this<br>journey <em>going?</em></h2>
+  <p class="reveal">Reach out and let's have a quick conversation. There's no pressure — just an open door from Shan and the Premium Rentals team.</p>
+  <div class="cta-buttons">
+    <a href="tel:2083135770" class="btn-primary reveal">📞 Call Us: (208) 313-5770</a>
+    <a href="mailto:info@premiumrentals.com" class="btn-secondary reveal">✉ info@premiumrentals.com</a>
+    <a href="https://www.premiumrentals.com" class="btn-secondary reveal" target="_blank" rel="noopener">www.premiumrentals.com</a>
+  </div>
+</section>
+
+<!-- ═══════════════════════════ FOOTER ═══════════════════════════ -->
+<footer>
+  <div class="footer-name">Premium Rentals</div>
+  <p>
+    3140 W. Belltower Dr., Suite 100 · Meridian, ID 83646<br>
+    <a href="tel:2083135770">(208) 313-5770</a> · <a href="mailto:info@premiumrentals.com">info@premiumrentals.com</a><br><br>
+    This page is private and accessible by direct link only. It is not publicly indexed or searchable.
+  </p>
+</footer>
+
+<script>
+  // Scroll reveal
+  const reveals = document.querySelectorAll('.reveal');
+  const observer = new IntersectionObserver((entries) => {
+    entries.forEach((entry, i) => {
+      if (entry.isIntersecting) {
+        setTimeout(() => entry.target.classList.add('visible'), i * 60);
+        observer.unobserve(entry.target);
+      }
+    });
+  }, { threshold: 0.12, rootMargin: '0px 0px -40px 0px' });
+
+  reveals.forEach(el => observer.observe(el));
+</script>
+</body>
+</html>

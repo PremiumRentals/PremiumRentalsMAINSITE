@@ -1,8 +1,26 @@
-const express = require('express');
-const fetch = require('node-fetch');
-const cors = require('cors');
+const express    = require('express');
+const fetch      = require('node-fetch');
+const cors       = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const Stripe = require('stripe');
+const Stripe     = require('stripe');
+const nodemailer = require('nodemailer');
+
+// Email transporter — set GMAIL_USER + GMAIL_APP_PASS env vars in Railway
+// (Gmail → Settings → Security → 2-Step Verification → App Passwords)
+const mailer = (process.env.GMAIL_USER && process.env.GMAIL_APP_PASS)
+  ? nodemailer.createTransport({
+      service: 'gmail',
+      auth: { user: process.env.GMAIL_USER, pass: process.env.GMAIL_APP_PASS }
+    })
+  : null;
+
+async function sendNotificationEmail({ to, subject, html }) {
+  if (!mailer) { console.warn('Email not configured — set GMAIL_USER + GMAIL_APP_PASS'); return; }
+  try {
+    await mailer.sendMail({ from: `"Premium Rentals" <${process.env.GMAIL_USER}>`, to, subject, html });
+    console.log('Notification email sent to', to);
+  } catch(e) { console.warn('Email send error:', e.message); }
+}
 
 const app = express();
 app.use(express.json());
@@ -649,23 +667,26 @@ app.post('/api/website/contact', async (req, res) => {
     }
     console.log(`Contact form submission saved — ${firstName} ${lastName} <${email}> (${interest})`);
 
-    // Notify via Formspree (awaited so failures appear in logs)
-    try {
-      const fpRes = await fetch('https://formspree.io/f/xeepnaeo', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-        body: JSON.stringify({
-          name:     `${firstName || ''} ${lastName || ''}`.trim(),
-          email:    email || '',
-          _subject: `New Inquiry — ${interest || 'General'} — Premium Rentals`,
-          interest: interest || '',
-          message:  message || ''
-        })
-      });
-      const fpBody = await fpRes.text();
-      if (!fpRes.ok) console.warn('Formspree notification failed:', fpRes.status, fpBody.slice(0, 200));
-      else console.log('Formspree notification sent:', fpRes.status);
-    } catch(fpErr) { console.warn('Formspree error:', fpErr.message); }
+    // Send notification email
+    await sendNotificationEmail({
+      to:      process.env.NOTIFY_EMAIL || process.env.GMAIL_USER,
+      subject: `New Inquiry — ${interest || 'General'} — Premium Rentals`,
+      html: `
+        <div style="font-family:Arial,sans-serif;max-width:600px;margin:0 auto;padding:24px">
+          <h2 style="color:#1a1a1a;margin-bottom:4px">New Contact Form Submission</h2>
+          <p style="color:#888;font-size:13px;margin-bottom:24px">${new Date().toLocaleString('en-US',{timeZone:'America/Denver'})}</p>
+          <table style="width:100%;border-collapse:collapse">
+            <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666;width:120px"><strong>Name</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee">${firstName || ''} ${lastName || ''}</td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666"><strong>Email</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee"><a href="mailto:${email}">${email}</a></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666"><strong>Interest</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee">${interest || 'General'}</td></tr>
+            <tr><td style="padding:10px 0;color:#666;vertical-align:top"><strong>Message</strong></td><td style="padding:10px 0;white-space:pre-wrap">${message || ''}</td></tr>
+          </table>
+          <div style="margin-top:24px;padding:16px;background:#f5f5f5;border-radius:8px;font-size:12px;color:#888">
+            Saved to Supabase website_contacts table.
+          </div>
+        </div>
+      `
+    });
 
     res.json({ success: true });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }

@@ -636,21 +636,37 @@ app.get('/api/website/reviews', async (req, res) => {
 app.post('/api/website/contact', async (req, res) => {
   try {
     const { firstName, lastName, email, interest, message } = req.body;
-    const { error } = await supabase.from('website_contacts')
+    if (!email || !firstName || !message) {
+      return res.status(400).json({ success: false, error: 'Missing required fields' });
+    }
+
+    // Save to Supabase
+    const { error: dbErr } = await supabase.from('website_contacts')
       .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
-    if (error) throw error;
-    // Notify via Formspree (non-blocking)
-    fetch('https://formspree.io/f/xeepnaeo', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
-      body: JSON.stringify({
-        name: `${firstName || ''} ${lastName || ''}`.trim(),
-        email: email || '',
-        _subject: `New Inquiry — ${interest || 'General'} — Premium Rentals`,
-        interest: interest || '',
-        message: message || ''
-      })
-    }).catch(() => {}); // fire-and-forget, never block the response
+    if (dbErr) {
+      console.error('Contact form Supabase error:', dbErr.message);
+      throw dbErr;
+    }
+    console.log(`Contact form submission saved — ${firstName} ${lastName} <${email}> (${interest})`);
+
+    // Notify via Formspree (awaited so failures appear in logs)
+    try {
+      const fpRes = await fetch('https://formspree.io/f/xeepnaeo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+        body: JSON.stringify({
+          name:     `${firstName || ''} ${lastName || ''}`.trim(),
+          email:    email || '',
+          _subject: `New Inquiry — ${interest || 'General'} — Premium Rentals`,
+          interest: interest || '',
+          message:  message || ''
+        })
+      });
+      const fpBody = await fpRes.text();
+      if (!fpRes.ok) console.warn('Formspree notification failed:', fpRes.status, fpBody.slice(0, 200));
+      else console.log('Formspree notification sent:', fpRes.status);
+    } catch(fpErr) { console.warn('Formspree error:', fpErr.message); }
+
     res.json({ success: true });
   } catch(e) { res.status(500).json({ success: false, error: e.message }); }
 });

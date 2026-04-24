@@ -651,22 +651,37 @@ function renderPlaceholders() {
 async function submitContact() {
   const btn = document.getElementById('submitBtn');
   const body = {
-    firstName: document.getElementById('cf-first').value,
-    lastName:  document.getElementById('cf-last').value,
-    email:     document.getElementById('cf-email').value,
+    firstName: document.getElementById('cf-first').value.trim(),
+    lastName:  document.getElementById('cf-last').value.trim(),
+    email:     document.getElementById('cf-email').value.trim(),
     interest:  document.getElementById('cf-interest').value,
-    message:   document.getElementById('cf-message').value
+    message:   document.getElementById('cf-message').value.trim()
   };
-  if (!body.email) return;
+  if (!body.email || !body.firstName || !body.message) {
+    btn.textContent = 'Please fill in required fields';
+    btn.style.background = '#c0392b';
+    setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; }, 3000);
+    return;
+  }
   btn.textContent = 'Sending…';
+  btn.disabled = true;
   try {
-    await fetch(`${API_BASE}/api/website/contact`, {
+    const res  = await fetch(`${API_BASE}/api/website/contact`, {
       method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)
     });
-  } catch {}
-  btn.textContent = 'Message Sent ✓';
-  btn.style.background = 'var(--accent)';
-  setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; }, 3000);
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok || data.success === false) throw new Error(data.error || 'Server error');
+    btn.textContent = 'Message Sent ✓';
+    btn.style.background = 'var(--accent)';
+    // Clear the form
+    ['cf-first','cf-last','cf-email','cf-message'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; btn.disabled = false; }, 4000);
+  } catch(e) {
+    btn.textContent = 'Something went wrong — please try again';
+    btn.style.background = '#c0392b';
+    btn.disabled = false;
+    setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; }, 4000);
+  }
 }
 
 async function submitNewsletter() {

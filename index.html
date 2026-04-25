@@ -463,7 +463,10 @@ nav.scrolled .nav-hamburger span{background:var(--mid)}
         <div class="fg"><label>First Name</label><input type="text" id="cf-first" placeholder="First name"></div>
         <div class="fg"><label>Last Name</label><input type="text" id="cf-last" placeholder="Last name"></div>
       </div>
-      <div class="fg"><label>Email</label><input type="email" id="cf-email" placeholder="your@email.com"></div>
+      <div class="form-row">
+        <div class="fg"><label>Email</label><input type="email" id="cf-email" placeholder="your@email.com"></div>
+        <div class="fg"><label>Phone</label><input type="tel" id="cf-phone" placeholder="(208) 555-0100"></div>
+      </div>
       <div class="fg"><label>I'm Interested In</label>
         <select id="cf-interest"><option>Booking a Property</option><option>Listing My Property</option><option>General Enquiry</option></select>
       </div>
@@ -654,6 +657,7 @@ async function submitContact() {
     firstName: document.getElementById('cf-first').value.trim(),
     lastName:  document.getElementById('cf-last').value.trim(),
     email:     document.getElementById('cf-email').value.trim(),
+    phone:     document.getElementById('cf-phone').value.trim(),
     interest:  document.getElementById('cf-interest').value,
     message:   document.getElementById('cf-message').value.trim()
   };
@@ -674,7 +678,7 @@ async function submitContact() {
     btn.textContent = 'Message Sent ✓';
     btn.style.background = 'var(--accent)';
     // Clear the form
-    ['cf-first','cf-last','cf-email','cf-message'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
+    ['cf-first','cf-last','cf-email','cf-phone','cf-message'].forEach(id => { const el = document.getElementById(id); if(el) el.value = ''; });
     setTimeout(() => { btn.textContent = 'Send Message'; btn.style.background = ''; btn.disabled = false; }, 4000);
   } catch(e) {
     btn.textContent = 'Something went wrong — please try again';

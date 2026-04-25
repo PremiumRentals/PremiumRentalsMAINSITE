@@ -653,14 +653,14 @@ app.get('/api/website/reviews', async (req, res) => {
 // ── Route 7: Contact ──
 app.post('/api/website/contact', async (req, res) => {
   try {
-    const { firstName, lastName, email, interest, message } = req.body;
+    const { firstName, lastName, email, phone, interest, message } = req.body;
     if (!email || !firstName || !message) {
       return res.status(400).json({ success: false, error: 'Missing required fields' });
     }
 
     // Save to Supabase
     const { error: dbErr } = await supabase.from('website_contacts')
-      .insert([{ first_name: firstName, last_name: lastName, email, interest, message }]);
+      .insert([{ first_name: firstName, last_name: lastName, email, phone: phone || null, interest, message }]);
     if (dbErr) {
       console.error('Contact form Supabase error:', dbErr.message);
       throw dbErr;
@@ -678,6 +678,7 @@ app.post('/api/website/contact', async (req, res) => {
           <table style="width:100%;border-collapse:collapse">
             <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666;width:120px"><strong>Name</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee">${firstName || ''} ${lastName || ''}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666"><strong>Email</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee"><a href="mailto:${email}">${email}</a></td></tr>
+            <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666"><strong>Phone</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee">${phone ? `<a href="tel:${phone}">${phone}</a>` : '<span style="color:#aaa">—</span>'}</td></tr>
             <tr><td style="padding:10px 0;border-bottom:1px solid #eee;color:#666"><strong>Interest</strong></td><td style="padding:10px 0;border-bottom:1px solid #eee">${interest || 'General'}</td></tr>
             <tr><td style="padding:10px 0;color:#666;vertical-align:top"><strong>Message</strong></td><td style="padding:10px 0;white-space:pre-wrap">${message || ''}</td></tr>
           </table>

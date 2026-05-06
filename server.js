@@ -1687,21 +1687,57 @@ app.post('/api/quote/:id/reserve', async (req, res) => {
       console.log('Created new Guesty reservation:', reservationId);
     }
 
-    // Step 7: Update guest contact info in Guesty (works for both new and confirmed hold)
-    if (guestId) {
+    // Step 7: Find or create the CUSTOMER'S Guesty guest, then link them to the reservation.
+    // When confirming an existing hold the reservation's guest is still the admin who created
+    // the hold. We must swap it to the actual customer rather than overwriting the admin's profile.
+    if (reservationId && email) {
       try {
-        const guestUpdateBody = {
-          firstName, lastName, email,
-          ...(phone ? { phone: formatPhone(phone) } : {})
-        };
-        const guRes = await fetch(`https://open-api.guesty.com/v1/guests/${guestId}`, {
-          method:  'PUT',
-          headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
-          body:    JSON.stringify(guestUpdateBody)
+        // Search Guesty for an existing guest with the customer's email
+        const glRes  = await fetch(`https://open-api.guesty.com/v1/guests?q=${encodeURIComponent(email)}&limit=5`, {
+          headers: { Authorization: `Bearer ${openToken}` }
         });
-        const guText = await guRes.text();
-        console.log('Guest update response:', guText.slice(0, 200));
-      } catch(e) { console.warn('Guest update warning:', e.message); }
+        const glData = await glRes.json().catch(() => ({}));
+        const glList = glData.results || glData.data || [];
+        const existing = glList.find(g => g.email?.toLowerCase() === email.toLowerCase());
+
+        if (existing) {
+          // Refresh their name/phone while we're here
+          await fetch(`https://open-api.guesty.com/v1/guests/${existing._id}`, {
+            method:  'PUT',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) })
+          });
+          if (existing._id !== guestId) {
+            const swapRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
+              method:  'PUT',
+              headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ guestId: existing._id })
+            });
+            console.log('Guest swap (existing):', swapRes.status, (await swapRes.text()).slice(0, 200));
+            guestId = existing._id;
+          } else {
+            console.log('Guest already correct on reservation:', guestId);
+          }
+        } else {
+          // Create a new Guesty guest for this customer
+          const cgRes  = await fetch('https://open-api.guesty.com/v1/guests', {
+            method:  'POST',
+            headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ firstName, lastName, email, ...(phone ? { phone: formatPhone(phone) } : {}) })
+          });
+          const cgData = await cgRes.json().catch(() => ({}));
+          console.log('Created customer guest:', cgData._id, '| status:', cgRes.status);
+          if (cgData._id) {
+            const swapRes = await fetch(`https://open-api.guesty.com/v1/reservations/${reservationId}`, {
+              method:  'PUT',
+              headers: { Authorization: `Bearer ${openToken}`, 'Content-Type': 'application/json' },
+              body:    JSON.stringify({ guestId: cgData._id })
+            });
+            console.log('Guest swap (new):', swapRes.status, (await swapRes.text()).slice(0, 200));
+            guestId = cgData._id;
+          }
+        }
+      } catch(e) { console.warn('Customer guest setup error:', e.message); }
     }
 
     // Step 7c: Card only — attach PM to Guesty guest using same format as main site so Guesty handles billing

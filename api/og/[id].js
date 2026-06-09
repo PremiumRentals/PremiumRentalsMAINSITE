@@ -38,13 +38,32 @@ export default async function handler(req, res) {
   res.setHeader('Content-Type', 'text/html; charset=utf-8');
   res.setHeader('Cache-Control', 's-maxage=3600, stale-while-revalidate=86400');
 
-  // Serve OG-rich HTML. Browsers get JS redirect instantly; crawlers see the meta tags.
+  // Unknown / deleted property — return a real 404 so Google doesn't soft-404 it
+  if (!listing) {
+    res.status(404).send(`<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Property Not Found — Premium Rentals</title>
+  <meta name="robots" content="noindex, nofollow">
+</head>
+<body>
+  <h1>Property not found</h1>
+  <p><a href="https://premiumrentals.com/properties">Browse all properties</a></p>
+</body>
+</html>`);
+    return;
+  }
+
+  // This route exists purely for social-share previews (iMessage, WhatsApp, etc.).
+  // The indexable property page is property.html?id=... — noindex here avoids thin-page penalties.
   res.send(`<!DOCTYPE html>
 <html lang="en">
 <head>
   <meta charset="UTF-8">
   <title>${esc(title)}</title>
   <meta name="description" content="${esc(desc)}">
+  <meta name="robots" content="noindex, follow">
 
   <!-- Open Graph -->
   <meta property="og:type"        content="website">
